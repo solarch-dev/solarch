@@ -23,7 +23,7 @@
 
 <br />
 
-<img src="./assets/AICanvasBuilding.gif" width="100%" alt="Solarch — AI builds rule-validated architecture from a single prompt" />
+<img src="./assets/1.gif" width="100%" alt="Solarch — AI builds rule-validated architecture from a single prompt" />
 
 <br />
 
