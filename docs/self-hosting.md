@@ -11,13 +11,22 @@ single-origin reverse proxy — runs with one command.
 
 ## Quick start
 
+The fastest path is the **setup wizard** — it asks for your AI provider + key, Clerk keys, and
+a database password, writes `.env`, and starts the stack:
+
 ```bash
 git clone https://github.com/solarch-dev/solarch.git
 cd solarch
-cp .env.example .env
-# edit .env — set NEO4J_PASSWORD, the Clerk keys, and an LLM provider key
-docker compose up --build
+./install.sh          # Windows: ./install.ps1
 # → http://localhost:3000
+```
+
+Prefer to configure by hand:
+
+```bash
+cp .env.example .env
+# edit .env — set NEO4J_PASSWORD, the Clerk keys, and an AI provider key
+docker compose up --build
 ```
 
 On first boot the server initializes the graph database (schema, the GraphRAG vector index,
@@ -32,9 +41,11 @@ The minimum for a working instance:
 | `NEO4J_PASSWORD` | Database password (written on first run; reset the volume to change it later) |
 | `CLERK_SECRET_KEY` + `CLERK_PUBLISHABLE_KEY` | Server-side auth |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Same publishable key, baked into the web build |
-| `DEEPSEEK_API_KEY` (or a Bedrock block) | AI Architect / chat |
+| `LLM_GENERATION_PROVIDER` + that provider's key | AI Architect / chat (OpenAI, Anthropic, DeepSeek, Ollama, …) |
 
-Everything else (Polar billing, PostHog analytics, guest mode) is optional and degrades
+Solarch supports many AI providers — see **[ai-providers.md](./ai-providers.md)**. Self-host
+runs with `BILLING_ENABLED=false`, so AI and code generation are **unlimited** with your own
+key. Everything else (Polar billing, PostHog analytics, guest mode) is optional and degrades
 gracefully when left blank. See `.env.example` for the full annotated list.
 
 > **Note on the web build:** Vite inlines `VITE_*` variables at build time, so the web image

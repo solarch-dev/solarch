@@ -159,17 +159,20 @@ The output isn't *trustworthy* code. It's *provably correct* structure.
 
 The fastest way to use Solarch is the hosted app — **[app.solarch.dev](https://app.solarch.dev)** — no setup, always up to date.
 
-To run the whole stack yourself — a vector-native Neo4j, the NestJS server, and the canvas web app behind a single-origin proxy — one command:
+To run the whole stack yourself — a vector-native Neo4j, the NestJS server, and the canvas web app behind a single-origin proxy:
 
 ```bash
 git clone https://github.com/solarch-dev/solarch.git
 cd solarch
-cp .env.example .env          # set NEO4J_PASSWORD, Clerk keys, and an LLM provider key
-docker compose up --build
+./install.sh            # interactive setup wizard (Windows: ./install.ps1)
 # → http://localhost:3000
 ```
 
-On first boot the server initializes the graph database (schema, the GraphRAG vector index, and the canonical pattern seed) — idempotent, so restarts are safe. Only Clerk and one OpenAI-compatible LLM key are required; everything else degrades gracefully. Full guide: **[docs/self-hosting.md](./docs/self-hosting.md)**.
+The wizard asks for your **AI provider + API key**, Clerk keys, and a database password, writes `.env`, and starts the stack. Prefer to do it by hand? `cp .env.example .env`, edit, then `docker compose up --build`.
+
+**Bring your own AI key.** Solarch supports OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, Groq, OpenRouter (300+ models), Ollama (local/offline), Bedrock, and any OpenAI-compatible endpoint — self-host runs **unlimited**, no metering. See **[docs/ai-providers.md](./docs/ai-providers.md)**.
+
+On first boot the server initializes the graph database (schema, the GraphRAG vector index, and the canonical pattern seed) — idempotent, so restarts are safe. Full guide: **[docs/self-hosting.md](./docs/self-hosting.md)**.
 
 ### Repository layout
 
