@@ -241,21 +241,22 @@ it("no project -> 404 ERR_PROJECT_NOT_FOUND", async () => {
     expect(res.body.error.code).toBe("ERR_PROJECT_NOT_FOUND");
   });
 
-  it("skippedKinds + stub: unsupported kind (Cache) survives DB round-trip", async () => {
+  it("skippedKinds: EnvironmentVariable survives DB round-trip (config, not a code module)", async () => {
     await seedGraph();
 
-// Add an unsupported kind (Cache) — emitter produces stub, skippedKinds counts.
+    // EnvironmentVariable is not in EMITTER_REGISTRY — counted in skippedKinds, no stub file.
+    // Config is represented once in scaffold .env.example (see codegen.service.spec.ts).
     await createNode({
-      type: "Cache",
+      type: "EnvironmentVariable",
       projectId,
       position: { x: 0, y: 0 },
       properties: {
-        CacheName: "SessionCache",
-        Description: "Session cache",
-        KeyPattern: "session:{id}",
-        TTL_Seconds: 3600,
-        Engine: "Redis",
-        EvictionPolicy: "LRU",
+        Key: "DATABASE_URL",
+        Description: "DB connection",
+        DataType: "String",
+        IsSecret: false,
+        Environment: ["Prod"],
+        IsRequired: true,
       },
     });
 
@@ -265,11 +266,11 @@ it("no project -> 404 ERR_PROJECT_NOT_FOUND", async () => {
       .expect(200);
 
     const data = res.body.data;
-// skippedKinds Passed the full path Controller->Service->Repository->Neo4j.
-    expect(data.summary.skippedKinds).toEqual({ Cache: 1 });
-// The relevant stub file should be generated.
+    expect(data.summary.skippedKinds).toEqual({ EnvironmentVariable: 1 });
     const paths: string[] = data.files.map((f: { path: string }) => f.path);
-    expect(paths.some((p) => p.endsWith(".cache.stub.ts"))).toBe(true);
+    expect(paths.some((p) => p.endsWith(".stub.ts"))).toBe(false);
+    const envExample = data.files.find((f: { path: string }) => f.path === ".env.example");
+    expect(envExample?.content).toContain("DATABASE_URL");
   });
 
   it("DETERMINISM: same graph generated twice -> byte-identical files", async () => {
