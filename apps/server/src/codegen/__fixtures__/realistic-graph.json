@@ -1,0 +1,5188 @@
+{
+  "nodes": [
+    {
+      "id": "8d92444d-7a4e-42d1-901d-d260b916c172",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 5888,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:45.810Z",
+      "updatedAt": "2026-06-07T15:46:45.810Z",
+      "version": 1,
+      "properties": {
+        "TableName": "Reservations",
+        "Description": "Table reservations at restaurants",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "ReservationDate",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "PartySize",
+            "DataType": "INT",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Status",
+            "DataType": "ENUM",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "EnumRef": "ReservationStatus"
+          },
+          {
+            "Name": "Notes",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "UserId"
+            ],
+            "ReferencesTable": "Users",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "RestaurantId"
+            ],
+            "ReferencesTable": "Restaurants",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": []
+      }
+    },
+    {
+      "id": "138616a2-04e0-4666-bae5-2a0d0abcade1",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1228,
+      "positionY": 386,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.669Z",
+      "updatedAt": "2026-06-07T15:48:00.669Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "UserService",
+        "Description": "Manages user profile operations",
+        "IsTransactionScoped": false,
+        "Methods": [
+          {
+            "MethodName": "GetById",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "UserResponse",
+            "ReturnDtoRef": "UserResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves user by ID"
+          },
+          {
+            "MethodName": "GetByEmail",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "email",
+                "Type": "VARCHAR",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "UserResponse",
+            "ReturnDtoRef": "UserResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves user by email"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "UserRepository"
+          }
+        ]
+      }
+    },
+    {
+      "id": "3ec99a80-f6e0-433e-b083-2a360238066e",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 48,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.684Z",
+      "updatedAt": "2026-06-07T15:48:00.684Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "RestaurantService",
+        "Description": "Manages restaurant CRUD and listing operations",
+        "IsTransactionScoped": false,
+        "Methods": [
+          {
+            "MethodName": "GetAll",
+            "Visibility": "public",
+            "Parameters": [],
+            "ReturnType": "array",
+            "ReturnDtoRef": "RestaurantResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Lists all active restaurants"
+          },
+          {
+            "MethodName": "GetById",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "RestaurantResponse",
+            "ReturnDtoRef": "RestaurantResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves restaurant details"
+          },
+          {
+            "MethodName": "Create",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "request",
+                "Type": "RestaurantResponse",
+                "Optional": false,
+                "DtoRef": "RestaurantResponse"
+              }
+            ],
+            "ReturnType": "RestaurantResponse",
+            "ReturnDtoRef": "RestaurantResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException"
+            ],
+            "Description": "Creates a new restaurant"
+          },
+          {
+            "MethodName": "Search",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "cuisineType",
+                "Type": "VARCHAR",
+                "Optional": true
+              },
+              {
+                "Name": "keyword",
+                "Type": "VARCHAR",
+                "Optional": true
+              }
+            ],
+            "ReturnType": "array",
+            "ReturnDtoRef": "RestaurantResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Searches restaurants by cuisine or keyword"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "RestaurantRepository"
+          },
+          {
+            "Kind": "Cache",
+            "Ref": "RedisCache"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bb80edd5-3205-4b4e-94cb-d6c4b3216eea",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 5609,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.758Z",
+      "updatedAt": "2026-06-07T15:48:00.758Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "MenuService",
+        "Description": "Manages menu items for restaurants",
+        "IsTransactionScoped": false,
+        "Methods": [
+          {
+            "MethodName": "GetByRestaurantId",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "array",
+            "ReturnDtoRef": "MenuItemResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Lists menu items for a restaurant"
+          },
+          {
+            "MethodName": "GetById",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "menuItemId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "MenuItemResponse",
+            "ReturnDtoRef": "MenuItemResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves a single menu item"
+          },
+          {
+            "MethodName": "Create",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "request",
+                "Type": "MenuItemResponse",
+                "Optional": false,
+                "DtoRef": "MenuItemResponse"
+              }
+            ],
+            "ReturnType": "MenuItemResponse",
+            "ReturnDtoRef": "MenuItemResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException"
+            ],
+            "Description": "Adds a new menu item"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "MenuItemRepository"
+          },
+          {
+            "Kind": "Cache",
+            "Ref": "RedisCache"
+          }
+        ]
+      }
+    },
+    {
+      "id": "7ea78369-5543-4873-9186-f26f37442a4c",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 1849,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:45.902Z",
+      "updatedAt": "2026-06-07T15:46:45.902Z",
+      "version": 1,
+      "properties": {
+        "TableName": "Reviews",
+        "Description": "Customer reviews for restaurants",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Rating",
+            "DataType": "INT",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Comment",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "UserId"
+            ],
+            "ReferencesTable": "Users",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "RestaurantId"
+            ],
+            "ReferencesTable": "Restaurants",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "CASCADE",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [
+          {
+            "Columns": [
+              "UserId",
+              "RestaurantId"
+            ]
+          }
+        ],
+        "CheckConstraints": [
+          {
+            "Expression": "Rating >= 1 AND Rating <= 5"
+          }
+        ],
+        "Indexes": []
+      }
+    },
+    {
+      "id": "90fdb61a-921b-4b1a-83ef-a54976315f94",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 5622,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:45.716Z",
+      "updatedAt": "2026-06-07T15:46:45.716Z",
+      "version": 1,
+      "properties": {
+        "TableName": "OrderItems",
+        "Description": "Individual items within an order",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "OrderId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "MenuItemId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Quantity",
+            "DataType": "INT",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UnitPrice",
+            "DataType": "DECIMAL",
+            "Precision": 10,
+            "Scale": 2,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "OrderId"
+            ],
+            "ReferencesTable": "Orders",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "CASCADE",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "MenuItemId"
+            ],
+            "ReferencesTable": "MenuItems",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": []
+      }
+    },
+    {
+      "id": "c14b1bde-d739-46ce-8c17-809bdcd38c27",
+      "type": "Enum",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 2038,
+      "positionY": 5356,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:45.965Z",
+      "updatedAt": "2026-06-07T15:46:45.965Z",
+      "version": 1,
+      "properties": {
+        "Name": "OrderStatus",
+        "Description": "Tracks the lifecycle of an order",
+        "BackingType": "string",
+        "Values": [
+          {
+            "Key": "PENDING",
+            "Value": "pending"
+          },
+          {
+            "Key": "CONFIRMED",
+            "Value": "confirmed"
+          },
+          {
+            "Key": "PREPARING",
+            "Value": "preparing"
+          },
+          {
+            "Key": "READY",
+            "Value": "ready"
+          },
+          {
+            "Key": "DELIVERED",
+            "Value": "delivered"
+          },
+          {
+            "Key": "CANCELLED",
+            "Value": "cancelled"
+          }
+        ],
+        "Transitions": [
+          {
+            "From": "PENDING",
+            "To": [
+              "CONFIRMED",
+              "CANCELLED"
+            ]
+          },
+          {
+            "From": "CONFIRMED",
+            "To": [
+              "PREPARING",
+              "CANCELLED"
+            ]
+          },
+          {
+            "From": "PREPARING",
+            "To": [
+              "READY",
+              "CANCELLED"
+            ]
+          },
+          {
+            "From": "READY",
+            "To": [
+              "DELIVERED",
+              "CANCELLED"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c7df2f28-2db7-44b5-a95f-1f5f85269886",
+      "type": "Enum",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 2038,
+      "positionY": 5888,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:46.024Z",
+      "updatedAt": "2026-06-07T15:46:46.024Z",
+      "version": 1,
+      "properties": {
+        "Name": "ReservationStatus",
+        "Description": "Tracks reservation state",
+        "BackingType": "string",
+        "Values": [
+          {
+            "Key": "PENDING",
+            "Value": "pending"
+          },
+          {
+            "Key": "CONFIRMED",
+            "Value": "confirmed"
+          },
+          {
+            "Key": "SEATED",
+            "Value": "seated"
+          },
+          {
+            "Key": "COMPLETED",
+            "Value": "completed"
+          },
+          {
+            "Key": "CANCELLED",
+            "Value": "cancelled"
+          },
+          {
+            "Key": "NO_SHOW",
+            "Value": "no_show"
+          }
+        ]
+      }
+    },
+    {
+      "id": "366edf5d-3f24-4aa7-b0d7-ebacb3c781fe",
+      "type": "Enum",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 2428,
+      "positionY": 2433,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:46.059Z",
+      "updatedAt": "2026-06-07T15:46:46.059Z",
+      "version": 1,
+      "properties": {
+        "Name": "UserRole",
+        "Description": "Defines user access levels",
+        "BackingType": "string",
+        "Values": [
+          {
+            "Key": "CUSTOMER",
+            "Value": "customer"
+          },
+          {
+            "Key": "RESTAURANT_ADMIN",
+            "Value": "restaurant_admin"
+          },
+          {
+            "Key": "PLATFORM_ADMIN",
+            "Value": "platform_admin"
+          }
+        ]
+      }
+    },
+    {
+      "id": "f7b411e0-37bb-4be1-b0a6-455a52a2c84e",
+      "type": "Enum",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 2038,
+      "positionY": 1583,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:46:46.094Z",
+      "updatedAt": "2026-06-07T15:46:46.094Z",
+      "version": 1,
+      "properties": {
+        "Name": "CuisineType",
+        "Description": "Types of cuisine a restaurant can serve",
+        "BackingType": "string",
+        "Values": [
+          {
+            "Key": "ITALIAN",
+            "Value": "italian"
+          },
+          {
+            "Key": "CHINESE",
+            "Value": "chinese"
+          },
+          {
+            "Key": "JAPANESE",
+            "Value": "japanese"
+          },
+          {
+            "Key": "MEXICAN",
+            "Value": "mexican"
+          },
+          {
+            "Key": "INDIAN",
+            "Value": "indian"
+          },
+          {
+            "Key": "FRENCH",
+            "Value": "french"
+          },
+          {
+            "Key": "AMERICAN",
+            "Value": "american"
+          },
+          {
+            "Key": "MEDITERRANEAN",
+            "Value": "mediterranean"
+          },
+          {
+            "Key": "OTHER",
+            "Value": "other"
+          }
+        ]
+      }
+    },
+    {
+      "id": "506fea2d-e7ae-4c9f-9cb2-e1cbf0669696",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 2028,
+      "positionY": 2407,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:05.605Z",
+      "updatedAt": "2026-06-07T15:47:05.605Z",
+      "version": 1,
+      "properties": {
+        "TableName": "Users",
+        "Description": "Stores user accounts including customers and restaurant admins",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Email",
+            "DataType": "VARCHAR",
+            "Length": 255,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "PasswordHash",
+            "DataType": "VARCHAR",
+            "Length": 512,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "FullName",
+            "DataType": "VARCHAR",
+            "Length": 200,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Role",
+            "DataType": "ENUM",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "EnumRef": "UserRole"
+          },
+          {
+            "Name": "PhoneNumber",
+            "DataType": "VARCHAR",
+            "Length": 20,
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": [
+          {
+            "IndexName": "IX_Users_Email",
+            "Columns": [
+              "Email"
+            ],
+            "Type": "BTree",
+            "IsUnique": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "44618c13-2b8c-4ebf-a538-c01ee3d23732",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 1583,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:05.661Z",
+      "updatedAt": "2026-06-07T15:47:05.661Z",
+      "version": 1,
+      "properties": {
+        "TableName": "Restaurants",
+        "Description": "Stores restaurant listings with details",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Name",
+            "DataType": "VARCHAR",
+            "Length": 200,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CuisineType",
+            "DataType": "ENUM",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "EnumRef": "CuisineType"
+          },
+          {
+            "Name": "Address",
+            "DataType": "VARCHAR",
+            "Length": 500,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "OwnerId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Rating",
+            "DataType": "FLOAT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "IsActive",
+            "DataType": "BOOLEAN",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "OwnerId"
+            ],
+            "ReferencesTable": "Users",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": []
+      }
+    },
+    {
+      "id": "a6b1fa81-a0bf-4cc0-9643-b77cf0c8a532",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 6154,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:05.723Z",
+      "updatedAt": "2026-06-07T15:47:05.723Z",
+      "version": 1,
+      "properties": {
+        "TableName": "MenuItems",
+        "Description": "Menu items belonging to a restaurant",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Name",
+            "DataType": "VARCHAR",
+            "Length": 200,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Price",
+            "DataType": "DECIMAL",
+            "Precision": 10,
+            "Scale": 2,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Category",
+            "DataType": "VARCHAR",
+            "Length": 100,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "ImageUrl",
+            "DataType": "VARCHAR",
+            "Length": 500,
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "IsAvailable",
+            "DataType": "BOOLEAN",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "RestaurantId"
+            ],
+            "ReferencesTable": "Restaurants",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "CASCADE",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": [
+          {
+            "IndexName": "IX_MenuItems_RestaurantId",
+            "Columns": [
+              "RestaurantId"
+            ],
+            "Type": "BTree",
+            "IsUnique": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "c377a033-3c4f-4ed2-b1e4-90bb109c745e",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 5356,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:05.785Z",
+      "updatedAt": "2026-06-07T15:47:05.785Z",
+      "version": 1,
+      "properties": {
+        "TableName": "Orders",
+        "Description": "Customer orders placed at restaurants",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Status",
+            "DataType": "ENUM",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "EnumRef": "OrderStatus"
+          },
+          {
+            "Name": "TotalAmount",
+            "DataType": "DECIMAL",
+            "Precision": 10,
+            "Scale": 2,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "Notes",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "UserId"
+            ],
+            "ReferencesTable": "Users",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "RestaurantId"
+            ],
+            "ReferencesTable": "Restaurants",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "RESTRICT",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": [
+          {
+            "IndexName": "IX_Orders_UserId",
+            "Columns": [
+              "UserId"
+            ],
+            "Type": "BTree",
+            "IsUnique": false
+          },
+          {
+            "IndexName": "IX_Orders_RestaurantId",
+            "Columns": [
+              "RestaurantId"
+            ],
+            "Type": "BTree",
+            "IsUnique": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "a819d7c7-81c1-4cb9-bcbc-f9875e14bbb4",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 965,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:24.898Z",
+      "updatedAt": "2026-06-07T15:47:24.898Z",
+      "version": 1,
+      "properties": {
+        "Name": "LoginRequest",
+        "Description": "Payload for user login",
+        "Fields": [
+          {
+            "Name": "Email",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "Email"
+              }
+            ]
+          },
+          {
+            "Name": "Password",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "MinLength",
+                "Value": "8"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "496eead2-d4d1-4525-9317-60d75cb2e97f",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 1153,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.114Z",
+      "updatedAt": "2026-06-07T15:47:25.114Z",
+      "version": 1,
+      "properties": {
+        "Name": "RegisterRequest",
+        "Description": "Payload for user registration",
+        "Fields": [
+          {
+            "Name": "Email",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "Email"
+              }
+            ]
+          },
+          {
+            "Name": "Password",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "MinLength",
+                "Value": "8"
+              }
+            ]
+          },
+          {
+            "Name": "FullName",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "MinLength",
+                "Value": "2"
+              }
+            ]
+          },
+          {
+            "Name": "PhoneNumber",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "a06cc4ee-71ba-409f-85ef-837f699bc84f",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 1899,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.135Z",
+      "updatedAt": "2026-06-07T15:47:25.135Z",
+      "version": 1,
+      "properties": {
+        "Name": "OrderCreateRequest",
+        "Description": "Payload to create a new order",
+        "Fields": [
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Items",
+            "DataType": "JSON",
+            "IsRequired": true,
+            "IsArray": true,
+            "ValidationRules": [],
+            "NestedDTORef": "OrderItemRequest"
+          },
+          {
+            "Name": "Notes",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "c98476b6-ee6f-43ac-bf49-7fd97943fc7e",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 2379,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.149Z",
+      "updatedAt": "2026-06-07T15:47:25.149Z",
+      "version": 1,
+      "properties": {
+        "Name": "OrderItemRequest",
+        "Description": "Single item within an order request",
+        "Fields": [
+          {
+            "Name": "MenuItemId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Quantity",
+            "DataType": "INT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "Positive"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "79f7f335-41d8-49f4-84a5-117b67e5b92d",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 3073,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.169Z",
+      "updatedAt": "2026-06-07T15:47:25.169Z",
+      "version": 1,
+      "properties": {
+        "Name": "ReservationRequest",
+        "Description": "Payload to create a reservation",
+        "Fields": [
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "ReservationDate",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "PartySize",
+            "DataType": "INT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "Positive"
+              }
+            ]
+          },
+          {
+            "Name": "Notes",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "a241de15-d05e-435c-8f95-f9e94462b763",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 3767,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.198Z",
+      "updatedAt": "2026-06-07T15:47:25.198Z",
+      "version": 1,
+      "properties": {
+        "Name": "ReviewRequest",
+        "Description": "Payload to submit a review",
+        "Fields": [
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Rating",
+            "DataType": "INT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "Min",
+                "Value": "1"
+              },
+              {
+                "Rule": "Max",
+                "Value": "5"
+              }
+            ]
+          },
+          {
+            "Name": "Comment",
+            "DataType": "TEXT",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "ef93a957-3b99-41b8-8979-b081a7cbb857",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 1393,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.214Z",
+      "updatedAt": "2026-06-07T15:47:25.214Z",
+      "version": 1,
+      "properties": {
+        "Name": "UserResponse",
+        "Description": "User data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Email",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "FullName",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Role",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [],
+            "EnumRef": "UserRole"
+          },
+          {
+            "Name": "PhoneNumber",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "06cbfd54-430a-4e3f-a8c8-15a73c55cc71",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 2113,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.222Z",
+      "updatedAt": "2026-06-07T15:47:25.222Z",
+      "version": 1,
+      "properties": {
+        "Name": "OrderResponse",
+        "Description": "Order data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Status",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [],
+            "EnumRef": "OrderStatus"
+          },
+          {
+            "Name": "TotalAmount",
+            "DataType": "DECIMAL",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Items",
+            "DataType": "JSON",
+            "IsRequired": true,
+            "IsArray": true,
+            "ValidationRules": [],
+            "NestedDTORef": "OrderItemResponse"
+          },
+          {
+            "Name": "Notes",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "05660a68-240d-4bf5-904e-3bfe52d414d7",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 2567,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.277Z",
+      "updatedAt": "2026-06-07T15:47:25.277Z",
+      "version": 1,
+      "properties": {
+        "Name": "OrderItemResponse",
+        "Description": "Single order item in response",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "MenuItemId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "MenuItemName",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Quantity",
+            "DataType": "INT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "UnitPrice",
+            "DataType": "DECIMAL",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "0a88569c-ede9-4851-972f-33758ada0307",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 5823,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.326Z",
+      "updatedAt": "2026-06-07T15:47:25.326Z",
+      "version": 1,
+      "properties": {
+        "Name": "MenuItemResponse",
+        "Description": "Menu item data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Name",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Price",
+            "DataType": "DECIMAL",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Category",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "ImageUrl",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "IsAvailable",
+            "DataType": "BOOLEAN",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "3175404e-6478-420a-8ea3-7e7d95e44ca5",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 288,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.418Z",
+      "updatedAt": "2026-06-07T15:47:25.418Z",
+      "version": 1,
+      "properties": {
+        "Name": "RestaurantResponse",
+        "Description": "Restaurant data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Name",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "CuisineType",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [],
+            "EnumRef": "CuisineType"
+          },
+          {
+            "Name": "Address",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Rating",
+            "DataType": "FLOAT",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "IsActive",
+            "DataType": "BOOLEAN",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "a454c7c0-d20a-4399-a9b2-039929a70cfa",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 3313,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:25.487Z",
+      "updatedAt": "2026-06-07T15:47:25.487Z",
+      "version": 1,
+      "properties": {
+        "Name": "ReservationResponse",
+        "Description": "Reservation data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "ReservationDate",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "PartySize",
+            "DataType": "INT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Status",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [],
+            "EnumRef": "ReservationStatus"
+          },
+          {
+            "Name": "Notes",
+            "DataType": "VARCHAR",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "7d0a06b5-204f-4d99-8415-8bbe5b6826cd",
+      "type": "Exception",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1658,
+      "positionY": 3554,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.340Z",
+      "updatedAt": "2026-06-07T15:47:38.340Z",
+      "version": 1,
+      "properties": {
+        "ExceptionName": "NotFoundException",
+        "Description": "Thrown when a requested resource is not found",
+        "HttpStatusCode": 404,
+        "LogSeverity": "Warning",
+        "ErrorCode": "NOT_FOUND"
+      }
+    },
+    {
+      "id": "5903ce82-a9cd-43a4-bcac-d6f757454e22",
+      "type": "Exception",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1258,
+      "positionY": 1101,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.379Z",
+      "updatedAt": "2026-06-07T15:47:38.379Z",
+      "version": 1,
+      "properties": {
+        "ExceptionName": "ValidationException",
+        "Description": "Thrown when input validation fails",
+        "HttpStatusCode": 400,
+        "LogSeverity": "Info",
+        "ErrorCode": "VALIDATION_ERROR"
+      }
+    },
+    {
+      "id": "577b9eb8-2870-45e1-b4d9-834b7a51cdbd",
+      "type": "Exception",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1258,
+      "positionY": 615,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.390Z",
+      "updatedAt": "2026-06-07T15:47:38.390Z",
+      "version": 1,
+      "properties": {
+        "ExceptionName": "UnauthorizedException",
+        "Description": "Thrown when authentication or authorization fails",
+        "HttpStatusCode": 401,
+        "LogSeverity": "Warning",
+        "ErrorCode": "UNAUTHORIZED"
+      }
+    },
+    {
+      "id": "f979cdc0-772b-43d7-8619-cdbdc83b08e1",
+      "type": "Exception",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1258,
+      "positionY": 2997,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.404Z",
+      "updatedAt": "2026-06-07T15:47:38.404Z",
+      "version": 1,
+      "properties": {
+        "ExceptionName": "ConflictException",
+        "Description": "Thrown when a resource conflict occurs (e.g. duplicate reservation)",
+        "HttpStatusCode": 409,
+        "LogSeverity": "Warning",
+        "ErrorCode": "CONFLICT"
+      }
+    },
+    {
+      "id": "ecf4ac9c-91f4-4fa8-abf7-f5585aef35b9",
+      "type": "EnvironmentVariable",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1258,
+      "positionY": 777,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.413Z",
+      "updatedAt": "2026-06-07T15:47:38.413Z",
+      "version": 1,
+      "properties": {
+        "Key": "DB_CONNECTION_STRING",
+        "Description": "PostgreSQL connection string for the primary database",
+        "DataType": "String",
+        "IsSecret": true,
+        "Environment": [
+          "Dev",
+          "Staging",
+          "Prod"
+        ],
+        "IsRequired": true
+      }
+    },
+    {
+      "id": "e1c17afb-4ba5-4fbc-917b-1e8fa6e8ea40",
+      "type": "EnvironmentVariable",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1258,
+      "positionY": 939,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.443Z",
+      "updatedAt": "2026-06-07T15:47:38.443Z",
+      "version": 1,
+      "properties": {
+        "Key": "JWT_SECRET",
+        "Description": "Secret key for signing JWT tokens",
+        "DataType": "String",
+        "IsSecret": true,
+        "Environment": [
+          "Dev",
+          "Staging",
+          "Prod"
+        ],
+        "IsRequired": true
+      }
+    },
+    {
+      "id": "2364ad66-f7bc-4fd2-aa2b-ad60c26dcb7d",
+      "type": "EnvironmentVariable",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1258,
+      "positionY": 200,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.526Z",
+      "updatedAt": "2026-06-07T15:47:38.526Z",
+      "version": 1,
+      "properties": {
+        "Key": "REDIS_URL",
+        "Description": "Redis connection URL for caching",
+        "DataType": "String",
+        "IsSecret": true,
+        "Environment": [
+          "Dev",
+          "Staging",
+          "Prod"
+        ],
+        "IsRequired": true
+      }
+    },
+    {
+      "id": "0ac8863d-db5c-4294-a938-2e24d60047cb",
+      "type": "Cache",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 2809,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.558Z",
+      "updatedAt": "2026-06-07T15:47:38.558Z",
+      "version": 1,
+      "properties": {
+        "CacheName": "RedisCache",
+        "Description": "Redis-based cache for frequently accessed data like restaurant listings and menu items",
+        "KeyPattern": "restaurant:{entity}:{id}",
+        "TTL_Seconds": 300,
+        "Engine": "Redis",
+        "EvictionPolicy": "LRU",
+        "MaxSizeMB": 256,
+        "Serialization": "json"
+      }
+    },
+    {
+      "id": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "type": "Middleware",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 58,
+      "positionY": 3193,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.606Z",
+      "updatedAt": "2026-06-07T15:47:38.606Z",
+      "version": 1,
+      "properties": {
+        "MiddlewareName": "JwtAuthMiddleware",
+        "Description": "Validates JWT tokens and sets user context on protected routes",
+        "AppliesTo": "SpecificRoutes",
+        "ExecutionOrder": 1,
+        "MiddlewareType": "Auth",
+        "Config": [
+          {
+            "Key": "TokenExpiryHours",
+            "Value": "24"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c2e6b671-0fc9-488d-8984-93fb886a75f5",
+      "type": "Middleware",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 56,
+      "positionY": 5296,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.657Z",
+      "updatedAt": "2026-06-07T15:47:38.657Z",
+      "version": 1,
+      "properties": {
+        "MiddlewareName": "ErrorHandlerMiddleware",
+        "Description": "Global exception handler that maps exceptions to HTTP responses",
+        "AppliesTo": "Global",
+        "ExecutionOrder": 99,
+        "MiddlewareType": "ErrorHandler",
+        "Config": []
+      }
+    },
+    {
+      "id": "ace78904-8e85-42c4-ad84-e38921f30a9c",
+      "type": "Middleware",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 58,
+      "positionY": 773,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:47:38.681Z",
+      "updatedAt": "2026-06-07T15:47:38.681Z",
+      "version": 1,
+      "properties": {
+        "MiddlewareName": "RateLimitMiddleware",
+        "Description": "Rate limiting per IP/user to prevent abuse",
+        "AppliesTo": "Global",
+        "ExecutionOrder": 0,
+        "MiddlewareType": "RateLimit",
+        "Config": [
+          {
+            "Key": "MaxRequestsPerMinute",
+            "Value": "60"
+          }
+        ]
+      }
+    },
+    {
+      "id": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 777,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.583Z",
+      "updatedAt": "2026-06-07T15:48:00.583Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "AuthService",
+        "Description": "Handles user authentication, JWT token generation, and registration",
+        "IsTransactionScoped": true,
+        "Methods": [
+          {
+            "MethodName": "Login",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "request",
+                "Type": "LoginRequest",
+                "Optional": false,
+                "DtoRef": "LoginRequest"
+              }
+            ],
+            "ReturnType": "string",
+            "ReturnDtoRef": "UserResponse",
+            "IsAsync": true,
+            "Throws": [
+              "UnauthorizedException"
+            ],
+            "Description": "Authenticates user and returns JWT token"
+          },
+          {
+            "MethodName": "Register",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "request",
+                "Type": "RegisterRequest",
+                "Optional": false,
+                "DtoRef": "RegisterRequest"
+              }
+            ],
+            "ReturnType": "UserResponse",
+            "ReturnDtoRef": "UserResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException",
+              "ConflictException"
+            ],
+            "Description": "Registers a new user account"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "UserRepository"
+          },
+          {
+            "Kind": "Service",
+            "Ref": "UserService"
+          }
+        ]
+      }
+    },
+    {
+      "id": "197648e1-e59b-495f-ab34-b72032be608a",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 1659,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.816Z",
+      "updatedAt": "2026-06-07T15:48:00.816Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "OrderService",
+        "Description": "Manages order lifecycle from creation to delivery",
+        "IsTransactionScoped": true,
+        "Methods": [
+          {
+            "MethodName": "Create",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "request",
+                "Type": "OrderCreateRequest",
+                "Optional": false,
+                "DtoRef": "OrderCreateRequest"
+              }
+            ],
+            "ReturnType": "OrderResponse",
+            "ReturnDtoRef": "OrderResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException",
+              "NotFoundException"
+            ],
+            "Description": "Places a new order"
+          },
+          {
+            "MethodName": "GetById",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "orderId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "OrderResponse",
+            "ReturnDtoRef": "OrderResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves order details"
+          },
+          {
+            "MethodName": "GetByUserId",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "array",
+            "ReturnDtoRef": "OrderResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Lists orders for a user"
+          },
+          {
+            "MethodName": "UpdateStatus",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "orderId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "status",
+                "Type": "OrderStatus",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "OrderResponse",
+            "ReturnDtoRef": "OrderResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException",
+              "ValidationException"
+            ],
+            "Description": "Updates order status"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "OrderRepository"
+          },
+          {
+            "Kind": "Repository",
+            "Ref": "MenuItemRepository"
+          }
+        ]
+      }
+    },
+    {
+      "id": "08f77d07-e08a-45dc-83aa-bdb10d761abc",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 2833,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.888Z",
+      "updatedAt": "2026-06-07T15:48:00.888Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "ReservationService",
+        "Description": "Manages table reservations",
+        "IsTransactionScoped": true,
+        "Methods": [
+          {
+            "MethodName": "Create",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "request",
+                "Type": "ReservationRequest",
+                "Optional": false,
+                "DtoRef": "ReservationRequest"
+              }
+            ],
+            "ReturnType": "ReservationResponse",
+            "ReturnDtoRef": "ReservationResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException",
+              "ConflictException",
+              "NotFoundException"
+            ],
+            "Description": "Creates a new reservation"
+          },
+          {
+            "MethodName": "GetById",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "reservationId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "ReservationResponse",
+            "ReturnDtoRef": "ReservationResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves reservation details"
+          },
+          {
+            "MethodName": "GetByUserId",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "array",
+            "ReturnDtoRef": "ReservationResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Lists reservations for a user"
+          },
+          {
+            "MethodName": "UpdateStatus",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "reservationId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "status",
+                "Type": "ReservationStatus",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "ReservationResponse",
+            "ReturnDtoRef": "ReservationResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException",
+              "ValidationException"
+            ],
+            "Description": "Updates reservation status"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "ReservationRepository"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9ca5296d-dc30-4c38-be62-fb77f228393c",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 3579,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:00.956Z",
+      "updatedAt": "2026-06-07T15:48:00.956Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "ReviewService",
+        "Description": "Manages restaurant reviews and ratings",
+        "IsTransactionScoped": false,
+        "Methods": [
+          {
+            "MethodName": "Create",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "request",
+                "Type": "ReviewRequest",
+                "Optional": false,
+                "DtoRef": "ReviewRequest"
+              }
+            ],
+            "ReturnType": "ReviewResponse",
+            "ReturnDtoRef": "ReviewResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException",
+              "ConflictException",
+              "NotFoundException"
+            ],
+            "Description": "Submits a restaurant review"
+          },
+          {
+            "MethodName": "GetByRestaurantId",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "array",
+            "ReturnDtoRef": "ReviewResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Lists reviews for a restaurant"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "ReviewRepository"
+          },
+          {
+            "Kind": "Repository",
+            "Ref": "RestaurantRepository"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c2c35f15-9e60-42d7-b928-56cc548da39d",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1648,
+      "positionY": 2459,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.477Z",
+      "updatedAt": "2026-06-07T15:48:13.477Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "UserRepository",
+        "Description": "Data access for Users table",
+        "EntityReference": "Users",
+        "BaseClass": "BaseRepository",
+        "IsCached": false,
+        "CustomQueries": [
+          {
+            "QueryName": "findByEmail",
+            "QueryType": "findOne",
+            "Parameters": [
+              {
+                "Name": "email",
+                "Type": "VARCHAR"
+              }
+            ],
+            "ReturnType": "User"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9bc491d9-80f9-4f04-815e-e9e9dd3919ce",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 2433,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.506Z",
+      "updatedAt": "2026-06-07T15:48:13.506Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "RestaurantRepository",
+        "Description": "Data access for Restaurants table",
+        "EntityReference": "Restaurants",
+        "BaseClass": "BaseRepository",
+        "IsCached": true,
+        "CustomQueries": [
+          {
+            "QueryName": "findByCuisineType",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "cuisineType",
+                "Type": "CuisineType"
+              }
+            ],
+            "ReturnType": "Restaurant"
+          },
+          {
+            "QueryName": "searchByKeyword",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "keyword",
+                "Type": "VARCHAR"
+              }
+            ],
+            "ReturnType": "Restaurant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "2c194d94-65bc-46a3-b4c4-429d6d0727d4",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 5290,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.516Z",
+      "updatedAt": "2026-06-07T15:48:13.516Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "MenuItemRepository",
+        "Description": "Data access for MenuItems table",
+        "EntityReference": "MenuItems",
+        "BaseClass": "BaseRepository",
+        "IsCached": true,
+        "CustomQueries": [
+          {
+            "QueryName": "findByRestaurantId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "MenuItem"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 4862,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.524Z",
+      "updatedAt": "2026-06-07T15:48:13.524Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "OrderRepository",
+        "Description": "Data access for Orders and OrderItems tables",
+        "EntityReference": "Orders",
+        "BaseClass": "BaseRepository",
+        "IsCached": false,
+        "CustomQueries": [
+          {
+            "QueryName": "findByUserId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "Order"
+          },
+          {
+            "QueryName": "findByRestaurantId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "Order"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9193c1a2-ba3f-4516-87d5-579a2e0dbb20",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 5076,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.537Z",
+      "updatedAt": "2026-06-07T15:48:13.537Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "ReservationRepository",
+        "Description": "Data access for Reservations table",
+        "EntityReference": "Reservations",
+        "BaseClass": "BaseRepository",
+        "IsCached": false,
+        "CustomQueries": [
+          {
+            "QueryName": "findByUserId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "Reservation"
+          },
+          {
+            "QueryName": "findConflicting",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              },
+              {
+                "Name": "reservationDate",
+                "Type": "DATETIME"
+              }
+            ],
+            "ReturnType": "Reservation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "b7d1eec7-0624-4fae-ad44-3358056e3093",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 2647,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.546Z",
+      "updatedAt": "2026-06-07T15:48:13.546Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "ReviewRepository",
+        "Description": "Data access for Reviews table",
+        "EntityReference": "Reviews",
+        "BaseClass": "BaseRepository",
+        "IsCached": false,
+        "CustomQueries": [
+          {
+            "QueryName": "findByRestaurantId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "Review"
+          },
+          {
+            "QueryName": "findByUserAndRestaurant",
+            "QueryType": "findOne",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID"
+              },
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "Review"
+          }
+        ]
+      }
+    },
+    {
+      "id": "00f0232d-5c39-403b-9c48-bb193ce85a64",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 3981,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:48:13.561Z",
+      "updatedAt": "2026-06-07T15:48:13.561Z",
+      "version": 1,
+      "properties": {
+        "Name": "ReviewResponse",
+        "Description": "Review data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Rating",
+            "DataType": "INT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Comment",
+            "DataType": "TEXT",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 1105,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:49:15.098Z",
+      "updatedAt": "2026-06-07T15:49:15.098Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "AuthController",
+        "Description": "Handles authentication endpoints (login, register)",
+        "BaseRoute": "/api/auth",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "POST",
+            "Route": "/login",
+            "RequestDTORef": "LoginRequest",
+            "ResponseDTORef": "UserResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Login successful, returns JWT token"
+              },
+              {
+                "Code": 401,
+                "Description": "Invalid credentials"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Authenticates a user and returns a JWT token"
+          },
+          {
+            "HttpMethod": "POST",
+            "Route": "/register",
+            "RequestDTORef": "RegisterRequest",
+            "ResponseDTORef": "UserResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "User registered successfully"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              },
+              {
+                "Code": 409,
+                "Description": "Email already exists"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Registers a new user account"
+          }
+        ]
+      }
+    },
+    {
+      "id": "80d1ee01-a949-40e0-9c3f-d869af612cd0",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 175,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:49:33.429Z",
+      "updatedAt": "2026-06-07T15:49:33.429Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "RestaurantController",
+        "Description": "Restaurant listing and search endpoints",
+        "BaseRoute": "/api/restaurants",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "GET",
+            "Route": "/",
+            "ResponseDTORef": "RestaurantResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "List of restaurants"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Lists all active restaurants"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/{id}",
+            "ResponseDTORef": "RestaurantResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "id",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Restaurant details"
+              },
+              {
+                "Code": 404,
+                "Description": "Restaurant not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Retrieves a specific restaurant"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/search",
+            "ResponseDTORef": "RestaurantResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [
+              {
+                "Name": "cuisineType",
+                "Type": "VARCHAR",
+                "Required": false
+              },
+              {
+                "Name": "keyword",
+                "Type": "VARCHAR",
+                "Required": false
+              }
+            ],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Search results"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Searches restaurants by cuisine or keyword"
+          },
+          {
+            "HttpMethod": "POST",
+            "Route": "/",
+            "RequestDTORef": "RestaurantResponse",
+            "ResponseDTORef": "RestaurantResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "RESTAURANT_ADMIN",
+              "PLATFORM_ADMIN"
+            ],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "Restaurant created"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Creates a new restaurant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "6a89ff3c-c6c8-46ee-9019-a4069843d627",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 5729,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:49:33.501Z",
+      "updatedAt": "2026-06-07T15:49:33.501Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "MenuController",
+        "Description": "Menu item endpoints",
+        "BaseRoute": "/api/menu",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "GET",
+            "Route": "/restaurant/{restaurantId}",
+            "ResponseDTORef": "MenuItemResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Menu items for the restaurant"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Lists menu items for a restaurant"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/{id}",
+            "ResponseDTORef": "MenuItemResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "id",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Menu item details"
+              },
+              {
+                "Code": 404,
+                "Description": "Not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Retrieves a single menu item"
+          },
+          {
+            "HttpMethod": "POST",
+            "Route": "/",
+            "RequestDTORef": "MenuItemResponse",
+            "ResponseDTORef": "MenuItemResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "RESTAURANT_ADMIN",
+              "PLATFORM_ADMIN"
+            ],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "Menu item created"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Adds a new menu item"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 2120,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:49:33.560Z",
+      "updatedAt": "2026-06-07T15:49:33.560Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "OrderController",
+        "Description": "Order management endpoints",
+        "BaseRoute": "/api/orders",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "POST",
+            "Route": "/",
+            "RequestDTORef": "OrderCreateRequest",
+            "ResponseDTORef": "OrderResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "Order created"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              },
+              {
+                "Code": 404,
+                "Description": "Restaurant or menu item not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Places a new order"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/{id}",
+            "ResponseDTORef": "OrderResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "id",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Order details"
+              },
+              {
+                "Code": 404,
+                "Description": "Not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Retrieves order details"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/user/{userId}",
+            "ResponseDTORef": "OrderResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "userId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "User orders"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Lists orders for a user"
+          },
+          {
+            "HttpMethod": "PATCH",
+            "Route": "/{id}/status",
+            "ResponseDTORef": "OrderResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "RESTAURANT_ADMIN",
+              "PLATFORM_ADMIN"
+            ],
+            "PathParams": [
+              {
+                "Name": "id",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Status updated"
+              },
+              {
+                "Code": 404,
+                "Description": "Not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Updates order status"
+          }
+        ]
+      }
+    },
+    {
+      "id": "367c0ff6-9aa7-4538-a85e-ef4502ba2b6f",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 3080,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:49:33.615Z",
+      "updatedAt": "2026-06-07T15:49:33.615Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "ReservationController",
+        "Description": "Reservation management endpoints",
+        "BaseRoute": "/api/reservations",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "POST",
+            "Route": "/",
+            "RequestDTORef": "ReservationRequest",
+            "ResponseDTORef": "ReservationResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "Reservation created"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              },
+              {
+                "Code": 409,
+                "Description": "Time slot conflict"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Creates a new reservation"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/{id}",
+            "ResponseDTORef": "ReservationResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "id",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Reservation details"
+              },
+              {
+                "Code": 404,
+                "Description": "Not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Retrieves reservation details"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/user/{userId}",
+            "ResponseDTORef": "ReservationResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "userId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "User reservations"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Lists reservations for a user"
+          },
+          {
+            "HttpMethod": "PATCH",
+            "Route": "/{id}/status",
+            "ResponseDTORef": "ReservationResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "RESTAURANT_ADMIN",
+              "PLATFORM_ADMIN"
+            ],
+            "PathParams": [
+              {
+                "Name": "id",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Status updated"
+              },
+              {
+                "Code": 404,
+                "Description": "Not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Updates reservation status"
+          }
+        ]
+      }
+    },
+    {
+      "id": "2dbcde72-f38c-4584-8665-127a69cbde80",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 3800,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-07T15:49:33.666Z",
+      "updatedAt": "2026-06-07T15:49:33.666Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "ReviewController",
+        "Description": "Review management endpoints",
+        "BaseRoute": "/api/reviews",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "POST",
+            "Route": "/",
+            "RequestDTORef": "ReviewRequest",
+            "ResponseDTORef": "ReviewResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "Review submitted"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              },
+              {
+                "Code": 409,
+                "Description": "Already reviewed"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Submits a restaurant review"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/restaurant/{restaurantId}",
+            "ResponseDTORef": "ReviewResponse",
+            "RequiresAuth": false,
+            "RequiredRoles": [],
+            "PathParams": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Reviews for the restaurant"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Lists reviews for a restaurant"
+          }
+        ]
+      }
+    },
+    {
+      "id": "0923c560-3e38-4bb9-a380-c408eb8623d6",
+      "type": "Enum",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 2038,
+      "positionY": 2852,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:06.444Z",
+      "updatedAt": "2026-06-12T15:34:06.444Z",
+      "version": 1,
+      "properties": {
+        "Name": "ComplaintStatus",
+        "Description": "Status of a user complaint",
+        "BackingType": "string",
+        "Values": [
+          {
+            "Key": "PENDING",
+            "Value": "pending"
+          },
+          {
+            "Key": "IN_REVIEW",
+            "Value": "in_review"
+          },
+          {
+            "Key": "RESOLVED",
+            "Value": "resolved"
+          },
+          {
+            "Key": "DISMISSED",
+            "Value": "dismissed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c5788d15-95cb-4bf9-a47e-f5ab389d6dec",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 838,
+      "positionY": 4247,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:06.452Z",
+      "updatedAt": "2026-06-12T15:34:06.452Z",
+      "version": 1,
+      "properties": {
+        "Name": "ComplaintRequest",
+        "Description": "Request payload for filing a new complaint",
+        "Fields": [
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "OrderId",
+            "DataType": "UUID",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "ReservationId",
+            "DataType": "UUID",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Subject",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "MinLength",
+                "Value": "5"
+              },
+              {
+                "Rule": "MaxLength",
+                "Value": "255"
+              }
+            ]
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [
+              {
+                "Rule": "MinLength",
+                "Value": "20"
+              },
+              {
+                "Rule": "MaxLength",
+                "Value": "5000"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "5bc8d6c0-afd5-40e9-bed4-a50367e78654",
+      "type": "DTO",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1638,
+      "positionY": 2839,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:06.457Z",
+      "updatedAt": "2026-06-12T15:34:06.457Z",
+      "version": 1,
+      "properties": {
+        "Name": "ComplaintResponse",
+        "Description": "Response payload for complaint data returned to clients",
+        "Fields": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "OrderId",
+            "DataType": "UUID",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "ReservationId",
+            "DataType": "UUID",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Subject",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "Status",
+            "DataType": "VARCHAR",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": [],
+            "EnumRef": "ComplaintStatus"
+          },
+          {
+            "Name": "AdminNotes",
+            "DataType": "TEXT",
+            "IsRequired": false,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsRequired": true,
+            "IsArray": false,
+            "ValidationRules": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "type": "Service",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 828,
+      "positionY": 5101,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:06.513Z",
+      "updatedAt": "2026-06-12T15:34:06.513Z",
+      "version": 1,
+      "properties": {
+        "ServiceName": "ComplaintService",
+        "Description": "Handles complaint business logic: filing, reviewing, resolving, and dismissing complaints",
+        "IsTransactionScoped": true,
+        "Methods": [
+          {
+            "MethodName": "FileComplaint",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "request",
+                "Type": "ComplaintRequest",
+                "Optional": false,
+                "DtoRef": "ComplaintRequest"
+              }
+            ],
+            "ReturnType": "ComplaintResponse",
+            "ReturnDtoRef": "ComplaintResponse",
+            "IsAsync": true,
+            "Throws": [
+              "ValidationException",
+              "NotFoundException",
+              "ConflictException"
+            ],
+            "Description": "Files a new complaint by a user"
+          },
+          {
+            "MethodName": "GetUserComplaints",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "List<ComplaintResponse>",
+            "ReturnDtoRef": "ComplaintResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Retrieves all complaints filed by a specific user"
+          },
+          {
+            "MethodName": "GetComplaintById",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "complaintId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "ComplaintResponse",
+            "ReturnDtoRef": "ComplaintResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException"
+            ],
+            "Description": "Retrieves a single complaint by its ID"
+          },
+          {
+            "MethodName": "GetRestaurantComplaints",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID",
+                "Optional": false
+              }
+            ],
+            "ReturnType": "List<ComplaintResponse>",
+            "ReturnDtoRef": "ComplaintResponse",
+            "IsAsync": true,
+            "Throws": [],
+            "Description": "Retrieves all complaints for a specific restaurant"
+          },
+          {
+            "MethodName": "UpdateComplaintStatus",
+            "Visibility": "public",
+            "Parameters": [
+              {
+                "Name": "complaintId",
+                "Type": "UUID",
+                "Optional": false
+              },
+              {
+                "Name": "status",
+                "Type": "ComplaintStatus",
+                "Optional": false
+              },
+              {
+                "Name": "adminNotes",
+                "Type": "string",
+                "Optional": true
+              }
+            ],
+            "ReturnType": "ComplaintResponse",
+            "ReturnDtoRef": "ComplaintResponse",
+            "IsAsync": true,
+            "Throws": [
+              "NotFoundException",
+              "ValidationException"
+            ],
+            "Description": "Updates the status of a complaint (admin action)"
+          }
+        ],
+        "Dependencies": [
+          {
+            "Kind": "Repository",
+            "Ref": "ComplaintRepository"
+          },
+          {
+            "Kind": "Repository",
+            "Ref": "UserRepository"
+          },
+          {
+            "Kind": "Repository",
+            "Ref": "RestaurantRepository"
+          },
+          {
+            "Kind": "Repository",
+            "Ref": "OrderRepository"
+          },
+          {
+            "Kind": "Repository",
+            "Ref": "ReservationRepository"
+          }
+        ]
+      }
+    },
+    {
+      "id": "8166cfaf-8363-4110-b2a6-7e7fc3437bb9",
+      "type": "Repository",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1248,
+      "positionY": 4624,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:06.561Z",
+      "updatedAt": "2026-06-12T15:34:06.561Z",
+      "version": 1,
+      "properties": {
+        "RepositoryName": "ComplaintRepository",
+        "Description": "Data access layer for Complaints table",
+        "EntityReference": "Complaints",
+        "BaseClass": "GenericRepository<Complaint>",
+        "IsCached": false,
+        "CustomQueries": [
+          {
+            "QueryName": "FindByUserId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "userId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "List<Complaint>"
+          },
+          {
+            "QueryName": "FindByRestaurantId",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "ReturnType": "List<Complaint>"
+          },
+          {
+            "QueryName": "FindByStatus",
+            "QueryType": "find",
+            "Parameters": [
+              {
+                "Name": "status",
+                "Type": "ComplaintStatus"
+              }
+            ],
+            "ReturnType": "List<Complaint>"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c332284b-e9a6-4d9f-8b2f-e443bd7f6db3",
+      "type": "Table",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 1628,
+      "positionY": 3105,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:19.225Z",
+      "updatedAt": "2026-06-12T15:34:19.225Z",
+      "version": 1,
+      "properties": {
+        "TableName": "Complaints",
+        "Description": "Stores user complaints about restaurants, orders, or reservations",
+        "Columns": [
+          {
+            "Name": "Id",
+            "DataType": "UUID",
+            "IsPrimaryKey": true,
+            "IsNotNull": true,
+            "IsUnique": true,
+            "AutoIncrement": false,
+            "Comment": "Unique complaint identifier"
+          },
+          {
+            "Name": "UserId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "FK to Users table"
+          },
+          {
+            "Name": "RestaurantId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "FK to Restaurants table"
+          },
+          {
+            "Name": "OrderId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "FK to Orders table"
+          },
+          {
+            "Name": "ReservationId",
+            "DataType": "UUID",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "FK to Reservations table"
+          },
+          {
+            "Name": "Subject",
+            "DataType": "VARCHAR",
+            "Length": 255,
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "Short subject of the complaint"
+          },
+          {
+            "Name": "Description",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "Detailed complaint description"
+          },
+          {
+            "Name": "Status",
+            "DataType": "ENUM",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "Current status",
+            "EnumRef": "ComplaintStatus"
+          },
+          {
+            "Name": "AdminNotes",
+            "DataType": "TEXT",
+            "IsPrimaryKey": false,
+            "IsNotNull": false,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "Internal admin notes"
+          },
+          {
+            "Name": "CreatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "Timestamp when filed"
+          },
+          {
+            "Name": "UpdatedAt",
+            "DataType": "DATETIME",
+            "IsPrimaryKey": false,
+            "IsNotNull": true,
+            "IsUnique": false,
+            "AutoIncrement": false,
+            "Comment": "Timestamp of last change"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Columns": [
+              "UserId"
+            ],
+            "ReferencesTable": "Users",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "CASCADE",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "RestaurantId"
+            ],
+            "ReferencesTable": "Restaurants",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "SET_NULL",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "OrderId"
+            ],
+            "ReferencesTable": "Orders",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "SET_NULL",
+            "OnUpdate": "NO_ACTION"
+          },
+          {
+            "Columns": [
+              "ReservationId"
+            ],
+            "ReferencesTable": "Reservations",
+            "ReferencesColumns": [
+              "Id"
+            ],
+            "OnDelete": "SET_NULL",
+            "OnUpdate": "NO_ACTION"
+          }
+        ],
+        "UniqueConstraints": [],
+        "CheckConstraints": [],
+        "Indexes": [
+          {
+            "IndexName": "IX_Complaints_UserId",
+            "Columns": [
+              "UserId"
+            ],
+            "Type": "BTree",
+            "IsUnique": false
+          },
+          {
+            "IndexName": "IX_Complaints_Status",
+            "Columns": [
+              "Status"
+            ],
+            "Type": "BTree",
+            "IsUnique": false
+          },
+          {
+            "IndexName": "IX_Complaints_RestaurantId",
+            "Columns": [
+              "RestaurantId"
+            ],
+            "Type": "BTree",
+            "IsUnique": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "type": "Controller",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "positionX": 428,
+      "positionY": 4684,
+      "homeTabId": "a2bc8dc5-d8f7-48e3-927d-89b16761871d",
+      "createdAt": "2026-06-12T15:34:19.275Z",
+      "updatedAt": "2026-06-12T15:34:19.275Z",
+      "version": 1,
+      "properties": {
+        "ControllerName": "ComplaintController",
+        "Description": "REST endpoints for complaint management",
+        "BaseRoute": "/api/complaints",
+        "Version": "v1",
+        "Endpoints": [
+          {
+            "HttpMethod": "POST",
+            "Route": "/",
+            "RequestDTORef": "ComplaintRequest",
+            "ResponseDTORef": "ComplaintResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "User"
+            ],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 201,
+                "Description": "Complaint filed successfully"
+              },
+              {
+                "Code": 400,
+                "Description": "Validation error"
+              },
+              {
+                "Code": 404,
+                "Description": "Referenced entity not found"
+              },
+              {
+                "Code": 409,
+                "Description": "Duplicate complaint"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "File a new complaint"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/me",
+            "RequestDTORef": "",
+            "ResponseDTORef": "ComplaintResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "User"
+            ],
+            "PathParams": [],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "User complaints retrieved"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Get current user's complaints"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/{complaintId}",
+            "RequestDTORef": "",
+            "ResponseDTORef": "ComplaintResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "User",
+              "Admin"
+            ],
+            "PathParams": [
+              {
+                "Name": "complaintId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Complaint details"
+              },
+              {
+                "Code": 404,
+                "Description": "Complaint not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Get complaint by ID"
+          },
+          {
+            "HttpMethod": "GET",
+            "Route": "/restaurant/{restaurantId}",
+            "RequestDTORef": "",
+            "ResponseDTORef": "ComplaintResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "Admin",
+              "RestaurantOwner"
+            ],
+            "PathParams": [
+              {
+                "Name": "restaurantId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Restaurant complaints retrieved"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Get complaints for a restaurant"
+          },
+          {
+            "HttpMethod": "PATCH",
+            "Route": "/{complaintId}/status",
+            "RequestDTORef": "",
+            "ResponseDTORef": "ComplaintResponse",
+            "RequiresAuth": true,
+            "RequiredRoles": [
+              "Admin"
+            ],
+            "PathParams": [
+              {
+                "Name": "complaintId",
+                "Type": "UUID"
+              }
+            ],
+            "QueryParams": [
+              {
+                "Name": "status",
+                "Type": "string",
+                "Required": true
+              },
+              {
+                "Name": "adminNotes",
+                "Type": "string",
+                "Required": false
+              }
+            ],
+            "StatusCodes": [
+              {
+                "Code": 200,
+                "Description": "Status updated"
+              },
+              {
+                "Code": 400,
+                "Description": "Invalid status transition"
+              },
+              {
+                "Code": 404,
+                "Description": "Complaint not found"
+              }
+            ],
+            "MiddlewareRefs": [],
+            "Description": "Update complaint status (admin only)"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "42af4e61-c16b-45e0-8173-e9a703e4809f",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "506fea2d-e7ae-4c9f-9cb2-e1cbf0669696",
+      "targetNodeId": "366edf5d-3f24-4aa7-b0d7-ebacb3c781fe",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.746Z",
+      "updatedAt": "2026-06-07T15:50:04.746Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "enum reference"
+      }
+    },
+    {
+      "id": "af96af08-8f97-4b8b-8a50-d5923e5e9000",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "c2c35f15-9e60-42d7-b928-56cc548da39d",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:30.592Z",
+      "updatedAt": "2026-06-07T15:48:30.592Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "find/create user"
+      }
+    },
+    {
+      "id": "5b78cf69-8bd6-4e9b-a7f8-80f1effc2cb4",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "138616a2-04e0-4666-bae5-2a0d0abcade1",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.383Z",
+      "updatedAt": "2026-06-07T15:48:31.383Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "get user by email"
+      }
+    },
+    {
+      "id": "6560be7c-fb7a-4626-8bac-06425d539e7e",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "138616a2-04e0-4666-bae5-2a0d0abcade1",
+      "targetNodeId": "c2c35f15-9e60-42d7-b928-56cc548da39d",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.407Z",
+      "updatedAt": "2026-06-07T15:48:31.407Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "query users"
+      }
+    },
+    {
+      "id": "913ffdfb-6ff2-4fea-bb53-2f8b8783b88c",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "3ec99a80-f6e0-433e-b083-2a360238066e",
+      "targetNodeId": "9bc491d9-80f9-4f04-815e-e9e9dd3919ce",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.431Z",
+      "updatedAt": "2026-06-07T15:48:31.431Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "query restaurants"
+      }
+    },
+    {
+      "id": "14c309e0-baaa-4b4d-a953-8e307e4b67c3",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "bb80edd5-3205-4b4e-94cb-d6c4b3216eea",
+      "targetNodeId": "2c194d94-65bc-46a3-b4c4-429d6d0727d4",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.450Z",
+      "updatedAt": "2026-06-07T15:48:31.450Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "query menu items"
+      }
+    },
+    {
+      "id": "ace2b961-ce88-4427-a2c7-c8a088827afc",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "197648e1-e59b-495f-ab34-b72032be608a",
+      "targetNodeId": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.464Z",
+      "updatedAt": "2026-06-07T15:48:31.464Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage orders"
+      }
+    },
+    {
+      "id": "567e7a76-f22c-4a1c-8685-bc47e343acf8",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "197648e1-e59b-495f-ab34-b72032be608a",
+      "targetNodeId": "2c194d94-65bc-46a3-b4c4-429d6d0727d4",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.481Z",
+      "updatedAt": "2026-06-07T15:48:31.481Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validate menu items"
+      }
+    },
+    {
+      "id": "d1836a90-ddec-40cd-993d-13a8ba5f5d4d",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "08f77d07-e08a-45dc-83aa-bdb10d761abc",
+      "targetNodeId": "9193c1a2-ba3f-4516-87d5-579a2e0dbb20",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.500Z",
+      "updatedAt": "2026-06-07T15:48:31.500Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage reservations"
+      }
+    },
+    {
+      "id": "894a6514-a4cc-4a6f-935b-d42819c4f4c6",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9ca5296d-dc30-4c38-be62-fb77f228393c",
+      "targetNodeId": "b7d1eec7-0624-4fae-ad44-3358056e3093",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.523Z",
+      "updatedAt": "2026-06-07T15:48:31.523Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage reviews"
+      }
+    },
+    {
+      "id": "ed4f1930-c82a-428e-ae51-3a82fd1ec949",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9ca5296d-dc30-4c38-be62-fb77f228393c",
+      "targetNodeId": "9bc491d9-80f9-4f04-815e-e9e9dd3919ce",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:48:31.540Z",
+      "updatedAt": "2026-06-07T15:48:31.540Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validate restaurant"
+      }
+    },
+    {
+      "id": "22712687-b41f-4df7-af9e-191aaaf29d58",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "c2c35f15-9e60-42d7-b928-56cc548da39d",
+      "targetNodeId": "506fea2d-e7ae-4c9f-9cb2-e1cbf0669696",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:48:48.159Z",
+      "updatedAt": "2026-06-07T15:48:48.159Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write users"
+      }
+    },
+    {
+      "id": "97dcf8b6-9100-49b5-b55f-229d85380dc7",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "c2c35f15-9e60-42d7-b928-56cc548da39d",
+      "targetNodeId": "506fea2d-e7ae-4c9f-9cb2-e1cbf0669696",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:48:48.279Z",
+      "updatedAt": "2026-06-07T15:48:48.279Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write users"
+      }
+    },
+    {
+      "id": "86f98225-9e42-4e8e-b27f-6b5ca5dcc3ea",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9bc491d9-80f9-4f04-815e-e9e9dd3919ce",
+      "targetNodeId": "44618c13-2b8c-4ebf-a538-c01ee3d23732",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:48:48.327Z",
+      "updatedAt": "2026-06-07T15:48:48.327Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write restaurants"
+      }
+    },
+    {
+      "id": "cad12ed6-96f8-4eea-9741-8f68ad9033eb",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9bc491d9-80f9-4f04-815e-e9e9dd3919ce",
+      "targetNodeId": "44618c13-2b8c-4ebf-a538-c01ee3d23732",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:48:48.349Z",
+      "updatedAt": "2026-06-07T15:48:48.349Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write restaurants"
+      }
+    },
+    {
+      "id": "69713d38-b0b9-4933-8d29-8f94e479c02b",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "2c194d94-65bc-46a3-b4c4-429d6d0727d4",
+      "targetNodeId": "a6b1fa81-a0bf-4cc0-9643-b77cf0c8a532",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:48:48.366Z",
+      "updatedAt": "2026-06-07T15:48:48.366Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write menu items"
+      }
+    },
+    {
+      "id": "d843ebd6-7fce-4f2e-9b16-d632869f219a",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "2c194d94-65bc-46a3-b4c4-429d6d0727d4",
+      "targetNodeId": "a6b1fa81-a0bf-4cc0-9643-b77cf0c8a532",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:48:48.389Z",
+      "updatedAt": "2026-06-07T15:48:48.389Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write menu items"
+      }
+    },
+    {
+      "id": "4fa786ef-7223-4d6d-bb72-f61e186eb27f",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "targetNodeId": "c377a033-3c4f-4ed2-b1e4-90bb109c745e",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:48:48.408Z",
+      "updatedAt": "2026-06-07T15:48:48.408Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write orders"
+      }
+    },
+    {
+      "id": "da2a22a0-614f-4b48-8399-617a092b560e",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "targetNodeId": "c377a033-3c4f-4ed2-b1e4-90bb109c745e",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:48:48.428Z",
+      "updatedAt": "2026-06-07T15:48:48.428Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write orders"
+      }
+    },
+    {
+      "id": "1c1c3f99-665a-4b3d-9ce2-2b56067b6e0c",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "targetNodeId": "90fdb61a-921b-4b1a-83ef-a54976315f94",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:48:48.448Z",
+      "updatedAt": "2026-06-07T15:48:48.448Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write order items"
+      }
+    },
+    {
+      "id": "aaaaef61-755a-46bd-af63-67c6a242910b",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "targetNodeId": "90fdb61a-921b-4b1a-83ef-a54976315f94",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:48:48.466Z",
+      "updatedAt": "2026-06-07T15:48:48.466Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write order items"
+      }
+    },
+    {
+      "id": "efe4cf9e-03f4-4575-9c8b-09ef23d88058",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9193c1a2-ba3f-4516-87d5-579a2e0dbb20",
+      "targetNodeId": "8d92444d-7a4e-42d1-901d-d260b916c172",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:49:15.018Z",
+      "updatedAt": "2026-06-07T15:49:15.018Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write reservations"
+      }
+    },
+    {
+      "id": "7263c5c0-2878-4cad-b541-13e07abe04c0",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9193c1a2-ba3f-4516-87d5-579a2e0dbb20",
+      "targetNodeId": "8d92444d-7a4e-42d1-901d-d260b916c172",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:49:15.040Z",
+      "updatedAt": "2026-06-07T15:49:15.040Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write reservations"
+      }
+    },
+    {
+      "id": "2f51880d-22af-4eed-8bcd-b9be43c18cf9",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "b7d1eec7-0624-4fae-ad44-3358056e3093",
+      "targetNodeId": "7ea78369-5543-4873-9186-f26f37442a4c",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-07T15:49:15.061Z",
+      "updatedAt": "2026-06-07T15:49:15.061Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read/write reviews"
+      }
+    },
+    {
+      "id": "59eb8354-2642-4a33-8578-af9bc75ca179",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "b7d1eec7-0624-4fae-ad44-3358056e3093",
+      "targetNodeId": "7ea78369-5543-4873-9186-f26f37442a4c",
+      "kind": "WRITES",
+      "createdAt": "2026-06-07T15:49:15.086Z",
+      "updatedAt": "2026-06-07T15:49:15.086Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "write reviews"
+      }
+    },
+    {
+      "id": "4ea5f0a7-390c-411c-af58-246aae39d599",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "targetNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:49:49.975Z",
+      "updatedAt": "2026-06-07T15:49:49.975Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "authenticate"
+      }
+    },
+    {
+      "id": "4cc61951-68e6-4021-9798-fbed62c097f8",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "80d1ee01-a949-40e0-9c3f-d869af612cd0",
+      "targetNodeId": "3ec99a80-f6e0-433e-b083-2a360238066e",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:49:49.995Z",
+      "updatedAt": "2026-06-07T15:49:49.995Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "list/search restaurants"
+      }
+    },
+    {
+      "id": "7abdf5f0-b34a-4544-8937-bed760c42375",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "6a89ff3c-c6c8-46ee-9019-a4069843d627",
+      "targetNodeId": "bb80edd5-3205-4b4e-94cb-d6c4b3216eea",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:49:50.014Z",
+      "updatedAt": "2026-06-07T15:49:50.014Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage menu"
+      }
+    },
+    {
+      "id": "15ede38a-4ddb-4a03-87b2-0f60076a08c0",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "targetNodeId": "197648e1-e59b-495f-ab34-b72032be608a",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:49:50.036Z",
+      "updatedAt": "2026-06-07T15:49:50.036Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage orders"
+      }
+    },
+    {
+      "id": "2409ca82-76c4-4226-8503-0c96fe93a4a5",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "367c0ff6-9aa7-4538-a85e-ef4502ba2b6f",
+      "targetNodeId": "08f77d07-e08a-45dc-83aa-bdb10d761abc",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:49:50.058Z",
+      "updatedAt": "2026-06-07T15:49:50.058Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage reservations"
+      }
+    },
+    {
+      "id": "4d3c0eaf-c77d-490a-b575-01b72eaa7ab5",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "2dbcde72-f38c-4584-8665-127a69cbde80",
+      "targetNodeId": "9ca5296d-dc30-4c38-be62-fb77f228393c",
+      "kind": "CALLS",
+      "createdAt": "2026-06-07T15:49:50.072Z",
+      "updatedAt": "2026-06-07T15:49:50.072Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "manage reviews"
+      }
+    },
+    {
+      "id": "4ec48ff2-fbac-4778-bc88-d9958be1d42a",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "targetNodeId": "a819d7c7-81c1-4cb9-bcbc-f9875e14bbb4",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:49:50.119Z",
+      "updatedAt": "2026-06-07T15:49:50.119Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "request payload"
+      }
+    },
+    {
+      "id": "606f3d7c-f54f-467d-81eb-390254f86afb",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "targetNodeId": "496eead2-d4d1-4525-9317-60d75cb2e97f",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:49:50.165Z",
+      "updatedAt": "2026-06-07T15:49:50.165Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "request payload"
+      }
+    },
+    {
+      "id": "ae5ea413-51a0-4a1c-bb7b-de571f6222d5",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "targetNodeId": "ef93a957-3b99-41b8-8979-b081a7cbb857",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:49:50.183Z",
+      "updatedAt": "2026-06-07T15:49:50.183Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "54a2f263-6903-4ee7-b19e-b80bb74b3518",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "targetNodeId": "a06cc4ee-71ba-409f-85ef-837f699bc84f",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:49:50.197Z",
+      "updatedAt": "2026-06-07T15:49:50.197Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "request payload"
+      }
+    },
+    {
+      "id": "04d6cdd1-746b-41a3-a0ab-c52d1c6ad8ae",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "targetNodeId": "06cbfd54-430a-4e3f-a8c8-15a73c55cc71",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.612Z",
+      "updatedAt": "2026-06-07T15:50:04.612Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "043567ea-7956-4572-9d1c-f69e82a98d4c",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "367c0ff6-9aa7-4538-a85e-ef4502ba2b6f",
+      "targetNodeId": "79f7f335-41d8-49f4-84a5-117b67e5b92d",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.629Z",
+      "updatedAt": "2026-06-07T15:50:04.629Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "request payload"
+      }
+    },
+    {
+      "id": "0b7011f9-1c5f-4ed8-900a-bbac305eaf94",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "367c0ff6-9aa7-4538-a85e-ef4502ba2b6f",
+      "targetNodeId": "a454c7c0-d20a-4399-a9b2-039929a70cfa",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.650Z",
+      "updatedAt": "2026-06-07T15:50:04.650Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "133aee10-c326-4f50-a263-4f30db3e9033",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "2dbcde72-f38c-4584-8665-127a69cbde80",
+      "targetNodeId": "a241de15-d05e-435c-8f95-f9e94462b763",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.671Z",
+      "updatedAt": "2026-06-07T15:50:04.671Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "request payload"
+      }
+    },
+    {
+      "id": "af52b89b-b923-4656-bda0-674516bde633",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "2dbcde72-f38c-4584-8665-127a69cbde80",
+      "targetNodeId": "00f0232d-5c39-403b-9c48-bb193ce85a64",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.684Z",
+      "updatedAt": "2026-06-07T15:50:04.684Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "3d950574-244b-41d5-8f95-d4414fdbbb48",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "80d1ee01-a949-40e0-9c3f-d869af612cd0",
+      "targetNodeId": "3175404e-6478-420a-8ea3-7e7d95e44ca5",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.701Z",
+      "updatedAt": "2026-06-07T15:50:04.701Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "f687bf35-3a91-41c8-a54a-dea7faf743c9",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "6a89ff3c-c6c8-46ee-9019-a4069843d627",
+      "targetNodeId": "0a88569c-ede9-4851-972f-33758ada0307",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.716Z",
+      "updatedAt": "2026-06-07T15:50:04.716Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "a2a50618-ae7f-4f11-8d32-78b49c74b667",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "c377a033-3c4f-4ed2-b1e4-90bb109c745e",
+      "targetNodeId": "c14b1bde-d739-46ce-8c17-809bdcd38c27",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.761Z",
+      "updatedAt": "2026-06-07T15:50:04.761Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "enum reference"
+      }
+    },
+    {
+      "id": "44def2b5-fad9-40ae-bc64-bcf799f56d29",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "8d92444d-7a4e-42d1-901d-d260b916c172",
+      "targetNodeId": "c7df2f28-2db7-44b5-a95f-1f5f85269886",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:04.777Z",
+      "updatedAt": "2026-06-07T15:50:04.777Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "enum reference"
+      }
+    },
+    {
+      "id": "db43b6d1-aa91-490d-98a8-14a0342abb09",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "44618c13-2b8c-4ebf-a538-c01ee3d23732",
+      "targetNodeId": "f7b411e0-37bb-4be1-b0a6-455a52a2c84e",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:21.177Z",
+      "updatedAt": "2026-06-07T15:50:21.177Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "enum reference"
+      }
+    },
+    {
+      "id": "d56a3fc9-d03c-4008-93a6-d70e732d0165",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "138616a2-04e0-4666-bae5-2a0d0abcade1",
+      "targetNodeId": "7d0a06b5-204f-4d99-8415-8bbe5b6826cd",
+      "kind": "THROWS",
+      "createdAt": "2026-06-07T15:50:21.267Z",
+      "updatedAt": "2026-06-07T15:50:21.267Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "not found"
+      }
+    },
+    {
+      "id": "c70a2a8b-f121-4c1d-9032-697730b0b111",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "5903ce82-a9cd-43a4-bcac-d6f757454e22",
+      "kind": "THROWS",
+      "createdAt": "2026-06-07T15:50:21.305Z",
+      "updatedAt": "2026-06-07T15:50:21.305Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validation error"
+      }
+    },
+    {
+      "id": "4787b964-91a2-40b9-8e10-9b43c68ae592",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "577b9eb8-2870-45e1-b4d9-834b7a51cdbd",
+      "kind": "THROWS",
+      "createdAt": "2026-06-07T15:50:21.323Z",
+      "updatedAt": "2026-06-07T15:50:21.323Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "unauthorized"
+      }
+    },
+    {
+      "id": "b07b6f3b-edb8-48f2-bc52-dfe24a9cdf42",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "f979cdc0-772b-43d7-8619-cdbdc83b08e1",
+      "kind": "THROWS",
+      "createdAt": "2026-06-07T15:50:21.336Z",
+      "updatedAt": "2026-06-07T15:50:21.336Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "conflict"
+      }
+    },
+    {
+      "id": "ff3a3e32-ba46-4776-b264-5e191323d941",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "3ec99a80-f6e0-433e-b083-2a360238066e",
+      "targetNodeId": "0ac8863d-db5c-4294-a938-2e24d60047cb",
+      "kind": "CACHES_IN",
+      "createdAt": "2026-06-07T15:50:21.382Z",
+      "updatedAt": "2026-06-07T15:50:21.382Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "cache restaurants"
+      }
+    },
+    {
+      "id": "7123f61c-db46-41f4-9023-2f29aab425ee",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "bb80edd5-3205-4b4e-94cb-d6c4b3216eea",
+      "targetNodeId": "0ac8863d-db5c-4294-a938-2e24d60047cb",
+      "kind": "CACHES_IN",
+      "createdAt": "2026-06-07T15:50:21.414Z",
+      "updatedAt": "2026-06-07T15:50:21.414Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "cache menu"
+      }
+    },
+    {
+      "id": "8987f87e-3aa1-4ebb-ade5-5fac0bbd8f93",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "targetNodeId": "c98476b6-ee6f-43ac-bf49-7fd97943fc7e",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:37.597Z",
+      "updatedAt": "2026-06-07T15:50:37.597Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "nested request DTO"
+      }
+    },
+    {
+      "id": "b6a2576b-cccc-4611-8ad9-9c0d1925b64b",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "targetNodeId": "05660a68-240d-4bf5-904e-3bfe52d414d7",
+      "kind": "USES",
+      "createdAt": "2026-06-07T15:50:37.619Z",
+      "updatedAt": "2026-06-07T15:50:37.619Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "nested response DTO"
+      }
+    },
+    {
+      "id": "edfb77c4-53a4-48f1-93a5-9ce7218028ea",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "ecf4ac9c-91f4-4fa8-abf7-f5585aef35b9",
+      "kind": "READS_CONFIG",
+      "createdAt": "2026-06-07T15:50:37.634Z",
+      "updatedAt": "2026-06-07T15:50:37.634Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "db connection"
+      }
+    },
+    {
+      "id": "ea1261d9-32d6-4f2a-946c-f9799c6532b7",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "a9c664ff-dc2c-4680-b685-0ea92dc4f5f8",
+      "targetNodeId": "e1c17afb-4ba5-4fbc-917b-1e8fa6e8ea40",
+      "kind": "READS_CONFIG",
+      "createdAt": "2026-06-07T15:50:37.712Z",
+      "updatedAt": "2026-06-07T15:50:37.712Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "jwt secret"
+      }
+    },
+    {
+      "id": "6ccfacc5-e2ac-45aa-b2aa-5106b9933a67",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "3ec99a80-f6e0-433e-b083-2a360238066e",
+      "targetNodeId": "2364ad66-f7bc-4fd2-aa2b-ad60c26dcb7d",
+      "kind": "READS_CONFIG",
+      "createdAt": "2026-06-07T15:50:37.725Z",
+      "updatedAt": "2026-06-07T15:50:37.725Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "redis url"
+      }
+    },
+    {
+      "id": "aaa52860-91c2-4df9-8f6b-54a87d9b4f45",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:37.763Z",
+      "updatedAt": "2026-06-07T15:50:37.763Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth middleware"
+      }
+    },
+    {
+      "id": "3730ac8c-a59a-4fb0-9829-ceb52da8c86b",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "80d1ee01-a949-40e0-9c3f-d869af612cd0",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:37.808Z",
+      "updatedAt": "2026-06-07T15:50:37.808Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth middleware"
+      }
+    },
+    {
+      "id": "7a4ace6e-5531-4c4e-9ac5-860b8981bce2",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "9635ae7d-ba0e-40b8-af87-dfea9b4d3868",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:37.826Z",
+      "updatedAt": "2026-06-07T15:50:37.826Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth middleware"
+      }
+    },
+    {
+      "id": "f19f5aa8-0c6f-4272-8b00-7dddfc9d4a1b",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "367c0ff6-9aa7-4538-a85e-ef4502ba2b6f",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:37.843Z",
+      "updatedAt": "2026-06-07T15:50:37.843Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth middleware"
+      }
+    },
+    {
+      "id": "91ea5d44-7962-4e4b-aca1-ea1865811dbc",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "2dbcde72-f38c-4584-8665-127a69cbde80",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:37.858Z",
+      "updatedAt": "2026-06-07T15:50:37.858Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth middleware"
+      }
+    },
+    {
+      "id": "c4cd0494-78dd-465e-aad5-2c33d40a908d",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "c2e6b671-0fc9-488d-8984-93fb886a75f5",
+      "targetNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:44.657Z",
+      "updatedAt": "2026-06-07T15:50:44.657Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "error handler"
+      }
+    },
+    {
+      "id": "2e76f6e1-7dc8-4f5f-9dfb-aab6ee745c72",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "ace78904-8e85-42c4-ad84-e38921f30a9c",
+      "targetNodeId": "973fcea7-1599-47c6-adad-b9d37bd3a9d7",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:44.681Z",
+      "updatedAt": "2026-06-07T15:50:44.681Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "rate limit"
+      }
+    },
+    {
+      "id": "d908b5f9-1f38-48f6-b431-8a3baf6fe15d",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "6a89ff3c-c6c8-46ee-9019-a4069843d627",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-07T15:50:44.698Z",
+      "updatedAt": "2026-06-07T15:50:44.698Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth middleware"
+      }
+    },
+    {
+      "id": "5ef0e40b-39dd-47e4-ad97-fb0c40398ade",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "c332284b-e9a6-4d9f-8b2f-e443bd7f6db3",
+      "targetNodeId": "0923c560-3e38-4bb9-a380-c408eb8623d6",
+      "kind": "USES",
+      "createdAt": "2026-06-12T15:34:36.101Z",
+      "updatedAt": "2026-06-12T15:34:36.101Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "complaint status"
+      }
+    },
+    {
+      "id": "1d831908-6bbc-409e-ae98-a7f25aaeb987",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "5bc8d6c0-afd5-40e9-bed4-a50367e78654",
+      "targetNodeId": "0923c560-3e38-4bb9-a380-c408eb8623d6",
+      "kind": "USES",
+      "createdAt": "2026-06-12T15:34:36.112Z",
+      "updatedAt": "2026-06-12T15:34:36.112Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "status enum"
+      }
+    },
+    {
+      "id": "b963dc1b-1f6f-45aa-96dd-fcecccbeed57",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "targetNodeId": "c5788d15-95cb-4bf9-a47e-f5ab389d6dec",
+      "kind": "USES",
+      "createdAt": "2026-06-12T15:34:36.122Z",
+      "updatedAt": "2026-06-12T15:34:36.122Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "request payload"
+      }
+    },
+    {
+      "id": "28762586-9418-4ab7-88e0-b4aead8f09c8",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "targetNodeId": "5bc8d6c0-afd5-40e9-bed4-a50367e78654",
+      "kind": "USES",
+      "createdAt": "2026-06-12T15:34:36.135Z",
+      "updatedAt": "2026-06-12T15:34:36.135Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "response payload"
+      }
+    },
+    {
+      "id": "9438a4fd-e6fb-449c-b81c-d9228de1bed9",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "targetNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "kind": "CALLS",
+      "createdAt": "2026-06-12T15:34:36.143Z",
+      "updatedAt": "2026-06-12T15:34:36.143Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "delegate to service"
+      }
+    },
+    {
+      "id": "ca401507-0ac9-4505-9d66-d3ab802dfc7a",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "8166cfaf-8363-4110-b2a6-7e7fc3437bb9",
+      "kind": "CALLS",
+      "createdAt": "2026-06-12T15:34:36.151Z",
+      "updatedAt": "2026-06-12T15:34:36.151Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "data access"
+      }
+    },
+    {
+      "id": "8c363d17-7734-4cdd-baa1-6df6ed041004",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "8166cfaf-8363-4110-b2a6-7e7fc3437bb9",
+      "targetNodeId": "c332284b-e9a6-4d9f-8b2f-e443bd7f6db3",
+      "kind": "QUERIES",
+      "createdAt": "2026-06-12T15:34:36.164Z",
+      "updatedAt": "2026-06-12T15:34:36.164Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "read complaints"
+      }
+    },
+    {
+      "id": "89980d68-49cb-4469-b642-b208f5b31e19",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "8166cfaf-8363-4110-b2a6-7e7fc3437bb9",
+      "targetNodeId": "c332284b-e9a6-4d9f-8b2f-e443bd7f6db3",
+      "kind": "WRITES",
+      "createdAt": "2026-06-12T15:34:36.174Z",
+      "updatedAt": "2026-06-12T15:34:36.174Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "insert/update complaints"
+      }
+    },
+    {
+      "id": "02cef8d4-c9b0-4777-a8b5-01a89ce03a91",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "5903ce82-a9cd-43a4-bcac-d6f757454e22",
+      "kind": "THROWS",
+      "createdAt": "2026-06-12T15:34:36.181Z",
+      "updatedAt": "2026-06-12T15:34:36.181Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "invalid input"
+      }
+    },
+    {
+      "id": "4e39742c-c2b4-4573-8f4a-278f417c739f",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "7d0a06b5-204f-4d99-8415-8bbe5b6826cd",
+      "kind": "THROWS",
+      "createdAt": "2026-06-12T15:34:36.190Z",
+      "updatedAt": "2026-06-12T15:34:36.190Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "entity not found"
+      }
+    },
+    {
+      "id": "b253b760-ea84-4cff-a406-a5ae402a1b49",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "f979cdc0-772b-43d7-8619-cdbdc83b08e1",
+      "kind": "THROWS",
+      "createdAt": "2026-06-12T15:34:36.200Z",
+      "updatedAt": "2026-06-12T15:34:36.200Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "duplicate complaint"
+      }
+    },
+    {
+      "id": "3696b97b-d9db-4447-b5b9-10fae1131d8d",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "43b706e7-70ac-4915-8500-402b7271d2aa",
+      "targetNodeId": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-12T15:34:36.208Z",
+      "updatedAt": "2026-06-12T15:34:36.208Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "auth required"
+      }
+    },
+    {
+      "id": "3a394b8a-7d6d-44bb-b37e-a681a6ae0aa8",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "c2c35f15-9e60-42d7-b928-56cc548da39d",
+      "kind": "CALLS",
+      "createdAt": "2026-06-12T15:34:45.023Z",
+      "updatedAt": "2026-06-12T15:34:45.023Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validate user"
+      }
+    },
+    {
+      "id": "5489c2e8-5ed5-4308-aaf4-436c7f3cdca5",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "9bc491d9-80f9-4f04-815e-e9e9dd3919ce",
+      "kind": "CALLS",
+      "createdAt": "2026-06-12T15:34:45.031Z",
+      "updatedAt": "2026-06-12T15:34:45.031Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validate restaurant"
+      }
+    },
+    {
+      "id": "00ea9c29-409c-41de-baa8-cf518b01132d",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "ee38301d-4ecd-4c3c-8e29-5cd9d68a787f",
+      "kind": "CALLS",
+      "createdAt": "2026-06-12T15:34:45.041Z",
+      "updatedAt": "2026-06-12T15:34:45.041Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validate order"
+      }
+    },
+    {
+      "id": "fa9e9fcd-5c7a-412b-88c9-5708babd58c8",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "1bb2c6d2-37f3-4e98-ad1e-7e0a61aceb9e",
+      "targetNodeId": "9193c1a2-ba3f-4516-87d5-579a2e0dbb20",
+      "kind": "CALLS",
+      "createdAt": "2026-06-12T15:34:45.049Z",
+      "updatedAt": "2026-06-12T15:34:45.049Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "validate reservation"
+      }
+    },
+    {
+      "id": "f7812682-d33f-40f5-8445-43c5bee2237e",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "c2e6b671-0fc9-488d-8984-93fb886a75f5",
+      "targetNodeId": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-12T15:34:45.058Z",
+      "updatedAt": "2026-06-12T15:34:45.058Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "error handling"
+      }
+    },
+    {
+      "id": "adc5060f-3fc1-42b7-b34f-a6bcfbdfb127",
+      "projectId": "9588cd9f-bddd-4d98-ae2f-2ab6dec4955c",
+      "sourceNodeId": "ace78904-8e85-42c4-ad84-e38921f30a9c",
+      "targetNodeId": "33a6b81b-08ba-4780-95b6-773997e4bd0f",
+      "kind": "ROUTES_TO",
+      "createdAt": "2026-06-12T15:34:45.066Z",
+      "updatedAt": "2026-06-12T15:34:45.066Z",
+      "properties": {
+        "IsAsync": false,
+        "Label": "rate limit"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "name": "solarch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Solarch — diagram → verified code via a strict rules engine. Monorepo: web (canvas) + server (NestJS + Neo4j).",
+  "license": "SEE LICENSE IN ./LICENSE",
+  "homepage": "https://github.com/solarch-dev/solarch",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/solarch-dev/solarch.git"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "dev:web": "pnpm --filter @solarch/web dev",
+    "dev:server": "pnpm --filter @solarch/server dev",
+    "build:web": "pnpm --filter @solarch/web build",
+    "build:server": "pnpm --filter @solarch/server build",
+    "test:server": "pnpm --filter @solarch/server test:unit",
+    "test:e2e": "pnpm --filter @solarch/server test:e2e",
+    "db:up": "docker compose up neo4j -d",
+    "db:down": "docker compose stop neo4j",
+    "compose:up": "docker compose up --build",
+    "compose:down": "docker compose down"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "protobufjs",
+      "esbuild",
+      "@swc/core"
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+# Solarch backend (NestJS) — /etc/systemd/system/solarch-backend.service
+# Adjust User/paths for your server. Enable:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now solarch-backend
+
+[Unit]
+Description=Solarch backend (NestJS)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=solarch
+WorkingDirectory=/opt/solarch/solarch-backend
+# Backend .env (Neo4j/LLM keys) — mode 600, outside repo.
+EnvironmentFile=/opt/solarch/solarch-backend/.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=3
+# enableShutdownHooks — allow graceful shutdown (Neo4j driver.close + in-flight).
+TimeoutStopSec=20
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

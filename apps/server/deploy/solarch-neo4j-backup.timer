@@ -1,0 +1,11 @@
+# Neo4j backup timer — /etc/systemd/system/solarch-neo4j-backup.timer
+# Enable: sudo systemctl enable --now solarch-neo4j-backup.timer
+[Unit]
+Description=Solarch Neo4j backup scheduler (daily 04:00)
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

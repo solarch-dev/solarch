@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/solarch-dev/solarch/discussions
+    about: Questions, ideas, design feedback, and architecture discussion.
+  - name: Try Solarch
+    url: https://app.solarch.dev
+    about: The hosted app — no install required.
+  - name: Commercial licensing
+    url: mailto:info@solidea.tech
+    about: Commercial use inquiries (PolyForm Noncommercial covers non-commercial use).

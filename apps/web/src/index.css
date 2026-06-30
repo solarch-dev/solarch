@@ -1,0 +1,361 @@
+/* ───────────────────────────────────────────────────────────────
+   Solarch — Orange Brand · Warm Base · Blueprint Grid
+   Font: Satoshi (UI) + JetBrains Mono (technical labels)
+   ─────────────────────────────────────────────────────────────── */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Excalifont — hand-drawn font for the Simple sketch view (Excalidraw, MIT). */
+@font-face {
+  font-family: "Excalifont";
+  src: url("/fonts/Excalifont.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Surfaces */
+  --paper: #fafaf7;        /* main base — warm off-white */
+  --paper-raised: #ffffff; /* card / panel */
+  --paper-sunken: #f0ede9;
+
+  /* Ink */
+  --ink: #1b1b1a;          /* heading / dark text */
+  --ink-soft: #64748b;     /* secondary text */
+  --ink-faint: #94a3b8;    /* placeholder / inactive */
+
+  /* Blueprint lines (don't touch the texture) */
+  --grid-line: rgba(37, 99, 235, 0.07);
+  --grid-line-strong: rgba(37, 99, 235, 0.13);
+  --grid-dot: rgba(37, 99, 235, 0.16); /* dot grid — same language as canvas drawGrid */
+  --hairline: rgba(27, 27, 26, 0.10);
+  --hairline-strong: rgba(27, 27, 26, 0.18);
+
+  /* Canvas renderer tuning (light) — renderer.ts reads these per-frame (theme-aware). */
+  --canvas-card: #ffffff;                       /* node header/card surface */
+  --canvas-body: #fcfcfa;                       /* node body section */
+  --canvas-node-border: rgba(11, 16, 32, 0.10); /* node default border (neutral) */
+  --canvas-hairline: rgba(11, 16, 32, 0.08);
+  --canvas-row-divider: rgba(11, 16, 32, 0.06);
+  --canvas-ink-rgb: 27, 27, 26;                 /* ink as channel → rgba(var, a) */
+  --canvas-grid-rgb: 37, 99, 235;               /* dot grid as channel */
+
+  /* Glass panel surface (cv-hud / cv-controls / float chrome) */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-strong: rgba(255, 255, 255, 0.9);
+
+  /* Accent — orange brand */
+  --accent: #ff8a3d;
+  --accent-ink: #b84700;
+  --accent-wash: rgba(255, 138, 61, 0.08);
+
+  /* Status */
+  --danger: #c2371f;
+  --ok: #1f8a55;
+
+  /* ── Inspector (node double-click inner editor) — LIGHT (identical to current; dark in .dark) ──
+     surface-lift + overlay/hover + segment chrome + semantic pill + HTTP verb colors. */
+  --ins-card: #fafaf7;              /* nested list card (method/column/endpoint/param) */
+  --ins-card-sunken: #fbfaf8;       /* detail/editor body beneath the open card */
+  --ins-overlay-hover: rgba(22, 29, 40, 0.06);
+  --ins-track: rgba(22, 29, 40, 0.04);
+  --ins-pill-bg: rgba(22, 29, 40, 0.07);
+  --ins-track-off: rgba(22, 29, 40, 0.18);
+  --ins-tab-active: #ffffff;
+  --ins-tab-shadow: 0 1px 2px rgba(11, 16, 32, 0.06);
+  --warn: #a06b1a;  --warn-border: rgba(224, 164, 94, 0.40);  --warn-wash: rgba(224, 164, 94, 0.12);
+  --ok-border: rgba(31, 138, 85, 0.30);    --ok-wash: rgba(31, 138, 85, 0.08);
+  --danger-border: rgba(194, 55, 31, 0.30); --danger-wash: rgba(194, 55, 31, 0.08);
+  --http-get: #0e7c86;    --http-get-wash: rgba(14, 124, 134, 0.12);   --http-get-border: rgba(14, 124, 134, 0.30);
+  --http-post: #3b5bdb;   --http-post-wash: rgba(59, 91, 219, 0.12);   --http-post-border: rgba(59, 91, 219, 0.30);
+  --http-put: #b26b00;    --http-put-wash: rgba(178, 107, 0, 0.12);    --http-put-border: rgba(178, 107, 0, 0.30);
+  --http-delete: #c2371f; --http-delete-wash: rgba(194, 55, 31, 0.12); --http-delete-border: rgba(194, 55, 31, 0.30);
+  --http-patch: #7048e8;  --http-patch-wash: rgba(112, 72, 232, 0.12); --http-patch-border: rgba(112, 72, 232, 0.30);
+
+  /* Dimensions */
+  --radius: 7px;
+  --radius-lg: 12px;
+  --shadow-card: 0 1px 2px rgba(11, 16, 32, 0.05), 0 4px 16px rgba(11, 16, 32, 0.06);
+  --shadow-float: 0 8px 30px rgba(11, 16, 32, 0.12);
+
+  --font-sans: "Satoshi", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Hand-drawn font for the Simple sketch view (Excalidraw's Excalifont, MIT). */
+  --font-sketch: "Excalifont", "Comic Sans MS", var(--font-sans);
+
+  color-scheme: light;
+
+  /* ── shadcn HSL tokens (new-york / neutral base) — bridge to Solarch palette ── */
+  --background:  0 0% 100%;         /* paper-raised */
+  --foreground:  220 9% 11%;        /* ink */
+  --card:        0 0% 100%;
+  --card-foreground: 220 9% 11%;
+  --popover:     0 0% 100%;
+  --popover-foreground: 220 9% 11%;
+  --primary:     19 100% 62%;       /* brand-500 #FF8A3D */
+  --primary-foreground: 0 0% 100%;
+  --secondary:   220 14% 96%;
+  --secondary-foreground: 220 9% 11%;
+  --muted:       220 14% 96%;
+  --muted-foreground: 220 9% 46%;   /* ink-soft */
+  --accent-h:    220 14% 96%;       /* shadcn "accent" idle — Tailwind colors.accent reads from this */
+  --accent-foreground: 220 9% 11%;
+  --destructive: 9  72% 44%;        /* #c2371f */
+  --destructive-foreground: 0 0% 100%;
+  --border:      0 0% 90%;
+  --input:       0 0% 90%;
+  --ring:        19 100% 62%;       /* brand-500 */
+
+  /* ── Code editor surface (LIGHT = Solarch canvas/paper) — theme.ts maps EDITOR.* here ── */
+  --ed-bg: #ffffff;                 /* code reading surface */
+  --ed-sidebar: #fafaf7;
+  --ed-tabBar: #fafaf7;
+  --ed-titleBar: #f0ede9;
+  --ed-tabActive: #ffffff;
+  --ed-statusBar: transparent;      /* flat, text-only — no colored bar */
+  --ed-accent: #ff8a3d;             /* orange (was VSCode blue) */
+  --ed-accent-hover: #e5681f;
+  --ed-border: rgba(27, 27, 26, 0.10);
+  --ed-borderStrong: rgba(27, 27, 26, 0.18);
+  --ed-text: #1b1b1a;
+  --ed-textMuted: #64748b;
+  --ed-textFaint: #94a3b8;
+  --ed-activeLine: rgba(0, 0, 0, 0.035);
+  --ed-hover: rgba(0, 0, 0, 0.045);
+  --ed-selected: rgba(255, 138, 61, 0.14);
+  --ed-indentGuide: rgba(0, 0, 0, 0.07);
+  --ed-surgical: #a16207;           /* pending amber — deepened for white bg */
+  --ed-surgicalLine: rgba(161, 98, 7, 0.08);
+  --ed-surgicalDone: #0f766e;       /* filled teal — deepened */
+  --ed-surgicalDoneLine: rgba(15, 118, 110, 0.07);
+  --ed-surgicalFailed: #c2371f;     /* danger */
+  --ed-surgicalFailedLine: rgba(194, 55, 31, 0.08);
+  /* editor semantic extras (buttons/badges/banners) */
+  --ed-subtle: rgba(0, 0, 0, 0.04);
+  --ed-subtle-strong: rgba(0, 0, 0, 0.08);
+  --ed-accent-wash: rgba(255, 138, 61, 0.12);
+  --ed-ok: #0f766e;            --ed-ok-wash: rgba(15, 118, 110, 0.12);
+  --ed-pending: #a16207;       --ed-pending-wash: rgba(161, 98, 7, 0.12);
+  --ed-danger: #c2371f;        --ed-danger-wash: rgba(194, 55, 31, 0.12);
+  --ed-ai-action: #7c3aed;     --ed-ai-action-dim: #6d28d9;  --ed-ai-action-wash: rgba(124, 58, 237, 0.10);
+
+  /* Provenance (origin-spine + rail chips) — LIGHT (deepened for white) */
+  --prov-constructor: #51728f;  --prov-constructor-bg: rgba(81, 114, 143, 0.10);
+  --prov-ai: #0f766e;           --prov-ai-bg: rgba(15, 118, 110, 0.09);
+  --prov-pending: #a16207;      --prov-pending-bg: rgba(161, 98, 7, 0.10);
+  --prov-failed: #c2371f;       --prov-failed-bg: rgba(194, 55, 31, 0.09);
+  --prov-human: #7c3aed;        --prov-human-bg: rgba(124, 58, 237, 0.10);
+
+  /* FileIcon language badges — LIGHT (deepened) */
+  --ed-lang-tsx: #0f766e;  --ed-lang-tsx-bg: rgba(15, 118, 110, 0.12);
+  --ed-lang-ts: #1d63b8;   --ed-lang-ts-bg: rgba(29, 99, 184, 0.12);
+  --ed-lang-sql: #9333ea;  --ed-lang-sql-bg: rgba(147, 51, 234, 0.12);
+  --ed-lang-json: #a16207; --ed-lang-json-bg: rgba(161, 98, 7, 0.12);
+  --ed-lang-md: #2563eb;   --ed-lang-md-bg: rgba(37, 99, 235, 0.12);
+  --ed-lang-env: #a16207;  --ed-lang-env-bg: rgba(161, 98, 7, 0.12);
+  --ed-lang-default: #64748b; --ed-lang-default-bg: rgba(100, 116, 139, 0.12);
+
+  /* Prism syntax tokens — LIGHT (github-ish, calm) */
+  --ed-syn-plain: #1b1b1a;
+  --ed-syn-comment: #7a8190;
+  --ed-syn-keyword: #cf222e;
+  --ed-syn-string: #0a7c42;
+  --ed-syn-number: #1d63b8;
+  --ed-syn-function: #8250df;
+  --ed-syn-class: #953800;
+  --ed-syn-property: #1d63b8;
+  --ed-syn-punct: #5b6675;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   DARK theme — <html>.dark. Single switch flips every CSS variable;
+   canvas + editor + shadcn surfaces all follow. App tokens, shadcn HSL,
+   canvas renderer tuning, and the editor (NEUTRAL NEAR-BLACK, Linear/Vercel).
+   ─────────────────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+
+  /* Surfaces — MATERIAL-ELEVATION cool-charcoal (NOT pure black: halation/elevation issue).
+     Base is darkest → panels/cards LIGHTEN as they rise (not shadow, lightness = depth). */
+  --paper: #111114;                 /* canvas base — NEUTRAL anthracite (blue tint removed, blacker) */
+  --paper-raised: #1b1b1f;          /* panels / float chrome — one step lighter than base */
+  --paper-sunken: #0b0b0d;
+
+  /* Ink — NOT pure white (halation): high-emphasis ~89%, secondary ~64%, faint ~42% */
+  --ink: #e3e3e7;
+  --ink-soft: #a8abb3;
+  --ink-faint: #70737b;
+
+  /* Blueprint lines — thin LIGHT dot, low visibility (Excalidraw: grid close to base) */
+  --grid-line: rgba(255, 255, 255, 0.04);
+  --grid-line-strong: rgba(255, 255, 255, 0.06);
+  --grid-dot: rgba(255, 255, 255, 0.055);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.13);
+
+  /* Glass panel surface (cv-hud / cv-controls / float chrome) */
+  --glass-bg: rgba(28, 28, 31, 0.80);
+  --glass-bg-strong: rgba(28, 28, 31, 0.95);
+
+  /* Canvas renderer tuning (dark) — node card DISTINCTLY LIGHTER than base (elevation = depth) */
+  --canvas-card: #202024;                       /* node header — NEUTRAL, clearly lifts off base */
+  --canvas-body: #17171b;                        /* node interior — a touch darker than header, lighter than base */
+  --canvas-node-border: rgba(255, 255, 255, 0.12); /* neutral hairline; renderer adds family tint in dark */
+  --canvas-hairline: rgba(255, 255, 255, 0.08);
+  --canvas-row-divider: rgba(255, 255, 255, 0.06);
+  --canvas-ink-rgb: 227, 227, 231;
+  --canvas-grid-rgb: 255, 255, 255;             /* thin light dot on gray base (renderer alpha low) */
+
+  /* Accent — orange brand (a touch brighter on dark) */
+  --accent: #ff9a52;
+  --accent-ink: #ffb27a;
+  --accent-wash: rgba(255, 138, 61, 0.12);
+
+  /* Status */
+  --danger: #f0726a;
+  --ok: #4ec9b0;
+
+  /* Inspector — DARK: cards LIFT off base (#202024 neutral), overlays light-on-dark, semantic
+     colors desaturated+light (Tailwind 300-400) → method/verb/visibility legible. */
+  --ins-card: #202024;
+  --ins-card-sunken: #262629;
+  --ins-overlay-hover: rgba(255, 255, 255, 0.07);
+  --ins-track: rgba(255, 255, 255, 0.05);
+  --ins-pill-bg: rgba(255, 255, 255, 0.09);
+  --ins-track-off: rgba(255, 255, 255, 0.16);
+  --ins-tab-active: #2f2f33;
+  --ins-tab-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --warn: #e2b566;  --warn-border: rgba(226, 181, 102, 0.34);  --warn-wash: rgba(226, 181, 102, 0.14);
+  --ok-border: rgba(78, 201, 176, 0.30);    --ok-wash: rgba(78, 201, 176, 0.12);
+  --danger-border: rgba(240, 114, 106, 0.32); --danger-wash: rgba(240, 114, 106, 0.12);
+  --http-get: #56c8cf;    --http-get-wash: rgba(86, 200, 207, 0.14);   --http-get-border: rgba(86, 200, 207, 0.30);
+  --http-post: #7d97f0;   --http-post-wash: rgba(125, 151, 240, 0.14); --http-post-border: rgba(125, 151, 240, 0.30);
+  --http-put: #e9b15c;    --http-put-wash: rgba(233, 177, 92, 0.14);   --http-put-border: rgba(233, 177, 92, 0.30);
+  --http-delete: #f0726a; --http-delete-wash: rgba(240, 114, 106, 0.14); --http-delete-border: rgba(240, 114, 106, 0.30);
+  --http-patch: #a78bfa;  --http-patch-wash: rgba(167, 139, 250, 0.14); --http-patch-border: rgba(167, 139, 250, 0.30);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 8px 30px rgba(0, 0, 0, 0.5);
+
+  /* shadcn HSL tokens (dark) — cool-charcoal, elevation: card lighter than base. Settings/Billing follow */
+  --background:  220 8% 7%;         /* ≈ #111114 NEUTRAL anthracite (blue tint removed, blacker) */
+  --foreground:  220 8% 89%;
+  --card:        220 8% 13%;        /* lifted card (lighter than base) */
+  --card-foreground: 220 8% 89%;
+  --popover:     220 8% 11%;
+  --popover-foreground: 220 8% 89%;
+  --primary:     19 100% 62%;       /* orange constant */
+  --primary-foreground: 0 0% 100%;
+  --secondary:   220 7% 17%;
+  --secondary-foreground: 220 8% 89%;
+  --muted:       220 7% 17%;
+  --muted-foreground: 220 6% 66%;
+  --accent-h:    220 7% 15%;
+  --accent-foreground: 220 8% 89%;
+  --destructive: 9 72% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --border:      220 7% 21%;
+  --input:       220 7% 21%;
+  --ring:        19 100% 62%;
+
+  /* Code editor surface (DARK = cool-charcoal, minimal — not pure black, no blue, sparse orange) */
+  --ed-bg: #161619;
+  --ed-sidebar: #121215;
+  --ed-tabBar: #121215;
+  --ed-titleBar: #101013;
+  --ed-tabActive: #161619;
+  --ed-statusBar: transparent;
+  --ed-accent: #ff8a3d;
+  --ed-accent-hover: #ff9a52;
+  --ed-border: rgba(255, 255, 255, 0.07);
+  --ed-borderStrong: rgba(255, 255, 255, 0.11);
+  --ed-text: #e3e3e7;
+  --ed-textMuted: #9a9ea7;
+  --ed-textFaint: #6b6f78;
+  --ed-activeLine: rgba(255, 255, 255, 0.04);
+  --ed-hover: rgba(255, 255, 255, 0.055);
+  --ed-selected: rgba(255, 138, 61, 0.16);
+  --ed-indentGuide: rgba(255, 255, 255, 0.07);
+  --ed-surgical: #e2b341;
+  --ed-surgicalLine: rgba(226, 179, 65, 0.10);
+  --ed-surgicalDone: #4ec9b0;
+  --ed-surgicalDoneLine: rgba(78, 201, 176, 0.08);
+  --ed-surgicalFailed: #f0726a;
+  --ed-surgicalFailedLine: rgba(240, 114, 106, 0.10);
+  --ed-subtle: rgba(255, 255, 255, 0.06);
+  --ed-subtle-strong: rgba(255, 255, 255, 0.12);
+  --ed-accent-wash: rgba(255, 138, 61, 0.14);
+  --ed-ok: #4ec9b0;            --ed-ok-wash: rgba(78, 201, 176, 0.14);
+  --ed-pending: #e5c07b;       --ed-pending-wash: rgba(229, 192, 123, 0.14);
+  --ed-danger: #f48771;        --ed-danger-wash: rgba(244, 71, 71, 0.12);
+  --ed-ai-action: #8b5cf6;     --ed-ai-action-dim: #6b4ea8;  --ed-ai-action-wash: rgba(139, 92, 246, 0.12);
+
+  /* Provenance — DARK */
+  --prov-constructor: #6e8ca8;  --prov-constructor-bg: rgba(110, 140, 168, 0.09);
+  --prov-ai: #4ec9b0;           --prov-ai-bg: rgba(78, 201, 176, 0.08);
+  --prov-pending: #e2b341;      --prov-pending-bg: rgba(226, 179, 65, 0.10);
+  --prov-failed: #f0726a;       --prov-failed-bg: rgba(240, 114, 106, 0.10);
+  --prov-human: #a78bfa;        --prov-human-bg: rgba(167, 139, 250, 0.10);
+
+  /* FileIcon language badges — DARK */
+  --ed-lang-tsx: #4ec9b0;  --ed-lang-tsx-bg: rgba(78, 201, 176, 0.16);
+  --ed-lang-ts: #3aa0f3;   --ed-lang-ts-bg: rgba(58, 160, 243, 0.16);
+  --ed-lang-sql: #d18ad1;  --ed-lang-sql-bg: rgba(209, 138, 209, 0.16);
+  --ed-lang-json: #e2b341; --ed-lang-json-bg: rgba(226, 179, 65, 0.16);
+  --ed-lang-md: #519aba;   --ed-lang-md-bg: rgba(81, 154, 186, 0.16);
+  --ed-lang-env: #cbcb41;  --ed-lang-env-bg: rgba(203, 203, 65, 0.16);
+  --ed-lang-default: #9aa0a6; --ed-lang-default-bg: rgba(154, 160, 166, 0.14);
+
+  /* Prism syntax tokens — DARK (vsDark-ish, functional) */
+  --ed-syn-plain: #d4d4d4;
+  --ed-syn-comment: #6a9955;
+  --ed-syn-keyword: #569cd6;
+  --ed-syn-string: #ce9178;
+  --ed-syn-number: #b5cea8;
+  --ed-syn-function: #dcdcaa;
+  --ed-syn-class: #4ec9b0;
+  --ed-syn-property: #9cdcfe;
+  --ed-syn-punct: #808080;
+}
+
+/* NOTE: --accent (hex #ff8a3d) PRESERVES Solarch's existing orange; shadcn's
+   neutral-gray "accent" hover color lives separately under --accent-h (HSL). On the
+   Tailwind theme side, colors.accent → hsl(var(--accent-h)) bridge. */
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.mono { font-family: var(--font-mono); letter-spacing: -0.01em; }
+
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; }
+
+::selection { background: var(--accent-wash); }
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Primary CTA sheen — premium thin light sweep (Stripe/Linear); NOT glow/gradient.
+   Band travels left to right between 0→18%, waits off-right the rest → periodic single glint. */
+@keyframes cta-sheen {
+  0%        { transform: translateX(-180%) skewX(-16deg); }
+  18%, 100% { transform: translateX(340%) skewX(-16deg); }
+}
+.cta-sheen { animation: cta-sheen 4.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cta-sheen { animation: none; opacity: 0; }
+}

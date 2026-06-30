@@ -1,0 +1,9 @@
+# Neo4j daily backup — /etc/systemd/system/solarch-neo4j-backup.service
+# Triggered by solarch-neo4j-backup.timer. Adjust path/user.
+[Unit]
+Description=Solarch Neo4j daily backup
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/solarch/solarch-backend/scripts/neo4j-backup.sh

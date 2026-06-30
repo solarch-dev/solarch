@@ -1,18 +1,43 @@
 # Contributing to Solarch
 
-Thanks for the interest. Solarch is in active early-stage development — the API surface, node families, and edge semantics still move week to week — but feedback is very welcome.
+Thanks for the interest. This repository is the **OSS self-host monorepo** — backend, canvas UI,
+and Docker bundle. The API surface, node families, and edge semantics still move week to week, but
+feedback and focused PRs are very welcome.
 
 ## Ways to help
 
-- **File an issue.** Bugs, regressions, surprising UX, accessibility gaps. Reproduction steps + screenshot/gif when possible. Try it at [app.solarch.dev](https://app.solarch.dev).
-- **Open a discussion.** Feature requests, design feedback, architecture questions, philosophical disagreement with the *Surgical AI* thesis — all fair game.
-- **Improve the docs.** Small, focused PRs to this repository's README and docs are easy to review and always appreciated.
+- **File an issue.** Bugs, regressions, surprising UX, accessibility gaps. Reproduction steps +
+  screenshot/gif when possible.
+- **Open a discussion.** Feature requests, design feedback, architecture questions.
+- **Improve the docs.** Small, focused PRs to `README.md` and `docs/` are easy to review.
 
-## Source & self-hosting
+## Local development
 
-The hosted app at [app.solarch.dev](https://app.solarch.dev) is the fastest way to use Solarch today.
+```bash
+git clone https://github.com/solarch-dev/solarch.git
+cd solarch
+pnpm install
+cp .env.example .env   # Neo4j password + LLM provider + API key
 
-This repository currently hosts the project overview and documentation. A **unified, one-command self-host bundle** — the whole stack behind a single `docker compose up` — is **coming soon**; watch / star to follow along. The application source is maintained separately and will land here as that bundle ships.
+# Terminal 1
+pnpm dev:server        # http://localhost:4000/api/v1
+
+# Terminal 2
+pnpm dev:web           # http://localhost:5173
+```
+
+Neo4j for dev: `pnpm --filter @solarch/server neo4j:up && pnpm --filter @solarch/server neo4j:migrate`
+
+Full details: [docs/development.md](docs/development.md).
+
+## Self-host smoke test
+
+```bash
+./install.sh
+docker compose up --build
+```
+
+See [docs/getting-started.md](docs/getting-started.md).
 
 ## Commit style
 
@@ -20,12 +45,14 @@ Conventional commits with short, focused subjects:
 
 ```
 feat(canvas): add elbow edge mode
-fix(refine): orphan DTO repair edge inference
-docs: clarify self-hosting steps
+fix(codegen): regen when graph revision conflicts
+docs: clarify self-hosting basic auth
 ```
 
-No emojis in commit messages or docs.
+No emojis in commit messages.
 
 ## License
 
-By contributing, you agree your contributions are licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE) — same as the rest of the project. For commercial licensing inquiries, contact [info@solidea.tech](mailto:info@solidea.tech).
+By contributing, you agree your contributions are licensed under the
+[PolyForm Noncommercial License 1.0.0](./LICENSE). For commercial licensing inquiries, contact
+[info@solidea.tech](mailto:info@solidea.tech).

@@ -1,0 +1,61 @@
+# Solarch — one-command self-host bundle.
+#
+#   cp .env.example .env   # fill in Neo4j password + an LLM provider key
+#   docker compose up --build
+#   → http://localhost:3000
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in .env}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP:-512m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-512m}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512m}
+    volumes:
+      - solarch_neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD in .env}
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      LOCAL_USER_ID: ${LOCAL_USER_ID:-local_owner}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ""
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT_PUBLIC:-3000}:3000"
+    environment:
+      BIND_ADDRESS: ${BIND_ADDRESS:-127.0.0.1}
+      SOLARCH_BASIC_AUTH_USER: ${SOLARCH_BASIC_AUTH_USER:-}
+      SOLARCH_BASIC_AUTH_HASH: ${SOLARCH_BASIC_AUTH_HASH:-}
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  solarch_neo4j_data:

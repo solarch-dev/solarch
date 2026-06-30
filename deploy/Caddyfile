@@ -1,0 +1,17 @@
+# Single-origin front door for the self-host bundle.
+# Production Docker uses deploy/Caddyfile.base + web-entrypoint.sh (optional Basic Auth).
+:3000 {
+	encode zstd gzip
+
+	# API → backend (the NestJS global prefix is /api/v1, so /api/* covers it).
+	handle /api/* {
+		reverse_proxy server:4000
+	}
+
+	# SPA static assets + client-side routing fallback.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
