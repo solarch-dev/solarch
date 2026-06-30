@@ -42,6 +42,8 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-solarch_dev_password}
       CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+      # Self-host default: billing/metering off → unlimited AI + codegen with your own key.
+      BILLING_ENABLED: ${BILLING_ENABLED:-false}
     depends_on:
       neo4j:
         condition: service_healthy

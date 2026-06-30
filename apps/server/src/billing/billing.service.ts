@@ -3,6 +3,7 @@ import { SubscriptionRepository, type StoredSubscription } from "./subscription.
 import { limitsFor, productIdToPlan, planRank, METER_WINDOW_MS, type Plan, type Meter } from "./entitlements";
 import { PaymentRequiredException } from "../common/exceptions/payment-required.exception";
 import { isGuestId } from "../auth/guest-token";
+import { env } from "../config/env";
 
 const ACTIVE = new Set(["active", "trialing", "past_due"]); // erişim verilen statüler
 
@@ -30,11 +31,13 @@ export class BillingService {
 
   async getState(userId: string) {
     const { plan, sub } = await this.resolvePlan(userId);
-    const limits = limitsFor(plan);
+    // Self-host (billing disabled) reports the top plan so the UI unlocks everything.
+    const effectivePlan = env.BILLING_ENABLED ? plan : "code";
+    const limits = limitsFor(effectivePlan);
     const usage = await this.repo.getUsage(userId, this.windowKey());
     return {
-      plan,
-      status: sub?.status ?? "none",
+      plan: effectivePlan,
+      status: env.BILLING_ENABLED ? (sub?.status ?? "none") : "self-host",
       entitlements: {
         canUseAI: limits.canUseAI,
         canCodegen: limits.canCodegen,
@@ -75,6 +78,7 @@ export class BillingService {
    *  bırakmaz) → eşzamanlı istekler cap'i aşamaz. Kota 4 saatlik pencere bazlıdır;
    *  dolduğunda misafire "kayıt ol" (free), free/draw'a "Build'e geç" CTA'sı düşer. */
   async consume(userId: string, meter: Meter): Promise<void> {
+    if (!env.BILLING_ENABLED) return; // self-host: unlimited, no metering
     const { plan } = await this.resolvePlan(userId);
     const cap = limitsFor(plan).meters[meter];
     if (cap <= 0) {
@@ -99,12 +103,14 @@ export class BillingService {
    *  (Pencere sınırı aşılırken consume/refund farklı pencerelere düşebilir; refund
    *  0'da kenetlendiği için zararsız no-op olur.) */
   async refund(userId: string, meter: Meter): Promise<void> {
+    if (!env.BILLING_ENABLED) return; // self-host: nothing was consumed
     await this.repo.refundUsage(userId, this.windowKey(), meter);
   }
 
   /** Deterministik kod üretimi / ZIP export (Constructor) = Build+ özelliği.
    *  canUseAI artık tüm planlarda açık olduğundan kapı AÇIK alan: canGenerateCode. */
   async assertCanGenerateCode(userId: string): Promise<void> {
+    if (!env.BILLING_ENABLED) return; // self-host: unlimited
     const { plan } = await this.resolvePlan(userId);
     if (!limitsFor(plan).canGenerateCode) {
       throw new PaymentRequiredException(
@@ -121,6 +127,7 @@ export class BillingService {
    *    402 ERR_PLAN_METER (Build'e geç). Deterministik üretim AI maliyeti taşımaz,
    *    o yüzden ücretsiz önizleme güvenli. Çağıran başarısızlıkta refund("codegen") eder. */
   async assertCanGenerateOrFreePass(userId: string): Promise<void> {
+    if (!env.BILLING_ENABLED) return; // self-host: unlimited
     const { plan } = await this.resolvePlan(userId);
     if (limitsFor(plan).canGenerateCode) return; // paid: sınırsız, metre yok
     await this.consume(userId, "codegen"); // free/guest/draw: 4h'de 1 (cap=meters.codegen)
@@ -129,6 +136,7 @@ export class BillingService {
   /** SURGICAL AI (sunucu-tarafı gövde doldurma; @solarch:surgical bölgeleri) = Code tier.
    *  `canCodegen` yalnız Code planında açıktır (entitlement matrisi). */
   async assertCanCodegen(userId: string): Promise<void> {
+    if (!env.BILLING_ENABLED) return; // self-host: unlimited
     const { plan } = await this.resolvePlan(userId);
     if (!limitsFor(plan).canCodegen) {
       throw new PaymentRequiredException(
@@ -140,6 +148,7 @@ export class BillingService {
   }
 
   async assertProjectCap(userId: string, currentCount: number): Promise<void> {
+    if (!env.BILLING_ENABLED) return; // self-host: unlimited projects
     const { plan } = await this.resolvePlan(userId);
     const cap = limitsFor(plan).projectCap;
     if (cap !== -1 && currentCount >= cap) {
