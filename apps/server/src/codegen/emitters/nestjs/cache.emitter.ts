@@ -8,27 +8,27 @@ import type { CacheNode } from "../../../nodes/schemas";
 /* ────────────────────────────────────────────────────────────────────────
  * cache.emitter.ts — CacheNode -> <feature>/<base>.cache.ts.
  *
- * @Injectable() bir NestJS cache servisi üretir. @nestjs/cache-manager'ın
- * CACHE_MANAGER token'ı ile altta yatan store (Redis/Memcached/Memory) inject
- * edilir; tip cache-manager'ın `Cache` arabirimidir.
+ * Emits an @Injectable() NestJS cache service. Underlying store (Redis/Memcached/Memory)
+ * is injected via @nestjs/cache-manager's CACHE_MANAGER token; type is cache-manager's
+ * `Cache` interface.
  *
- *   - KeyPattern: anahtar şablonu. "{...}" yer tutucuları varsa get/set/del
- *     bu yer tutucuların yerine geçen bir `suffix` parametresi alır; yoksa
- *     anahtar sabittir (parametresiz). buildKey() TEK KAYNAK anahtar üreticidir.
- *   - TTL_Seconds: set() için varsayılan TTL (cache-manager ms bekler -> *1000).
- *   - Engine: yalnız üst yorumda belgelenir (asıl store DI ile gelir; Wire
- *     fazı CacheModule.register ile bağlar).
+ *   - KeyPattern: key template. When "{...}" placeholders exist, get/set/del take a
+ *     `suffix` param substituted into placeholders; otherwise key is fixed (no params).
+ *     buildKey() is the SINGLE SOURCE key builder.
+ *   - TTL_Seconds: default TTL for set() (cache-manager expects ms -> *1000).
+ *   - Engine: documented in header comment only (actual store comes via DI; Wire
+ *     phase binds via CacheModule.register).
  *
- * Metot gövdeleri GERÇEK impl'dir (get/set/del cache-manager'a delege eder) —
- * algoritma alanı YOKTUR, bu yüzden surgical marker GEREKMEZ.
+ * Method bodies are REAL impl (get/set/del delegate to cache-manager) —
+ * no algorithm region, so no surgical marker needed.
  *
- * SAF + DETERMİNİSTİK: koleksiyon yok, import'lar ImportCollector ile,
- * timestamp/random yok, içerik tek "\n" ile biter.
+ * PURE + DETERMINISTIC: no collections, imports via ImportCollector,
+ * no timestamp/random, content ends with single "\n".
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Cache, ir.ts PropsByKind tablosunda DEĞİL (backend zinciri 9 tipi taşır) ->
- *  propsOf<"Cache"> derlenmez (TS2344). Tip doğrudan Zod-inferred şemadan alınır
- *  (DB zaten Zod-doğrulanmış; yalnız tip daraltma, çalışma zamanı dönüşümü yok). */
+/** Cache is NOT in ir.ts PropsByKind table (backend chain carries 9 types) ->
+ *  propsOf<"Cache"> won't compile (TS2344). Type taken directly from Zod-inferred schema
+ *  (DB is Zod-validated; type narrowing only, no runtime transform). */
 type CacheProps = CacheNode["properties"];
 
 export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
@@ -38,7 +38,7 @@ export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
 
   const keyPattern = props.KeyPattern;
   const ttlSeconds = props.TTL_Seconds;
-  // "{...}" yer tutucusu varsa anahtar dinamik -> suffix parametresi gerekir.
+  // When "{...}" placeholder present, key is dynamic -> suffix param required.
   const isDynamicKey = /\{[^}]*\}/.test(keyPattern);
 
   const imports = new ImportCollector();
@@ -49,9 +49,9 @@ export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
 
   const lines: string[] = [];
 
-  // ── Üst açıklama: Description + Engine + TTL (deterministik). ──────────────
-  //   Engine/TTL/KeyPattern satırı her zaman anlamlıdır; Description satırı yalnız
-  //   anlamlıysa (trim >=3 char) basılır -> "* s" gibi tek-harf gürültüsü olmasın.
+  // ── Header: Description + Engine + TTL (deterministic). ──────────────
+  //   Engine/TTL/KeyPattern line always meaningful; Description only when
+  //   meaningful (trim >=3 char) -> avoid single-letter noise like "* s".
   const hasDoc = typeof props.Description === "string" && props.Description.trim().length >= 3;
   lines.push("/**");
   if (hasDoc) {
@@ -63,7 +63,7 @@ export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
   lines.push("@Injectable()");
   lines.push(`export class ${className} {`);
 
-  // ── Sabitler: TTL (ms) + anahtar şablonu. ─────────────────────────────────
+  // ── Constants: TTL (ms) + key template. ─────────────────────────────────
   lines.push(`  /** Default TTL (cache-manager expects milliseconds). */`);
   lines.push(`  private static readonly TTL_MS = ${ttlSeconds * 1000};`);
   lines.push(`  /** Key template (Cache.KeyPattern). */`);
@@ -76,20 +76,20 @@ export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
   lines.push("  ) {}");
   lines.push("");
 
-  // ── buildKey: tek kaynak anahtar üreticisi. ───────────────────────────────
+  // ── buildKey: single-source key builder. ───────────────────────────────
   if (isDynamicKey) {
     lines.push("  /** Replaces the first `{...}` placeholder in KeyPattern with the suffix. */");
     lines.push(`  private buildKey(suffix: string | number): string {`);
     lines.push(`    return ${className}.KEY_PATTERN.replace(/\\{[^}]*\\}/, String(suffix));`);
     lines.push("  }");
     lines.push("");
-    // get/set/del — dinamik anahtar (suffix parametreli).
+    // get/set/del — dynamic key (suffix param).
     lines.push(...method("get", "suffix: string | number", "Promise<T | null>", [
       "return this.cache.get<T>(this.buildKey(suffix));",
     ], true));
     lines.push("");
     lines.push(...method("set", `suffix: string | number, value: T, ttlSeconds?: number`, "Promise<void>", [
-      // ttlSeconds verilirse ms'e çevir; yoksa varsayılan TTL_MS (zaten ms).
+      // When ttlSeconds given convert to ms; else default TTL_MS (already ms).
       `const ttl = ttlSeconds !== undefined ? ttlSeconds * 1000 : ${className}.TTL_MS;`,
       "await this.cache.set(this.buildKey(suffix), value, ttl);",
     ], true));
@@ -103,13 +103,13 @@ export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
     lines.push(`    return ${className}.KEY_PATTERN;`);
     lines.push("  }");
     lines.push("");
-    // get/set/del — sabit anahtar (parametresiz).
+    // get/set/del — fixed key (no params).
     lines.push(...method("get", "", "Promise<T | null>", [
       "return this.cache.get<T>(this.buildKey());",
     ], true));
     lines.push("");
     lines.push(...method("set", `value: T, ttlSeconds?: number`, "Promise<void>", [
-      // ttlSeconds verilirse ms'e çevir; yoksa varsayılan TTL_MS (zaten ms).
+      // When ttlSeconds given convert to ms; else default TTL_MS (already ms).
       `const ttl = ttlSeconds !== undefined ? ttlSeconds * 1000 : ${className}.TTL_MS;`,
       "await this.cache.set(this.buildKey(), value, ttl);",
     ], true));
@@ -133,9 +133,8 @@ export const emitCache: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
   return [file];
 };
 
-/** Tek bir async metodun satırlarını (imza + gövde) üretir. `generic` true ise
- *  metoda `<T>` tip parametresi eklenir (get/set değer tipi). Gövde GERÇEK
- *  impl'dir; algoritma alanı yoktur -> surgical marker yok. */
+/** Produce lines for one async method (signature + body). `generic` true adds `<T>`
+ *  type param (get/set value type). Body is REAL impl; no algorithm region -> no surgical marker. */
 function method(
   name: string,
   params: string,

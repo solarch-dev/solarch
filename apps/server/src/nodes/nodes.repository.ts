@@ -20,40 +20,40 @@ export interface NodeUpdate {
   positionY?: number;
   properties?: Record<string, unknown>;
   updatedAt: string;
-  /** Optimistic concurrency: verilirse yalnız bu version'daki node güncellenir
-   *  (atomik). Uyuşmazsa 0 kayıt döner (TOCTOU race backstop). */
+  /** Optimistic concurrency: when given, only updates node at this version
+   *  (atomic). Mismatch returns 0 rows (TOCTOU race backstop). */
   expectedVersion?: number;
 }
 
 const NAME_KEYS_BY_KIND: Record<NodeKind, string> = {
-  // Veri
+  // Data
   Table: "TableName",
   DTO: "Name",
   Model: "ClassName",
   Enum: "Name",
   View: "ViewName",
-  // İş Mantığı
+  // Business Logic
   Service: "ServiceName",
   Worker: "WorkerName",
   EventHandler: "HandlerName",
-  // Erişim
+  // Access
   Controller: "ControllerName",
   MessageQueue: "QueueName",
-  // Altyapı
+  // Infrastructure
   Repository: "RepositoryName",
   Cache: "CacheName",
   ExternalService: "ServiceName",
-  // İstemci
+  // Client
   FrontendApp: "AppName",
   UIComponent: "ComponentName",
-  // Güvenlik
+  // Security
   Middleware: "MiddlewareName",
-  // Konfigürasyon
+  // Configuration
   EnvironmentVariable: "Key",
   Exception: "ExceptionName",
-  // Yapı
+  // Structure
   Module: "ModuleName",
-  // Phase 2A ek tipler
+  // Phase 2A additional types
   APIGateway: "GatewayName",
   Orchestrator: "OrchestratorName",
 };
@@ -107,9 +107,9 @@ export class NodesRepository {
     if (update.positionY !== undefined) partial.positionY = update.positionY;
     if (update.properties !== undefined) partial.properties = JSON.stringify(update.properties);
 
-    // expectedVersion verilirse atomik guard: yalnız o version eşleşirse güncelle.
-    // coalesce(n.version,1): migration öncesi version'suz node'ları 1 say (frontend default'u ile uyumlu).
-    // Her başarılı update version'u +1 yapar. 0 kayıt → bulunamadı VEYA version uyuşmadı (service ayırır).
+    // When expectedVersion is given, atomic guard: update only if version matches.
+    // coalesce(n.version,1): treat pre-migration nodes without version as 1 (matches frontend default).
+    // Each successful update increments version by +1. 0 rows -> not found OR version mismatch (service distinguishes).
     const result = await this.neo4j.run(
       `MATCH (n:Node {id: $id, projectId: $projectId})
        WHERE $expectedVersion IS NULL OR coalesce(n.version, 1) = $expectedVersion
@@ -133,7 +133,7 @@ export class NodesRepository {
   }
 
   async findByName(projectId: string, name: string): Promise<StoredNode | null> {
-    // Tüm name field varyantlarını OR ile dolaş — proje içi global unique.
+    // Walk all name field variants with OR — globally unique within project.
     const result = await this.neo4j.run(
       `MATCH (n:Node {projectId: $projectId})
        WITH n, apoc.convert.fromJsonMap(n.properties) AS props

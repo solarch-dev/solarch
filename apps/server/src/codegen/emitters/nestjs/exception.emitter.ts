@@ -7,24 +7,24 @@ import { countSurgicalMarkers } from "../../surgical";
 /* ────────────────────────────────────────────────────────────────────────
  * exception.emitter.ts — ExceptionNode -> common/exceptions/<e>.exception.ts
  *
- * Üretilen sınıf NestJS HttpException'ı (veya ParentExceptionRef ile çözülen
- * başka bir Exception sınıfını) genişletir. Constructor deterministik gövdeye
- * sahiptir — bu bir "algoritma alanı" DEĞİLDİR, dolayısıyla surgical marker
- * YOKTUR (countSurgicalMarkers -> 0).
+ * Generated class extends NestJS HttpException (or another Exception class
+ * resolved via ParentExceptionRef). Constructor has deterministic body —
+ * this is an "algorithm field" NOT, so no surgical marker
+ * (countSurgicalMarkers -> 0).
  *
  *   constructor() {
  *     super({ code: "<ErrorCode>", message: "<Description>" }, HttpStatus.<XXX>);
  *   }
  *
- * Kalıtım:
- *   - ParentExceptionRef varsa ve ctx.graph.resolveRef("Exception", ref) bir node
- *     çözerse -> o sınıfı extends eder, göreli import ile alır.
- *   - aksi halde -> HttpException (@nestjs/common) extends eder.
- *   Kayıp ref -> THROW YOK; sessizce HttpException'a düşülür (+ TODO yorumu).
+ * Inheritance:
+ *   - If ParentExceptionRef is set and ctx.graph.resolveRef("Exception", ref)
+ *     resolves a node -> extends that class, relative import.
+ *   - otherwise -> extends HttpException (@nestjs/common).
+ *   Missing ref -> NO THROW; silently falls back to HttpException (+ TODO comment).
  *
- * SAF fonksiyon: (node, ctx) -> GeneratedFile[]. I/O yok, throw yok.
- * Yol her zaman filePathFor; import'lar ImportCollector; isim pascalCase.
- * İçerik tek "\n" ile biter.
+ * PURE function: (node, ctx) -> GeneratedFile[]. No I/O, no throw.
+ * Path always filePathFor; imports via ImportCollector; name pascalCase.
+ * Content ends with single "\n".
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const emitException: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
@@ -34,11 +34,11 @@ export const emitException: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[]
 
   const imports = new ImportCollector();
 
-  // HttpStatus her zaman gerekir (super'ın 2. argümanı).
+  // HttpStatus always required (super's 2nd argument).
   imports.add("HttpStatus", "@nestjs/common");
   const statusMember = httpStatusMember(props.HttpStatusCode);
 
-  // ── Kalıtılan sınıf çözümü ──────────────────────────────────────────────
+  // ── Resolve parent class ──────────────────────────────────────────────
   let parentClass = "HttpException";
   let missingParent = false;
   const parentRef = props.ParentExceptionRef;
@@ -47,13 +47,13 @@ export const emitException: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[]
     if (parentNode) {
       parentClass = pascalCase(parentNode.name);
       const parentPath = filePathFor(parentNode, ctx.graph);
-      // Aynı dosya değilse göreli import (Exception'lar common/exceptions altında
-      // toplandığından genelde "./<other>.exception").
+      // Relative import when not same file (Exceptions live under common/exceptions
+      // so usually "./<other>.exception").
       if (importPathOf(parentPath) !== importPathOf(filePath)) {
         imports.add(parentClass, relativeImportPath(filePath, parentPath));
       }
     } else {
-      // Kayıp ref -> HttpException'a düş, kullanıcıya not bırak.
+      // Missing ref -> fall back to HttpException, leave note for user.
       missingParent = true;
     }
   }
@@ -62,7 +62,7 @@ export const emitException: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[]
     imports.add("HttpException", "@nestjs/common");
   }
 
-  // ── Gövde ───────────────────────────────────────────────────────────────
+  // ── Body ───────────────────────────────────────────────────────────────
   const lines: string[] = [];
 
   if (props.Description) {
@@ -72,7 +72,7 @@ export const emitException: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[]
   if (missingParent) {
     lines.push(`  // TODO: ParentExceptionRef "${parentRef}" could not be resolved; fell back to HttpException.`);
   }
-  // Sınıf-içi sabit alanlar (statik, deterministik metadata).
+  // In-class static fields (static, deterministic metadata).
   lines.push(`  static readonly httpStatus = ${statusMember};`);
   if (props.ErrorCode !== undefined && props.ErrorCode !== "") {
     lines.push(`  static readonly errorCode = ${JSON.stringify(props.ErrorCode)};`);
@@ -96,10 +96,10 @@ export const emitException: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[]
   return [file];
 };
 
-/** super()'ın 1. argümanı: { code, message } response nesnesi.
- *  ErrorCode yoksa yalnız message yazılır (deterministik). */
+/** super()'s 1st argument: { code, message } response object.
+ *  When ErrorCode absent, only message is written (deterministic). */
 function responseLiteral(errorCode: string | undefined, description: string): string {
-  // constructor(message?) → runtime mesaj varsa onu, yoksa Description varsayılanını kullan.
+  // constructor(message?) -> use runtime message if present, else Description default.
   const message = `message ?? ${JSON.stringify(description)}`;
   if (errorCode !== undefined && errorCode !== "") {
     return `{ code: ${JSON.stringify(errorCode)}, message: ${message} }`;
@@ -107,15 +107,15 @@ function responseLiteral(errorCode: string | undefined, description: string): st
   return `{ message: ${message} }`;
 }
 
-/** HTTP durum kodu (sayı) -> `HttpStatus.<MEMBER>`.
- *  Bilinen kodlar adlandırılmış member'a; bilinmeyenler `HttpStatus[<n>]`
- *  yerine güvenli `<n> as HttpStatus` cast'ine düşülür (deterministik). */
+/** HTTP status code (number) -> `HttpStatus.<MEMBER>`.
+ *  Known codes map to named member; unknown fall back to safe `<n> as HttpStatus`
+ *  cast instead of `HttpStatus[<n>]` (deterministic). */
 function httpStatusMember(code: number): string {
   const name = HTTP_STATUS_NAMES[code];
   return name ? `HttpStatus.${name}` : `(${code} as HttpStatus)`;
 }
 
-/** NestJS HttpStatus enum karşılıkları (deterministik sabit tablo). */
+/** NestJS HttpStatus enum equivalents (deterministic constant table). */
 const HTTP_STATUS_NAMES: Record<number, string> = {
   100: "CONTINUE",
   101: "SWITCHING_PROTOCOLS",

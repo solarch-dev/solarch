@@ -39,16 +39,16 @@ export interface StoredTab {
   updatedAt: string;
 }
 
-/** Bir sekmenin render içeriği: pozisyonlu node'lar + aralarındaki edge'ler. */
+/** A tab's render content: positioned nodes + edges between them. */
 export interface TabGraphMember {
   id: string;
   type: string;
   properties: Record<string, unknown>;
   position: { x: number; y: number };
-  version: number; // optimistic concurrency — frontend autosave bunu expectedVersion olarak gönderir
+  version: number; // optimistic concurrency — frontend autosave sends this as expectedVersion
   isReference: boolean;
-  origin?: string; // referans ise node'un ev sekmesi (homeTabId)
-  // İmplementasyon sayaçları (CLI/eklenti raporu) — canvas doluluk rozeti.
+  origin?: string; // when reference: node's home tab (homeTabId)
+  // Implementation counters (CLI/extension report) — canvas fill badge.
   implTotal?: number;
   implFilled?: number;
   implAi?: number;

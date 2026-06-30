@@ -1,22 +1,21 @@
 import { Injectable } from "@nestjs/common";
 
-/** SSE `chat/stream` çift-tetiklenme koruması.
+/** SSE `chat/stream` duplicate-trigger protection.
  *
- *  EventSource bağlantısı koptuğunda tarayıcı aynı URL'i yeniden açabilir
- *  (auto-reconnect) ya da kullanıcı hızlı çift gönderim yapabilir. Aynı
- *  `requestId` ikinci kez gelirse generation yeniden çalışıp **çift fatura +
- *  çift node** yaratır. Bu store ilk görülen requestId'yi TTL boyunca
- *  "sahiplenir"; tekrarları reddeder.
+ *  When an EventSource connection drops, the browser may reopen the same URL
+ *  (auto-reconnect) or the user may double-submit quickly. If the same
+ *  `requestId` arrives again, generation reruns and creates duplicate nodes. This store "claims" the first seen requestId for the TTL
+ *  and rejects repeats.
  *
- *  Bellek-içi, tek instance içindir. Çok-instance deploy'a geçilirse Redis'e
- *  taşınır (launch tek kutu — yeterli). */
+ *  In-memory, single-instance only. Move to Redis when deploying multi-instance
+ *  (single-box launch is sufficient for now). */
 @Injectable()
 export class AiIdempotencyStore {
   private readonly seen = new Map<string, number>(); // requestId → expiry (epoch ms)
   private readonly ttlMs = 5 * 60_000;
-  private readonly maxKeys = 10_000; // patolojik büyümeye karşı tavan
+  private readonly maxKeys = 10_000; // cap against pathological growth
 
-  /** İlk görülüşte `true` döner (sahiplenildi). TTL içinde tekrar gelirse `false`. */
+  /** Returns `true` on first sight (claimed). Returns `false` if seen again within TTL. */
   tryAcquire(key: string): boolean {
     const now = Date.now();
     this.sweep(now);

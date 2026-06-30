@@ -4,13 +4,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "../../api/api-keys";
-import { useIsGuest, openGuestSignupModal } from "../../lib/guest";
 
-/** Settings — for now a single section: API Keys (for CLI / MCP clients).
- *  On creation the plaintext key is shown ONLY once; once the page reloads
- *  it cannot be recovered (the server stores only a hash). */
+/** Settings — API keys for CLI / MCP clients. */
 export function SettingsPage() {
-  const isGuest = useIsGuest();
   const { data: keys, isLoading } = useApiKeys();
   const createKey = useCreateApiKey();
   const deleteKey = useDeleteApiKey();
@@ -21,10 +17,6 @@ export function SettingsPage() {
   const [copied, setCopied] = useState(false);
 
   const create = () => {
-    if (isGuest) {
-      openGuestSignupModal();
-      return;
-    }
     const trimmed = name.trim();
     if (!trimmed) return;
     createKey.mutate(trimmed, {

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
 # Solarch — Neo4j restore (Neo4j 5 Community, Docker).
-# Bir yedek dizinindeki system + neo4j dump'larını geri yükler.
-# Restore da container stop gerektirir (load çalışan DB'yi değiştiremez).
+# Restores system + neo4j dumps from a backup directory.
+# Restore also requires container stop (load cannot change the running DB).
 #
-# Kullanım: scripts/neo4j-restore.sh [BACKUP_DIR]   (yoksa backups/latest)
+# Usage: scripts/neo4j-restore.sh [BACKUP_DIR] (or backups/latest)
 #
-# DİKKAT: hedef DB ÜZERİNE YAZILIR (--overwrite-destination). Onay istenir.
+# CAUTION: destination DB is OVERWRITTEN (--overwrite-destination). Confirmation is requested.
 
 set -euo pipefail
 
@@ -21,14 +21,14 @@ BACKUP_DIR="${BACKEND_DIR}/backups"
 
 SRC="${1:-${BACKUP_DIR}/latest}"
 [ -d "${SRC}" ] || { echo "HATA: yedek dizini yok: ${SRC}"; exit 1; }
-[ -s "${SRC}/neo4j.dump.gz" ] || { echo "HATA: ${SRC}/neo4j.dump.gz yok/boş"; exit 1; }
+[ -s "${SRC}/neo4j.dump.gz" ] || { echo "ERROR: ${SRC}/neo4j.dump.gz does not exist/empty"; exit 1; }
 
 if docker ps >/dev/null 2>&1; then DOCKER="docker"; else DOCKER="sudo docker"; fi
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
-echo "DİKKAT: '${SRC}' yedeği MEVCUT veritabanının ÜZERİNE yazılacak (geri alınamaz)."
-read -r -p "Devam etmek için 'evet' yazın: " ans
-[ "${ans}" = "evet" ] || { echo "İptal."; exit 1; }
+echo "CAUTION: Backup '${SRC}' will OVERwrite the CURRENT database (irreversible)."
+read -r -p "Type 'yes' to continue: " ans
+[ "${ans}" = "yes" ] || { echo "Cancel."; exit 1; }
 
 restart_container() { ${DOCKER} start "${CONTAINER_NAME}" >/dev/null 2>&1 || true; }
 trap restart_container EXIT
@@ -36,7 +36,7 @@ trap restart_container EXIT
 log "Container durduruluyor…"
 ${DOCKER} stop "${CONTAINER_NAME}" >/dev/null
 
-# system'i neo4j'den ÖNCE yükle (auth/rol verisi).
+#load system FIRST from neo4j (auth/role data).
 for DB in system neo4j; do
   log "load ${DB}…"
   gunzip -c "${SRC}/${DB}.dump.gz" \
@@ -44,6 +44,6 @@ for DB in system neo4j; do
       neo4j-admin database load "${DB}" --from-stdin --overwrite-destination
 done
 
-log "Container başlatılıyor…"
+log "Initializing container…"
 ${DOCKER} start "${CONTAINER_NAME}" >/dev/null
-log "Restore tamam. NOT: yeni şema değişiklikleri için 'pnpm neo4j:migrate' çalıştırmayı unutmayın."
+log "Restore ok. NOTE: don't forget to run 'pnpm neo4j:migrate' for new schema changes."

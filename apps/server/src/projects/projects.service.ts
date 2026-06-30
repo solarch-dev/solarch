@@ -2,9 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { randomUUID } from "node:crypto";
 import { ProjectsRepository, type StoredProject } from "./projects.repository";
 import { TabsService } from "../tabs/tabs.service";
-import { BillingService } from "../billing/billing.service";
 import { hasProjectAccess, ownershipFor, projectScope } from "../auth/access";
-import { verifyGuestToken } from "../auth/guest-token";
 import type { AuthContext } from "../auth/auth.types";
 import type { CreateProjectInput } from "./dto/create-project.dto";
 import type { UpdateProjectInput } from "./dto/update-project.dto";
@@ -18,14 +16,9 @@ export class ProjectsService {
   constructor(
     private readonly repo: ProjectsRepository,
     private readonly tabs: TabsService,
-    private readonly billing: BillingService,
   ) {}
 
   async create(input: CreateProjectInput, auth: AuthContext): Promise<ProjectWithCounts> {
-    // Plan proje limiti (mevcut kapsamdaki proje sayısı).
-    const existing = await this.repo.list(projectScope(auth));
-    await this.billing.assertProjectCap(auth.userId, existing.length);
-
     const now = new Date().toISOString();
     const stored: StoredProject = {
       id: randomUUID(),
@@ -37,7 +30,7 @@ export class ProjectsService {
       updatedAt: now,
     };
     await this.repo.create(stored);
-    // Her projeye otomatik "Ana Mimari" sekmesi.
+    // Auto-create default "Main Architecture" tab for each project.
     await this.tabs.ensureDefault(stored.id);
     return { ...stored, counts: { nodes: 0, edges: 0 } };
   }
@@ -73,7 +66,7 @@ export class ProjectsService {
     if (!deleted) throw this.notFound(id);
   }
 
-  /** İmplementasyon raporu — sayaçları node'lara yazar (Faz B: canvas rozetleri). */
+  /** Implementation report — writes counters onto nodes (Phase B: canvas badges). */
   async reportImplementation(
     id: string,
     entries: { nodeId: string; total: number; filled: number; filledAi: number }[],
@@ -98,38 +91,8 @@ export class ProjectsService {
     };
   }
 
-  /** Misafir biletindeki projeleri kayıt olan kullanıcıya devret. Süresi geçmiş
-   *  ama imzası geçerli bilet de kabul edilir (çizim kayıtta kaybolmasın).
-   *  Geçersiz bilet / proje yoksa sessizce boş döner — frontend bileti temizler. */
-  async claimGuestProjects(token: string, auth: AuthContext): Promise<ProjectWithCounts[]> {
-    if (auth.isGuest) {
-      throw new ForbiddenException({
-        code: "ERR_GUEST_FORBIDDEN",
-        message: "Sign in to claim a guest project.",
-      });
-    }
-    const guest = verifyGuestToken(token, { allowExpired: true });
-    if (!guest) return [];
-
-    const guestProjects = await this.repo.list({ userId: guest.guestId, orgId: null });
-    if (guestProjects.length === 0) return [];
-
-    // Devir sonrası toplam, kullanıcının kendi plan limitine sığmalı.
-    const mine = await this.repo.list(projectScope(auth));
-    await this.billing.assertProjectCap(auth.userId, mine.length + guestProjects.length - 1);
-
-    const claimed: ProjectWithCounts[] = [];
-    const { ownerId, orgId } = ownershipFor(auth);
-    for (const p of guestProjects) {
-      await this.repo.reassignOwner(p.id, ownerId, orgId);
-      const counts = await this.repo.counts(p.id);
-      claimed.push({ ...p, ownerId, orgId, counts });
-    }
-    return claimed;
-  }
-
-  /** Projeyi yükler; yoksa VEYA çağırana ait değilse hata atar. Var/yok sızıntısını
-   *  önlemek için erişim yoksa da 403 (404 yalnız gerçekten yokken). */
+  /** Loads project; throws if missing OR caller lacks access. Returns 403 when
+   *  access is denied (404 only when the project truly does not exist). */
   private async assertAccess(id: string, auth: AuthContext): Promise<StoredProject> {
     const project = await this.repo.getById(id);
     if (!project) throw this.notFound(id);

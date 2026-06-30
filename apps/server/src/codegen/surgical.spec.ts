@@ -2,14 +2,15 @@ import { describe, it, expect } from "vitest";
 import { countSurgicalMarkers, surgicalMarker, notImplemented } from "./surgical";
 
 /* ────────────────────────────────────────────────────────────────────────
- * surgical.spec.ts — countSurgicalMarkers "DOLDURULACAK bölge" sayar:
- * marker − dolu damgası. Codegen tam ürettiği bölgeyi (queue producer) filled
- * damgaladığında "doldurulacak" sayılmamalı → UI toplamı = fill'in işlediği.
- * (Bug: "tuşa basınca 71 yerine 69 ile başlıyor" — codegen-dolu queue publish'ler.)
+ * surgical.spec.ts — countSurgicalMarkers counts "TO-FILL" regions:
+ * markers minus filled stamps. When codegen fully produces a region (queue producer)
+ * and stamps `@solarch:filled by=codegen`, it must NOT count as "to fill" -> UI total
+ * matches what fill processes.
+ * (Bug: "starts with 69 instead of 71 on button press" — codegen-filled queue publishes.)
  * ──────────────────────────────────────────────────────────────────────── */
 
-describe("countSurgicalMarkers — doldurulacak (pending) bölge sayısı", () => {
-  it("NOT_IMPLEMENTED iskeletler sayılır (klasik fill noktaları)", () => {
+describe("countSurgicalMarkers — pending (to-fill) region count", () => {
+  it("NOT_IMPLEMENTED skeletons are counted (classic fill points)", () => {
     const body = [
       `  async createUser(): Promise<void> {`,
       `    ${surgicalMarker({ nodeId: "n1", member: "createUser" })}`,
@@ -19,7 +20,7 @@ describe("countSurgicalMarkers — doldurulacak (pending) bölge sayısı", () =
     expect(countSurgicalMarkers(body)).toBe(1);
   });
 
-  it("codegen-dolu bölge (marker + @solarch:filled by=codegen) SAYILMAZ", () => {
+  it("codegen-filled region (marker + @solarch:filled by=codegen) is NOT counted", () => {
     const body = [
       `  async publish(payload: JobDto): Promise<void> {`,
       `    ${surgicalMarker({ nodeId: "n2", member: "publish", deps: ["this.queue"] })}`,
@@ -30,7 +31,7 @@ describe("countSurgicalMarkers — doldurulacak (pending) bölge sayısı", () =
     expect(countSurgicalMarkers(body)).toBe(0);
   });
 
-  it("karışık dosya: 2 iskelet + 1 codegen-dolu → 2 (doldurulacak)", () => {
+  it("mixed file: 2 skeletons + 1 codegen-filled -> 2 (to fill)", () => {
     const skel = (m: string) =>
       [`  async ${m}(): Promise<void> {`, `    ${surgicalMarker({ nodeId: "n", member: m })}`, `    ${notImplemented("S", m)}`, `  }`].join("\n");
     const filled = [
@@ -44,7 +45,7 @@ describe("countSurgicalMarkers — doldurulacak (pending) bölge sayısı", () =
     expect(countSurgicalMarkers(content)).toBe(2);
   });
 
-  it("marker yoksa 0", () => {
+  it("returns 0 when no markers", () => {
     expect(countSurgicalMarkers("export class X {}\n")).toBe(0);
   });
 });

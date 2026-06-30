@@ -5,12 +5,12 @@ import { CODEGEN_VERSION } from "./codegen.version";
 import type { GeneratedProject } from "./types";
 
 /* ────────────────────────────────────────────────────────────────────────
- * codegen.controller.spec.ts — sürüm damgalama + status birim testleri.
+ * codegen.controller.spec.ts — version stamping + status unit tests.
  *
- *   - generate başarılı -> billing.assertCanGenerateCode + service.generate +
- *     projects.setCodegenVersion(projectId, CODEGEN_VERSION) ÇAĞRILIR (damga).
- *   - status: generated null / eski / güncel / proje yok kombinasyonlarında
- *     { current, generated, updateAvailable } doğru hesaplanır.
+ *   - successful generate -> service.generate +
+ *     projects.setCodegenVersion(projectId, CODEGEN_VERSION) IS CALLED (stamp).
+ *   - status: for generated null / stale / current / missing project combinations
+ *     { current, generated, updateAvailable } is computed correctly.
  * ──────────────────────────────────────────────────────────────────────── */
 
 const PROJECT = "00000000-0000-4000-8000-000000000000";
@@ -34,10 +34,6 @@ function fakeGenerated(): GeneratedProject {
 
 function build(repoVersion: number | null | undefined, graphRev = 0, genGraphRev: number | null = null) {
   const service = { generate: vi.fn(async () => fakeGenerated()) };
-  const billing = {
-    assertCanGenerateOrFreePass: vi.fn(async () => {}),
-    refund: vi.fn(async () => {}),
-  };
   const projects = {
     setCodegenVersion: vi.fn(async () => {}),
     getCodegenVersion: vi.fn(async () => repoVersion),
@@ -47,32 +43,30 @@ function build(repoVersion: number | null | undefined, graphRev = 0, genGraphRev
   const fill = { fill: vi.fn(async function* () {}) };
   const fills = { deleteOne: vi.fn(async () => {}) };
   const imports = { resolveImports: vi.fn(async (f: unknown) => f) };
-  const controller = new CodegenController(service as never, billing as never, projects as never, fill as never, fills as never, imports as never);
-  return { controller, service, billing, projects, fills, imports };
+  const controller = new CodegenController(service as never, projects as never, fill as never, fills as never, imports as never);
+  return { controller, service, projects, fills, imports };
 }
 
-describe("CodegenController — sürüm damgalama (generate)", () => {
-  it("başarılı generate -> projeye CODEGEN_VERSION damgalanır", async () => {
-    const { controller, billing, service, projects } = build(undefined);
+describe("CodegenController — version stamping (generate)", () => {
+  it("successful generate -> stamps CODEGEN_VERSION on project", async () => {
+    const { controller, service, projects } = build(undefined);
     await controller.generate(PROJECT, { target: "nestjs" } as never, AUTH);
 
-    expect(billing.assertCanGenerateOrFreePass).toHaveBeenCalledWith("user_1");
     expect(service.generate).toHaveBeenCalledWith(PROJECT, "nestjs");
     expect(projects.setCodegenVersion).toHaveBeenCalledWith(PROJECT, CODEGEN_VERSION);
   });
 
-  it("billing reddederse generate de damga da yapılmaz", async () => {
-    const { controller, billing, service, projects } = build(undefined);
-    billing.assertCanGenerateOrFreePass.mockRejectedValueOnce(new Error("ERR_PLAN_AI"));
+  it("when generate fails, stamp does not run", async () => {
+    const { controller, service, projects } = build(undefined);
+    service.generate.mockRejectedValueOnce(new Error("ERR_PROJECT_NOT_FOUND"));
 
     await expect(controller.generate(PROJECT, { target: "nestjs" } as never, AUTH)).rejects.toThrow();
-    expect(service.generate).not.toHaveBeenCalled();
     expect(projects.setCodegenVersion).not.toHaveBeenCalled();
   });
 });
 
-describe("CodegenController — revert (bölgeyi stub'a geri al)", () => {
-  it("deleteOne'ı projectId/nodeId/member ile çağırır + ok döner", async () => {
+describe("CodegenController — revert (restore region to stub)", () => {
+  it("calls deleteOne with projectId/nodeId/member + returns ok", async () => {
     const { controller, fills } = build(undefined);
     const res = await controller.revertFill(PROJECT, "node-1", "LoginAsync");
     expect(fills.deleteOne).toHaveBeenCalledWith(PROJECT, "node-1", "LoginAsync");
@@ -80,44 +74,44 @@ describe("CodegenController — revert (bölgeyi stub'a geri al)", () => {
   });
 });
 
-describe("CodegenController — status (updateAvailable mantığı)", () => {
+describe("CodegenController — status (updateAvailable logic)", () => {
   let CURRENT: number;
   beforeEach(() => {
     CURRENT = CODEGEN_VERSION;
   });
 
-  it("hiç üretilmemiş (generated null) -> updateAvailable false + drift yok", async () => {
+  it("never generated (generated null) -> updateAvailable false + no drift", async () => {
     const { controller } = build(null);
     const res = await controller.status(PROJECT);
     expect(res.data).toMatchObject({ current: CURRENT, generated: null, updateAvailable: false, diagramDrifted: false, driftCount: 0 });
   });
 
-  it("damga eski (< current) -> updateAvailable true", async () => {
+  it("stale stamp (< current) -> updateAvailable true", async () => {
     const { controller } = build(CURRENT - 1);
     const res = await controller.status(PROJECT);
     expect(res.data).toMatchObject({ current: CURRENT, generated: CURRENT - 1, updateAvailable: true });
   });
 
-  it("diyagram drift'i: graphRevision > generatedGraphRevision -> diagramDrifted + driftCount", async () => {
-    // üretimde rev 3 damgalandı, şimdi rev 5 → 2 yapısal değişiklik (drift).
+  it("diagram drift: graphRevision > generatedGraphRevision -> diagramDrifted + driftCount", async () => {
+    // rev 3 stamped at generation, now rev 5 → 2 structural changes (drift).
     const { controller } = build(CURRENT, 5, 3);
     const res = await controller.status(PROJECT);
     expect(res.data).toMatchObject({ diagramDrifted: true, driftCount: 2, graphRevision: 5, generatedGraphRevision: 3 });
   });
 
-  it("drift yok: graphRevision == generatedGraphRevision", async () => {
+  it("no drift: graphRevision == generatedGraphRevision", async () => {
     const { controller } = build(CURRENT, 4, 4);
     const res = await controller.status(PROJECT);
     expect(res.data).toMatchObject({ diagramDrifted: false, driftCount: 0 });
   });
 
-  it("damga güncel (= current) -> updateAvailable false", async () => {
+  it("current stamp (= current) -> updateAvailable false", async () => {
     const { controller } = build(CURRENT);
     const res = await controller.status(PROJECT);
     expect(res.data).toMatchObject({ current: CURRENT, generated: CURRENT, updateAvailable: false });
   });
 
-  it("proje yok (getCodegenVersion undefined) -> 404 ERR_PROJECT_NOT_FOUND", async () => {
+  it("missing project (getCodegenVersion undefined) -> 404 ERR_PROJECT_NOT_FOUND", async () => {
     const { controller } = build(undefined);
     await expect(controller.status(PROJECT)).rejects.toBeInstanceOf(NotFoundException);
   });

@@ -4,7 +4,7 @@ import { buildCodeGraph } from "../../ir";
 import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function tableNode(properties: Record<string, unknown>, id: string): StoredNode {
   return {
     id,
@@ -29,9 +29,9 @@ const USER_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ORDER_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 const USER_TABLE = {
-  // TableName fiziksel ad olarak alınır (çoğullanmaz) -> doğal çoğul yazılır.
+  // TableName fiziksel ad olarak alinir (cogullanmaz) -> dogal cogul yazilir.
   TableName: "users",
-  Description: "Uygulama kullanıcısı",
+  Description: "Application user",
   Columns: [
     { Name: "Id", DataType: "INT", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: true },
     { Name: "Email", DataType: "VARCHAR", Length: 320, IsPrimaryKey: false, IsNotNull: true, IsUnique: true },
@@ -47,7 +47,7 @@ const USER_TABLE = {
 
 const ORDER_TABLE = {
   TableName: "orders",
-  Description: "Sipariş kaydı",
+  Description: "Order kaydi",
   Columns: [
     { Name: "Id", DataType: "BIGINT", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: true },
     { Name: "UserId", DataType: "INT", IsPrimaryKey: false, IsNotNull: true, IsUnique: false },
@@ -76,7 +76,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     const [file] = emitTable(ctx.graph.byId(node.id)!, ctx);
     expect(file).toMatchInlineSnapshot(`
       {
-        "content": "-- Uygulama kullanıcısı
+        "content": "-- Application user
 
       CREATE TABLE "users" (
         "id" SERIAL NOT NULL,
@@ -97,7 +97,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     `);
   });
 
-  it("FK referans çözümü + migration sırası: referans edilen tablo önce gelir", () => {
+  it("FK referans cozumu + migration sirasi: referans edilen tablo once gelir", () => {
     const user = tableNode(USER_TABLE, USER_ID);
     const order = tableNode(ORDER_TABLE, ORDER_ID);
     const { ctx } = ctxFor(user, order);
@@ -105,11 +105,11 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     const [userFile] = emitTable(ctx.graph.byId(USER_ID)!, ctx);
     const [orderFile] = emitTable(ctx.graph.byId(ORDER_ID)!, ctx);
 
-    // User'a FK ile bağımlı olan Order, topolojide sonra (002) gelir.
+    // User'a FK ile bagimli olan Order, topolojide sonra (002) gelir.
     expect(userFile.path).toBe("migrations/001_create_users.sql");
     expect(orderFile.path).toBe("migrations/002_create_orders.sql");
 
-    // FK tüm tablodan sonra ALTER TABLE ile, hedef tablo "users" çözülmüş.
+    // FK tum tablodan sonra ALTER TABLE ile, hedef tablo "users" cozulmus.
     expect(orderFile.content).toContain(
       'ALTER TABLE "orders" ADD CONSTRAINT "fk_orders_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;',
     );
@@ -126,7 +126,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     const node = tableNode(
       {
         TableName: "user_roles",
-        Description: "Kullanıcı-rol eşleşmesi",
+        Description: "User-rol eslesmesi",
         Columns: [
           { Name: "UserId", DataType: "INT", IsPrimaryKey: false, IsNotNull: true, IsUnique: false },
           { Name: "RoleId", DataType: "INT", IsPrimaryKey: false, IsNotNull: true, IsUnique: false },
@@ -145,7 +145,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     expect(file.content).toContain('CONSTRAINT "uq_user_roles_user_id_role_id" UNIQUE ("user_id", "role_id")');
   });
 
-  it("GENERATED kolon + tek-kolon UNIQUE kolon dekoratörü", () => {
+  it("GENERATED kolon + tek-kolon UNIQUE kolon dekoratoru", () => {
     const node = tableNode(
       {
         TableName: "Invoice",
@@ -179,7 +179,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     expect(file.content).toContain('"gross" DECIMAL(10, 2) GENERATED ALWAYS AS (net + tax) STORED');
   });
 
-  it("edge-case: kayıp FK ref + boş koleksiyonlar -> throw yok, FK ham isimden türer", () => {
+  it("edge-case: kayip FK ref + bos koleksiyonlar -> throw yok, FK ham isimden turer", () => {
     const node = tableNode(
       {
         TableName: "comments",
@@ -188,7 +188,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
           { Name: "Id", DataType: "INT", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: true },
           { Name: "PostId", DataType: "INT", IsPrimaryKey: false, IsNotNull: true, IsUnique: false },
         ],
-        // ForeignKeys/UniqueConstraints/CheckConstraints/Indexes BİLEREK eksik (Zod default'suz ham node).
+        // ForeignKeys/UniqueConstraints/CheckConstraints/Indexes BILEREK eksik (Zod default'suz ham node).
         ForeignKeys: [
           { Columns: ["PostId"], ReferencesTable: "posts", ReferencesColumns: ["Id"] },
         ],
@@ -198,17 +198,17 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     const { ctx } = ctxFor(node);
     expect(() => emitTable(ctx.graph.byId(node.id)!, ctx)).not.toThrow();
     const [file] = emitTable(ctx.graph.byId(node.id)!, ctx);
-    // Hedef "posts" graph'ta yok -> ham isim fiziksel ad sayılır (çoğullanmaz), throw yok.
+    // Hedef "posts" graph'ta yok -> ham isim fiziksel ad sayilir (cogullanmaz), throw yok.
     expect(file.content).toContain(
       'ALTER TABLE "comments" ADD CONSTRAINT "fk_comments_post_id" FOREIGN KEY ("post_id") REFERENCES "posts" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION;',
     );
-    // Boş Index/Unique/Check -> ekstra satır yok.
+    // Bos Index/Unique/Check -> ekstra satir yok.
     expect(file.content).not.toContain("CREATE INDEX");
     expect(file.content).not.toContain("UNIQUE (");
     expect(file.content.endsWith(";\n")).toBe(true);
   });
 
-  it("dil 'sql', yol migrations/ altında, içerik tek satır sonu ile biter", () => {
+  it("dil 'sql', yol migrations/ altinda, content ends with single newline", () => {
     const node = tableNode(USER_TABLE, USER_ID);
     const { ctx } = ctxFor(node);
     const [file] = emitTable(ctx.graph.byId(node.id)!, ctx);
@@ -218,7 +218,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     expect(file.content.endsWith("\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const node = tableNode(ORDER_TABLE, ORDER_ID);
     const { ctx } = ctxFor(node);
     const a = emitTable(ctx.graph.byId(node.id)!, ctx)[0].content;
@@ -233,12 +233,12 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  /* ── ENUM kolonu -> VARCHAR + CHECK (entity ile tutarlı) ─────────────────
-   * #56: entity @Column({type:"enum"}) ama migration TEXT -> tutarsız. Karar:
-   * varchar + CHECK. Migration enum kolonunu VARCHAR yapar ve değerleri CHECK ile
-   * kısıtlar (DB-seviyesi doğrulama); native CREATE TYPE YOK (diyagram evrilince
-   * migration kâbusu olmasın). Değerler EnumRef -> Enum node Values (Value ?? Key). */
-  it("ENUM kolonu -> VARCHAR + CHECK (col IN ...), TEXT/CREATE TYPE değil", () => {
+  /* ── ENUM kolonu -> VARCHAR + CHECK (entity ile tutarli) ─────────────────
+   * #56: entity @Column({type:"enum"}) ama migration TEXT -> tutarsiz. Karar:
+   * varchar + CHECK. Migration enum kolonunu VARCHAR yapar ve degerleri CHECK ile
+   * kisitlar (DB-seviyesi dogrulama); native CREATE TYPE NONE (diyagram evrilince
+   * migration kâbusu olmasin). Degerler EnumRef -> Enum node Values (Value ?? Key). */
+  it("ENUM kolonu -> VARCHAR + CHECK (col IN ...), TEXT/CREATE TYPE degil", () => {
     const enumNode: StoredNode = {
       id: "e0000000-0000-4000-8000-000000000001",
       type: "Enum",
@@ -251,7 +251,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
       version: 1,
       properties: {
         Name: "OrderStatus",
-        Description: "Sipariş durumu",
+        Description: "Order status",
         BackingType: "string",
         Values: [
           { Key: "PENDING", Value: "pending" },
@@ -263,7 +263,7 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     const table = tableNode(
       {
         TableName: "orders",
-        Description: "Sipariş",
+        Description: "Order",
         Columns: [
           { Name: "Id", DataType: "BIGINT", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: true },
           { Name: "Status", DataType: "ENUM", EnumRef: "OrderStatus", IsPrimaryKey: false, IsNotNull: true, IsUnique: false },
@@ -277,11 +277,11 @@ describe("emitTable (Table -> Postgres migration SQL)", () => {
     );
     const { ctx } = ctxFor(table, enumNode);
     const [file] = emitTable(ctx.graph.byId(ORDER_ID)!, ctx);
-    // Kolon VARCHAR (TEXT/native-enum DEĞİL).
+    // Kolon VARCHAR (TEXT/native-enum NOT).
     expect(file.content).toMatch(/"status" VARCHAR/);
     expect(file.content).not.toMatch(/"status" TEXT/);
     expect(file.content).not.toContain("CREATE TYPE");
-    // CHECK constraint enum backing değerleriyle (Value ?? Key).
+    // CHECK constraint enum backing degerleriyle (Value ?? Key).
     expect(file.content).toMatch(
       /CHECK \("status" IN \('pending', 'confirmed', 'cancelled'\)\)/,
     );

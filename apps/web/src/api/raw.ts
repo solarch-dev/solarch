@@ -1,19 +1,10 @@
-/** Raw API calls outside hooks for undo/redo + autosave-flush.
- *  Hook onSuccess listeners are not triggered → no history loop.
- *  Auth: cookie + Bearer (getClerkToken) — same as openapi-fetch client, guards against
- *  cookie timing race. Errors: throwIfNotOk → no silent swallowing (caller/global handles). */
+/** Raw API calls outside hooks for undo/redo + autosave-flush. */
 
 import type { QueryClient } from "@tanstack/react-query";
-import { getClerkToken, throwIfNotOk } from "./client";
-import { guestHeaders } from "../lib/guest";
+import { throwIfNotOk } from "./client";
 
-async function authHeaders(json = true): Promise<Record<string, string>> {
-  const token = await getClerkToken();
-  return {
-    ...(json ? { "Content-Type": "application/json" } : {}),
-    // Clerk oturumu yoksa misafir bileti (varsa) devreye girer.
-    ...(token ? { Authorization: `Bearer ${token}` } : guestHeaders()),
-  };
+function jsonHeaders(): Record<string, string> {
+  return { "Content-Type": "application/json" };
 }
 
 export const rawUpdateNodeProps = async (
@@ -25,7 +16,7 @@ export const rawUpdateNodeProps = async (
 ) => {
   const res = await fetch(`/api/v1/projects/${projectId}/nodes/${nodeId}`, {
     method: "PATCH",
-    headers: await authHeaders(),
+    headers: jsonHeaders(),
     credentials: "include",
     body: JSON.stringify({ properties, expectedVersion }),
   });
@@ -41,7 +32,6 @@ export const rawDeleteNode = async (
 ) => {
   const res = await fetch(`/api/v1/projects/${projectId}/nodes/${nodeId}`, {
     method: "DELETE",
-    headers: await authHeaders(false),
     credentials: "include",
   });
   await throwIfNotOk(res);
@@ -56,7 +46,7 @@ export const rawCreateNode = async (
 ): Promise<{ id: string }> => {
   const res = await fetch(`/api/v1/projects/${projectId}/nodes`, {
     method: "POST",
-    headers: await authHeaders(),
+    headers: jsonHeaders(),
     credentials: "include",
     body: JSON.stringify({ projectId, ...input }),
   });
@@ -73,7 +63,7 @@ export const rawCreateEdge = async (
 ): Promise<{ id: string; warning?: { code: string; message: string; suggestion?: string } }> => {
   const res = await fetch(`/api/v1/projects/${projectId}/edges`, {
     method: "POST",
-    headers: await authHeaders(),
+    headers: jsonHeaders(),
     credentials: "include",
     body: JSON.stringify({
       projectId,
@@ -94,7 +84,6 @@ export const rawDeleteEdge = async (
 ) => {
   const res = await fetch(`/api/v1/projects/${projectId}/edges/${edgeId}`, {
     method: "DELETE",
-    headers: await authHeaders(false),
     credentials: "include",
   });
   await throwIfNotOk(res);

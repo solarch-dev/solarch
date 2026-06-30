@@ -11,10 +11,10 @@ const validBase = {
 
 const validProperties = {
   Name: "OrderStatus",
-  Description: "Sipariş durumu",
+  Description: "Order status",
   Values: [
     { Key: "PENDING" },
-    { Key: "SHIPPED", Value: "shipped", Description: "Kargoya verildi" },
+    { Key: "SHIPPED", Value: "shipped", Description: "Shipped" },
     { Key: "DELIVERED" },
   ],
 };
@@ -23,7 +23,7 @@ const parse = (properties: unknown) =>
   EnumNodeSchema.parse({ ...validBase, type: "Enum", properties });
 
 describe("EnumNodeSchema (enriched)", () => {
-  it("geçerli Enum'u parse eder", () => {
+  it("parses valid Enum", () => {
     const node = parse(validProperties);
     expect(node.properties.Values).toHaveLength(3);
   });
@@ -33,15 +33,15 @@ describe("EnumNodeSchema (enriched)", () => {
     expect(node.properties.BackingType).toBe("string");
   });
 
-  it("BackingType=int kabul eder", () => {
+  it("accepts BackingType=int", () => {
     const node = parse({ ...validProperties, BackingType: "int" });
     expect(node.properties.BackingType).toBe("int");
   });
 
-  it("key-value (Value + Description) kabul eder", () => {
+  it("accepts key-value (Value + Description)", () => {
     const node = parse(validProperties);
     expect(node.properties.Values[1].Value).toBe("shipped");
-    expect(node.properties.Values[1].Description).toBe("Kargoya verildi");
+    expect(node.properties.Values[1].Description).toBe("Shipped");
   });
 
   it("Description zorunlu", () => {
@@ -49,15 +49,15 @@ describe("EnumNodeSchema (enriched)", () => {
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Values boşsa fırlatır", () => {
+  it("throws when Values is empty", () => {
     expect(() => parse({ ...validProperties, Values: [] })).toThrow();
   });
 
-  it("Key boşsa fırlatır", () => {
+  it("throws when Key is empty", () => {
     expect(() => parse({ ...validProperties, Values: [{ Key: "" }] })).toThrow();
   });
 
-  it("eski string[] Values formatını reddeder", () => {
+  it("rejects legacy string[] Values format", () => {
     expect(() => parse({ ...validProperties, Values: ["PENDING", "SHIPPED"] })).toThrow();
   });
 });

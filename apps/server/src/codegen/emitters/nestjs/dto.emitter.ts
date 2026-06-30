@@ -8,25 +8,25 @@ import { sqlTypeToTs } from "./sql-type-map";
 /* ────────────────────────────────────────────────────────────────────────
  * dto.emitter.ts — DTONode -> <feature>/dto/<d>.dto.ts (class-validator).
  *
- * enum.emitter.ts'i (kanonik referans) birebir taklit eder:
- *   - named `export const emitDto: NodeEmitter`; default export YOK.
- *   - SAF fonksiyon (node, ctx) -> GeneratedFile[]; I/O yok, throw YOK.
- *   - Yol her zaman filePathFor(node, ctx.graph) ile.
- *   - import'lar ImportCollector ile (elle "import" YASAK).
- *   - DETERMİNİSTİK: alanlar verildiği SIRADA, dekoratörler sabit sırada.
- *   - İçerik tek "\n" ile biter.
+ * Mirrors enum.emitter.ts (canonical reference) exactly:
+ *   - named `export const emitDto: NodeEmitter`; no default export.
+ *   - PURE function (node, ctx) -> GeneratedFile[]; no I/O, no throw.
+ *   - Path always via filePathFor(node, ctx.graph).
+ *   - imports via ImportCollector (manual "import" FORBIDDEN).
+ *   - DETERMINISTIC: fields in given ORDER, decorators in fixed order.
+ *   - Content ends with single "\n".
  *
- * DTO'nun GÖVDESİ YOKTUR (saf veri taşıyıcı) -> surgical marker YOK -> 0.
+ * DTO BODY is NONE (pure data carrier) -> no surgical markers -> 0.
  *
- * Her Field -> property + class-validator dekoratörleri:
+ * Each Field -> property + class-validator decorators:
  *   ValidationRules:  Min->@Min, Max->@Max, MinLength->@MinLength,
  *                     MaxLength->@MaxLength, Email->@IsEmail, Url->@IsUrl,
  *                     Regex/Pattern->@Matches, Positive->@IsPositive,
  *                     Negative->@IsNegative.
  *   DataType:         string->@IsString, number/int/float->@IsNumber,
  *                     boolean->@IsBoolean, date->@IsDate.
- *   IsRequired=false -> @IsOptional + "?" (property opsiyonel).
- *   IsArray=true     -> @IsArray + "[]" (her dekoratöre { each: true }).
+ *   IsRequired=false -> @IsOptional + "?" (optional property).
+ *   IsArray=true     -> @IsArray + "[]" ({ each: true } on each decorator).
  *   NestedDTORef     -> @ValidateNested + @Type(() => X) (class-transformer) + import.
  *   EnumRef          -> @IsEnum(X) + import.
  * ──────────────────────────────────────────────────────────────────────── */
@@ -37,7 +37,7 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   const selfPath = filePathFor(node, ctx.graph);
 
   const imports = new ImportCollector();
-  // class-validator sembolleri tek slot'ta toplanır; render() sıralar + tekilleştirir.
+  // class-validator symbols collected in one slot; render() sorts + dedupes.
   const validator = (symbol: string) => imports.add(symbol, "class-validator");
 
   const lines: string[] = [];
@@ -54,42 +54,42 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
     const optional = field.IsRequired === false;
     const eachOpt = isArray ? "{ each: true }" : "";
 
-    // @ApiProperty için tip referansı: enum -> `enum: X`, nested DTO -> `type: () => X`.
-    // Çözülemese de (resolveRef null) ad yazılır; @IsEnum/@Type davranışıyla tutarlı.
+    // Type reference for @ApiProperty: enum -> `enum: X`, nested DTO -> `type: () => X`.
+    // Name written even when unresolved (resolveRef null); consistent with @IsEnum/@Type.
     let apiEnumName: string | null = null;
     let apiNestedName: string | null = null;
 
     if (field.Description) lines.push(`  /** ${field.Description} */`);
 
-    // ── 1) İsteğe bağlılık ──
+    // ── 1) Optionality ──
     if (optional) {
       validator("IsOptional");
       lines.push("  @IsOptional()");
     }
 
-    // ── 2) Dizi ──
+    // ── 2) Array ──
     if (isArray) {
       validator("IsArray");
       lines.push("  @IsArray()");
     }
 
-    // ── 3) Tip dekoratörü (EnumRef > NestedDTORef > DataType) ──
+    // ── 3) Type decorator (EnumRef > NestedDTORef > DataType) ──
     let tsType: string;
     if (field.EnumRef) {
       const enumNode = ctx.graph.resolveRef("Enum", field.EnumRef);
-      // Sınıf adı ÇÖZÜLEN node'un adından gelir (üretilen enum dosyasının export
-      // adıyla birebir eşleşsin); çözülemezse ref string'inden türetilir.
+      // Class name from RESOLVED node (matches generated enum file export);
+      // else derived from ref string.
       const enumName = pascalCase(enumNode ? enumNode.name : field.EnumRef);
       validator("IsEnum");
       lines.push(`  @IsEnum(${enumName}${eachOpt ? `, ${eachOpt}` : ""})`);
       tsType = enumName;
       apiEnumName = enumName;
       if (enumNode) {
-        // feature layout: yol filePathFor(enumNode) ile (common/enums/... veya
-        // <feature>/enums/...) çözülür; göreli yol selfPath'e göre türetilir.
+        // feature layout: path via filePathFor(enumNode) (common/enums/... or
+        // <feature>/enums/...); relative path derived from selfPath.
         imports.add(enumName, importPathOf(relativeImportPath(selfPath, filePathFor(enumNode, ctx.graph))));
       } else {
-        // Kayıp ref -> import atlanır (resolveRef null); tip yine de yazılır.
+        // Missing ref -> skip import (resolveRef null); type still written.
         lines.push(`  // TODO(solarch): Enum ref "${field.EnumRef}" could not be resolved`);
       }
     } else if (field.NestedDTORef) {
@@ -102,10 +102,10 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
       tsType = nestedName;
       apiNestedName = nestedName;
       if (dtoNode) {
-        // SELF-REF (tree/özyinelemeli, ör. children: CategoryResponse[]): sınıf zaten
-        // KENDİ dosyasında tanımlı -> kendini import ETME (self-import TS hatası).
-        // Aksi halde iç içe DTO yolu feature layout'a göre çözülür (aynı feature ise
-        // "./<base>.dto", farklıysa "../<other-feature>/dto/<base>.dto").
+        // SELF-REF (tree/recursive, e.g. children: CategoryResponse[]): class already
+        // defined in THIS file -> do NOT self-import (self-import TS error).
+        // Else nested DTO path resolved by feature layout (same feature ->
+        // "./<base>.dto", else "../<other-feature>/dto/<base>.dto").
         if (dtoNode.id !== node.id) {
           imports.add(nestedName, importPathOf(relativeImportPath(selfPath, filePathFor(dtoNode, ctx.graph))));
         }
@@ -119,9 +119,9 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
         validator(mapped.decorator);
         lines.push(`  @${mapped.decorator}(${eachOpt})`);
       } else {
-        // Serbest tip (bilinmeyen identifier) ham döndü → üretilen bir DTO/Model/Enum
-        // sınıfına çöz: kanonik adı (pascalCase) kullan + import et. Aksi halde
-        // graf'taki ham string (örn. "ComplaintResponseDTO") TS2304 verir.
+        // Free type (unknown identifier) returned raw -> resolve to generated DTO/Model/Enum
+        // class: use canonical name (pascalCase) + import. Else raw graph string
+        // (e.g. "ComplaintResponseDTO") causes TS2304.
         const ref =
           ctx.graph.resolveRef("DTO", field.DataType) ??
           ctx.graph.resolveRef("Model", field.DataType) ??
@@ -133,7 +133,7 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
       }
     }
 
-    // ── 4) ValidationRules (şema sırasında) ──
+    // ── 4) ValidationRules (schema order) ──
     for (const rule of field.ValidationRules ?? []) {
       const dec = mapValidationRule(rule.Rule, rule.Value, eachOpt);
       if (!dec) continue;
@@ -141,12 +141,12 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
       lines.push(`  @${dec.symbol}(${dec.args})`);
     }
 
-    // ── 5) @ApiProperty (kendini-belgeleyen üretilmiş uygulama) ──
-    // Her alan bir OpenAPI property tanımlayıcısı taşır (controller.emitter'daki
-    // @ApiResponse/@ApiOperation ile aynı anahtar sırası: required, description,
-    // type/enum, isArray). `required` IsRequired'i yansıtır; enum alanı enum
-    // sınıfını çalışma-zamanı DEĞER'i olarak referanslar; nested DTO ileri-referans
-    // güvenli `type: () => X` thunk'ı kullanır; dizi alanı isArray:true alır.
+    // ── 5) @ApiProperty (self-documenting generated app) ──
+    // Each field carries an OpenAPI property descriptor (same key order as
+    // @ApiResponse/@ApiOperation in controller.emitter: required, description,
+    // type/enum, isArray). `required` reflects IsRequired; enum field references
+    // enum class as runtime VALUE; nested DTO uses forward-ref-safe `type: () => X`
+    // thunk; array field gets isArray:true.
     imports.add("ApiProperty", "@nestjs/swagger");
     const apiParts: string[] = [`required: ${!optional}`];
     if (field.Description) apiParts.push(`description: ${JSON.stringify(field.Description)}`);
@@ -155,10 +155,10 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
     if (isArray) apiParts.push(`isArray: true`);
     lines.push(`  @ApiProperty({ ${apiParts.join(", ")} })`);
 
-    // ── 6) Property satırı ──
-    // Zorunlu (initializer'sız) alanlar definite-assignment "!" alır; strict:true
-    // (strictPropertyInitialization) altında TS2564 vermeden derlenir — DTO standardı.
-    // Opsiyonel "?" alanlar dokunulmaz.
+    // ── 6) Property line ──
+    // Required (no initializer) fields get definite-assignment "!" so strict:true
+    // (strictPropertyInitialization) compiles without TS2564 — DTO standard.
+    // Optional "?" fields untouched.
     const opt = optional ? "?" : "";
     const assertion = optional ? "" : "!";
     const arr = isArray ? "[]" : "";
@@ -179,14 +179,14 @@ export const emitDto: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   return [file];
 };
 
-/* ── DataType -> (TS tipi, class-validator dekoratörü) ─────────────────────
- * DataType serbest string'tir; yaygın eş anlamlılar normalize edilir
- * (büyük/küçük harf duyarsız). Tanınmayan tip -> tsType olduğu gibi pascal'lı
- * referans, primitif dekoratör YOK (yanlış doğrulama eklemekten kaçınılır). */
+/* ── DataType -> (TS type, class-validator decorator) ─────────────────────
+ * DataType is a free string; common synonyms normalized (case-insensitive).
+ * Unknown type -> tsType as pascal'd reference, no primitive decorator (avoid
+ * wrong validation). */
 function mapDataType(dataType: string): { tsType: string; decorator: string | null } {
-  // TS tipi sql-type-map TEK KAYNAĞINDAN gelir (entity/Model ile tutarlı); DTO
-  // serbest tip olduğundan bilinmeyen tip OLDUĞU GİBİ geçer (unknownAsString=false).
-  // Dekoratör (class-validator) eşlemesi DTO'ya özeldir.
+  // TS type from sql-type-map SINGLE SOURCE (consistent with entity/Model); DTO
+  // is free type so unknown passes AS-IS (unknownAsString=false).
+  // Decorator (class-validator) mapping is DTO-specific.
   const tsType = sqlTypeToTs(dataType, false);
   switch (tsType) {
     case "string":
@@ -198,17 +198,17 @@ function mapDataType(dataType: string): { tsType: string; decorator: string | nu
     case "Date":
       return { tsType, decorator: "IsDate" };
     case "Record<string, unknown>":
-      // JSON/JSONB serbest nesne -> doğrulanabilir primitif dekoratör YOK.
+      // JSON/JSONB free object -> no validatable primitive decorator.
       return { tsType, decorator: null };
     default:
-      // Bilinmeyen serbest tip: olduğu gibi kullan; yanlış doğrulama ekleme.
+      // Unknown free type: use as-is; do not add wrong validation.
       return { tsType: tsType.length > 0 ? tsType : "unknown", decorator: null };
   }
 }
 
-/* ── ValidationRule -> class-validator dekoratörü ──────────────────────────
- * eachOpt verilirse (dizi alanı) sayısal/uzunluk dekoratörlere { each: true }
- * eklenir. Değer parse edilemezse kural sessizce atlanır (throw YOK). */
+/* ── ValidationRule -> class-validator decorator ──────────────────────────
+ * When eachOpt given (array field) append { each: true } to numeric/length
+ * decorators. Rule skipped silently when value unparseable (no throw). */
 function mapValidationRule(
   rule: string,
   value: string | undefined,
@@ -256,8 +256,8 @@ function mapValidationRule(
   }
 }
 
-/** Bir pattern string'ini güvenli RegExp literaline çevirir. Zaten "/.../"
- *  biçimindeyse korunur; değilse "/" kaçışlanıp sarmalanır. */
+/** Convert a pattern string to a safe RegExp literal. If already "/.../"
+ *  form keep it; else escape "/" and wrap. */
 function toRegexLiteral(pattern: string): string {
   if (pattern.length >= 2 && pattern.startsWith("/") && pattern.lastIndexOf("/") > 0) {
     return pattern;

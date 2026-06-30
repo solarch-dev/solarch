@@ -1,13 +1,13 @@
 import { Neo4jService } from "../../neo4j.service";
 import { env } from "../../../config/env";
 
-/** Faz C veri migration'ı: Altyapı/İstemci/Güvenlik/Konfig/Yapı node'larını
+/** Phase C data migration: moves Infrastructure/Client/Security/Config/Structure nodes
  *  (Repository/Cache/ExternalService/FrontendApp/UIComponent/Middleware/
- *  EnvironmentVariable/Exception/Module) v4 şemaya taşır.
+ *  EnvironmentVariable/Exception/Module) to v4 schema.
  *
- *  Idempotent. Tek kırıcı dönüşüm: Repository.CustomQueries string[] → obje[].
- *  Geri kalan yeni alanlar additive (opsiyonel/default) — eksik default dizileri
- *  tutarlılık için doldurulur. */
+ *  Idempotent. Single breaking transform: Repository.CustomQueries string[] → object[].
+ *  Remaining new fields are additive (optional/default) — missing default arrays
+ *  filled for consistency. */
 async function main(): Promise<void> {
   const svc = new Neo4jService({
     uri: env.NEO4J_URI,
@@ -71,7 +71,7 @@ function enrich(kind: string, p: any): any {
   if (kind === "Module") {
     return { ...p, ExposedServices: p.ExposedServices ?? [], Dependencies: p.Dependencies ?? [] };
   }
-  // Cache / ExternalService / Exception: yeni alanlar tümü opsiyonel — dönüşüm gerekmez.
+  // Cache / ExternalService / Exception: new fields all optional — no transform needed.
   return p;
 }
 

@@ -46,34 +46,34 @@ export { APIGatewayNodeSchema, type APIGatewayNode } from "./api-gateway.schema"
 export { OrchestratorNodeSchema, type OrchestratorNode } from "./orchestrator.schema";
 
 export const NodeSchema = z.discriminatedUnion("type", [
-  // Veri ailesi (Phase 1)
+  // Data family (Phase 1)
   TableNodeSchema,
   DTONodeSchema,
   ModelNodeSchema,
   EnumNodeSchema,
   ViewNodeSchema,
-  // İş Mantığı
+  // Business Logic
   ServiceNodeSchema,
   WorkerNodeSchema,
   EventHandlerNodeSchema,
-  // Erişim
+  // Access
   ControllerNodeSchema,
   MessageQueueNodeSchema,
-  // Altyapı
+  // Infrastructure
   RepositoryNodeSchema,
   CacheNodeSchema,
   ExternalServiceNodeSchema,
-  // İstemci
+  // Client
   FrontendAppNodeSchema,
   UIComponentNodeSchema,
-  // Güvenlik
+  // Security
   MiddlewareNodeSchema,
-  // Konfigürasyon
+  // Configuration
   EnvironmentVariableNodeSchema,
   ExceptionNodeSchema,
-  // Yapı
+  // Structure
   ModuleNodeSchema,
-  // Phase 2A — Rules Matrix gerekli ek tipler
+  // Phase 2A — additional types required by Rules Matrix
   APIGatewayNodeSchema,
   OrchestratorNodeSchema,
 ]);
@@ -93,9 +93,9 @@ export const NODE_KINDS: NodeKind[] = [
   "APIGateway", "Orchestrator",
 ];
 
-/** Kind → properties Zod şeması. Yazım yollarında (PATCH, AI create_node)
- *  kind-bazlı doğrulama için tek kaynak. createZodDto/CreateNodeSchema ile
- *  aynı `.shape.properties`'leri kullanır → tutarlılık. */
+/** Kind → properties Zod schema. Single source for kind-based validation on
+ *  write paths (PATCH, AI create_node). Uses the same `.shape.properties` as
+ *  createZodDto/CreateNodeSchema → consistency. */
 export const PROPERTIES_SCHEMA_BY_KIND: Record<NodeKind, z.ZodTypeAny> = {
   Table: TableNodeSchema.shape.properties,
   DTO: DTONodeSchema.shape.properties,
@@ -120,10 +120,10 @@ export const PROPERTIES_SCHEMA_BY_KIND: Record<NodeKind, z.ZodTypeAny> = {
   Orchestrator: OrchestratorNodeSchema.shape.properties,
 };
 
-/* ── Per-kind DTO class'ları ──────────────────────────────────────────
- * createZodDto her şema için NestJS Swagger'a tanıdık bir class verir.
- * main.ts extraModels üzerinden hepsi OpenAPI components/schemas'a girer
- * ve Scalar UI'in Models panelinde tek tek görünür. */
+/* ── Per-kind DTO classes ─────────────────────────────────────────────
+ * createZodDto gives NestJS Swagger a familiar class per schema.
+ * All enter OpenAPI components/schemas via main.ts extraModels and appear
+ * individually in Scalar UI's Models panel. */
 export class TableNodeDto extends createZodDto(TableNodeSchema) {}
 export class DTONodeDto extends createZodDto(DTONodeSchema) {}
 export class ModelNodeDto extends createZodDto(ModelNodeSchema) {}

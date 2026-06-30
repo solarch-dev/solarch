@@ -4,8 +4,7 @@
  *  pattern as codegen.ts. */
 
 import { useMutation } from "@tanstack/react-query";
-import { getClerkToken, throwIfNotOk } from "./client";
-import { guestHeaders } from "../lib/guest";
+import { throwIfNotOk } from "./client";
 
 export interface ReviewFinding {
   severity: "error" | "warning";
@@ -28,13 +27,11 @@ export interface ReviewResult {
 export function useReviewArchitecture(projectId: string) {
   return useMutation({
     mutationFn: async (): Promise<ReviewResult> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/review`, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : guestHeaders()),
         },
       });
       await throwIfNotOk(res);

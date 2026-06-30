@@ -23,10 +23,9 @@ export interface EdgeFilter {
 export class EdgesRepository {
   constructor(private readonly neo4j: Neo4jService) {}
 
-  /** Edge yaratır ve **gerçekten kalıcı olan** edge'i döner (race'te eşleşen mevcut
-   *  edge dönebilir). `apoc.merge.relationship` ile (source, target, kind) bazında
-   *  idempotent → app-katmanı existsBetween kontrolüyle race olsa bile çift edge
-   *  oluşmaz. Endpoint'lerden biri yoksa (race: silinmiş) MATCH boş → null döner. */
+  /** Creates edge and returns **actually persisted** edge (may return existing match on race).
+   *  Idempotent on (source, target, kind) via `apoc.merge.relationship` -> no duplicate edge
+   *  even if app-layer existsBetween races. Returns null if endpoint missing (race: deleted). */
   async create(edge: StoredEdge): Promise<StoredEdge | null> {
     const result = await this.neo4j.run(
       `MATCH (s:Node {id: $sourceId, projectId: $projectId})
@@ -115,7 +114,7 @@ export class EdgesRepository {
     return result.records.length > 0;
   }
 
-  /** Source + target node'ların varlığını sorgular (projectId scope'unda). */
+  /** Query existence of source + target nodes (within projectId scope). */
   async nodesExist(
     projectId: string,
     sourceId: string,
@@ -134,7 +133,7 @@ export class EdgesRepository {
     };
   }
 
-  /** Aynı (source, target, kind) zaten var mı? */
+  /** Does same (source, target, kind) already exist? */
   async existsBetween(
     projectId: string,
     sourceId: string,

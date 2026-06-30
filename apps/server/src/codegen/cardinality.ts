@@ -1,39 +1,38 @@
 /* ────────────────────────────────────────────────────────────────────────
- * cardinality.ts — KOLEKSİYON KARDİNALİTESİNİN TEK KAYNAĞI.
+ * cardinality.ts — SINGLE SOURCE for COLLECTION CARDINALITY.
  *
- * Bir operasyon (endpoint / service metodu) tekil mi yoksa koleksiyon mu döner?
- * Bu karar BİRDEN ÇOK emitter'da (controller + service) gerekir; ikisi farklı
- * sezgiye/kelime-kümesine dayanırsa imzalar UYUMSUZ olur (controller XDto[], service
- * XDto -> derleme hatası, surgical-output'taki ListProducts/ListOrders bug'ı). Bu
- * yüzden hem kelime kümesi hem de türetme TEK YERDE yaşar; emitter'lar yalnız buradan
- * okur.
+ * Does an operation (endpoint / service method) return singular or collection?
+ * This decision is needed in MULTIPLE emitters (controller + service); if they rely
+ * on different heuristics/word sets, signatures MISMATCH (controller XDto[], service
+ * XDto -> compile error, ListProducts/ListOrders bug in surgical-output). So both
+ * word set and derivation live in ONE place; emitters only read from here.
  *
- * Öncelik (her iki emitter de UYGULAR):
- *   1) Bildirilmiş alan (Endpoint.ReturnsCollection / ServiceMethod.ReturnsCollection)
- *      — varsa KAZANIR (true de false da). "Bildirilen > tahmin."
- *   2) Tip zaten dizi mi (ReturnType "XDto[]" / "Array<...>").
- *   3) Ad/route liste-semantiği fallback'i (list/all/search + findAll/findMany).
+ * Priority (both emitters APPLY):
+ *   1) Declared field (Endpoint.ReturnsCollection / ServiceMethod.ReturnsCollection)
+ *      — when set WINS (true or false). "Declared > inferred."
+ *   2) Type already array (ReturnType "XDto[]" / "Array<...>").
+ *   3) Name/route list-semantics fallback (list/all/search + findAll/findMany).
  *
- * SAF + DETERMİNİSTİK: girdi-bağımlı, yan etkisiz, EXACT kelime eşleşmesi.
+ * PURE + DETERMINISTIC: input-dependent, side-effect free, EXACT word match.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Tek başına bir koleksiyon-semantiği taşıyan kelimeler (EXACT eşleşme — substring
- *  DEĞİL; "listen"/"getAllowance" yanlış pozitif vermez). */
+/** Words that alone carry collection semantics (EXACT match — not substring;
+ *  "listen"/"getAllowance" won't false-positive). */
 const COLLECTION_WORDS: ReadonlySet<string> = new Set(["list", "all", "search"]);
 
-/** Yalnız BİTİŞİK haliyle koleksiyon olan kelimeler ("findAll" -> "findall"). */
+/** Words collection-only in JOINED form ("findAll" -> "findall"). */
 const COLLECTION_JOINED: ReadonlySet<string> = new Set(["findall", "findmany"]);
 
-/** Bir kelime dizisi (splitWords çıktısı) koleksiyon-semantiği taşıyor mu?
- *  controller (route segmenti) ve service (metot adı) AYNI bu fonksiyonu çağırır. */
+/** Do token array (splitWords output) carry collection semantics?
+ *  controller (route segment) and service (method name) call THIS same function. */
 export function tokensHaveCollectionSemantics(tokens: readonly string[]): boolean {
   const lower = tokens.map((t) => t.toLowerCase());
   if (COLLECTION_JOINED.has(lower.join(""))) return true;
   return lower.some((w) => COLLECTION_WORDS.has(w));
 }
 
-/** Bir TS tip string'i zaten bir koleksiyon mu? ("X[]" son-eki veya "Array<...>").
- *  Bildirilmiş/türetilmiş koleksiyonu İKİ KEZ sarmayı önler ("XDto[]" -> "[][]" OLMAZ). */
+/** Is a TS type string already a collection? ("X[]" suffix or "Array<...>").
+ *  Prevents double-wrapping declared/inferred collection ("XDto[]" -> "[][]" NOT). */
 export function isArrayType(t: string): boolean {
   const s = t.trim();
   return s.endsWith("[]") || /^Array\s*</.test(s);

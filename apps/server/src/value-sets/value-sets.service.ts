@@ -10,7 +10,7 @@ export interface ValueSetSummary {
 
 @Injectable()
 export class ValueSetsService {
-  /** Tüm value-set'lerin özeti (id + label + count). */
+  /** Summary of all value sets (id + label + count). */
   list(): { sets: ValueSetSummary[]; total: number } {
     const sets = Object.values(VALUE_SETS).map((v) => ({
       id: v.id,
@@ -21,7 +21,7 @@ export class ValueSetsService {
     return { sets, total: sets.length };
   }
 
-  /** Tek value-set tüm değerleriyle. */
+  /** Single value set with all values. */
   getById(id: string): ValueSet {
     const set = VALUE_SETS[id];
     if (!set) {

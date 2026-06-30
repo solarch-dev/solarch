@@ -1,12 +1,9 @@
-/** İstek bağlamına (req.auth) yerleştirilen kimlik bilgisi — Clerk JWT'sinden
- *  veya misafir biletinden (X-Guest-Token) türetilir. */
+/** Identity placed on the request context (req.auth) — from LocalAuthGuard or API key. */
 export interface AuthContext {
-  /** Clerk user id ya da misafir kimliği ("guest_<uuid>"). Guard kimliksiz isteği reddeder. */
+  /** Local owner id or API-key owner. */
   userId: string;
-  /** Aktif Clerk organization id'si (workspace). Kişisel/misafir bağlamda null. */
+  /** Reserved for future workspace scoping. Always null in OSS edition. */
   orgId: string | null;
-  /** Aktif org'daki rol (örn. "org:admin"). Org yoksa null. */
+  /** Reserved for future workspace roles. Always null in OSS edition. */
   orgRole: string | null;
-  /** Misafir bileti ile gelen kimlik (login'siz deneme). Yoksa Clerk kullanıcısı. */
-  isGuest?: boolean;
 }

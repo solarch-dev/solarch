@@ -18,50 +18,50 @@ import { ImportCollector } from "../../imports";
 import { countSurgicalMarkers } from "../../surgical";
 import { columnOrmType, columnTsType } from "./sql-type-map";
 
-// Entity isim/yol TEK KAYNAĞI naming.ts'tedir (resolveTypeRef de oraya bağımlı);
-// geriye-uyum için buradan re-export edilir.
+// Entity name/path SINGLE SOURCE is in naming.ts (resolveTypeRef depends on it);
+// re-exported here for backward compatibility.
 export { entityClassNameForTable, synthEntityFilePath };
 
 /* ────────────────────────────────────────────────────────────────────────
- * entity-synthesis.ts — Table'dan SENTEZLENEN TypeORM entity.
+ * entity-synthesis.ts — SYNTHESIZED TypeORM entity from Table.
  *
- * MİMARİ-FARKINDA BOOT GARANTİSİ: Gerçek graph'larda çoğu zaman Model node YOK,
- * yalnız Table node'ları vardır (Users/GeneratedImages -> migrations/*.sql). Bir
- * Repository.EntityReference bir Table'a işaret ettiğinde, repository.emitter
- * `@InjectRepository(Entity)`/`Repository<Entity>` üretir ve module.emitter
- * `TypeOrmModule.forFeature([Entity])` ekler. Eğer ortada TypeORM @Entity sınıfı
- * YOKSA NestJS DI bootta `Repository<Entity>` provider'ını çözemez ve uygulama
- * AÇILMAZ. Bu modül, Model'i olmayan ama bir Repository tarafından REFERANS
- * EDİLEN her Table için Table şemasından deterministik bir @Entity sınıfı üretir.
+ * ARCHITECTURE-AWARE BOOT GUARANTEE: In real graphs often no Model node,
+ * only Table nodes (Users/GeneratedImages -> migrations/*.sql). When a
+ * Repository.EntityReference points to a Table, repository.emitter emits
+ * `@InjectRepository(Entity)`/`Repository<Entity>` and module.emitter adds
+ * `TypeOrmModule.forFeature([Entity])`. If no TypeORM @Entity class exists
+ * NestJS DI cannot resolve `Repository<Entity>` at boot and the app WON'T START.
+ * This module emits a deterministic @Entity class from Table schema for every
+ * Table referenced by a Repository but WITHOUT a Model.
  *
- * TEK KAYNAK kuralları:
- *   - Sınıf adı: entityClassNameForTable(table) — Model<->Table çakışması olmasın
- *     diye tablo adının tekil-pascal hali (UsersTable.name="users" -> "User";
- *     "generated_images" -> "GeneratedImage"). Repository.emitter aynı adı kullanır.
- *   - @Entity(<ad>): tableSqlName(table.name) — table.emitter'ın `CREATE TABLE`
- *     adıyla BİREBİR aynı (entity hiç var olmayan bir tabloya bağlanmaz).
- *   - Dosya yolu: synthEntityFilePath(table, graph) — <feature>/entities/<kebab>.entity.ts
- *     (Model entity yoluyla aynı düzen; aynı feature'da Model varsa zaten Model
- *     dosyası üretilir — orchestrator yalnız Model'i OLMAYAN Table'lar için sentezler).
+ * SINGLE SOURCE rules:
+ *   - Class name: entityClassNameForTable(table) — avoid Model<->Table collision
+ *     via singular-pascal of table name (UsersTable.name="users" -> "User";
+ *     "generated_images" -> "GeneratedImage"). repository.emitter uses same name.
+ *   - @Entity(<name>): tableSqlName(table.name) — EXACTLY same as table.emitter's
+ *     `CREATE TABLE` name (entity never binds to nonexistent table).
+ *   - File path: synthEntityFilePath(table, graph) — <feature>/entities/<kebab>.entity.ts
+ *     (same layout as Model entity path; if Model exists in same feature, Model
+ *     file is emitted — orchestrator synthesizes only for Tables WITHOUT Model).
  *
- * İLİŞKİ SENTEZİ (M2): Table'da @OneToMany/@ManyToOne YOKTUR; yalnız SQL FK'leri
- *   vardır. Entity'de ilişki dekoratörü olmadan N+1/lazy kararı tümüyle
- *   surgical'a kalır. Bu modül, Table'ın ForeignKeys'inden TypeORM ilişkilerini
- *   DETERMİNİSTİK sentezler:
- *     - FK (bu tablo -> hedef) -> sahip taraf @ManyToOne(() => Hedef) + @JoinColumn.
- *     - Ters yön (başka tablo -> bu tablo) -> @OneToMany(() => Diğer, x => x.<owning>).
- *   Varsayılan eager:false / lazy:false (otomatik yükleme YOK; N+1 patlamasın).
- *   SAFLIK KURALI: bir ilişki YALNIZ karşı-taraf da bir SENTETİK entity'ye
- *   (Model'siz + repository-referanslı Table) çözülürse üretilir. Karşı taraf
- *   çözülemiyorsa (Model'li, repository-referanssız ya da yok) ilişki HİÇ
- *   üretilmez — var olmayan bir sınıfı import edip derlemeyi KIRMAMAK için.
- *   Bidirectional @OneToMany, sahip-taraf property adını (FK kolonundan
- *   deterministik türetilir) inverse fonksiyonunda kullanır.
+ * RELATION SYNTHESIS (M2): Table has no @OneToMany/@ManyToOne; only SQL FKs.
+ *   Without relation decorators on entity, N+1/lazy decision stays entirely with
+ *   surgical. This module DETERMINISTICALLY synthesizes TypeORM relations from
+ *   Table ForeignKeys:
+ *     - FK (this table -> target) -> owning side @ManyToOne(() => Target) + @JoinColumn.
+ *     - Inverse (other table -> this table) -> @OneToMany(() => Other, x => x.<owning>).
+ *   Default eager:false / lazy:false (no auto-load -> no N+1 explosion).
+ *   PURITY RULE: a relation is emitted ONLY when the other side also resolves to a
+ *   SYNTHETIC entity (Table without Model + repository-referenced). If other side
+ *   cannot resolve (has Model, not repo-referenced, or missing) relation is NOT
+ *   emitted — to avoid importing nonexistent class and breaking compile.
+ *   Bidirectional @OneToMany uses owning-side property name (deterministically
+ *   derived from FK column) in inverse function.
  *
- * SAF + DETERMİNİSTİK: kolonlar verilen sırada, ilişkiler FK sırasında
- * (ManyToOne) sonra hedef-tablo isim sırasında (OneToMany), import'lar
- * ImportCollector ile, timestamp/random yok, içerik tek "\n" ile biter. İlişki
- * gövdesi YOKTUR -> surgical marker üretmez.
+ * PURE + DETERMINISTIC: columns in given order, relations in FK order (ManyToOne)
+ * then target-table name order (OneToMany), imports via ImportCollector,
+ * no timestamp/random, content ends with single "\n". Relation body is NOT emitted
+ * -> no surgical marker.
  * ──────────────────────────────────────────────────────────────────────── */
 
 type Column = {
@@ -84,21 +84,21 @@ type ForeignKey = {
   OnUpdate?: string;
 };
 
-/** Entity SENTEZLENECEK Table'lar (Model'i OLMAYAN). TEK KAYNAK — module.emitter
- *  forFeature, repository.emitter, naming.resolveTypeRef ve ilişki sentezi
- *  (isSyntheticEntityTable) hepsi bu kümeyle tutarlı kalır.
+/** Tables that will have entity SYNTHESIZED (without Model). SINGLE SOURCE — module.emitter
+ *  forFeature, repository.emitter, naming.resolveTypeRef and relation synthesis
+ *  (isSyntheticEntityTable) all stay consistent with this set.
  *
- *  KÜME (deterministik, FK kapanışı):
- *   1) ÇEKİRDEK: bir Repository.EntityReference ile gösterilen Table'lar.
- *   2) KAPANIŞ: çekirdekteki bir Table ile bir FK üzerinden bağlı (ona FK veren
- *      VEYA ondan FK alan) HER Model'siz Table — örn. join/ara tablolar
- *      (order_items: ne bir repo gösterir ne de Model'i vardır; ama orders ve
- *      products'a FK verir). Bunlar için de @Entity üretilmezse FK ilişkileri
- *      (orders -> @OneToMany(OrderItem)) çözülemez ve şema<->ORM kapsamı eksik
- *      kalırdı (migration var, entity yok). Çift-yönlü FK ile transitif kapanır.
+ *  SET (deterministic, FK closure):
+ *   1) CORE: Tables pointed to by a Repository.EntityReference.
+ *   2) CLOSURE: every Model-less Table linked via FK to a core Table (FK to it
+ *      OR FK from it) — e.g. join/bridge tables
+ *      (order_items: neither pointed by a repo nor has Model; but FKs to orders and
+ *      products). Without @Entity for these, FK relations
+ *      (orders -> @OneToMany(OrderItem)) cannot resolve and schema<->ORM scope is
+ *      incomplete (migration exists, entity missing). Transitive closure via bidirectional FK.
  *
- *  Model'i OLAN Table'lar HİÇBİR durumda dahil edilmez (Model entity üretilir).
- *  graph.allOf isme sıralı + sabit fixpoint -> deterministik. */
+ *  Tables WITH Model are NEVER included (Model entity is emitted).
+ *  graph.allOf sorted by name + fixed fixpoint -> deterministic. */
 export function tablesNeedingSyntheticEntity(graph: CodeGraph): CodeNode[] {
   const ids = computeSyntheticEntityIds(graph);
   const out: CodeNode[] = [];
@@ -108,14 +108,14 @@ export function tablesNeedingSyntheticEntity(graph: CodeGraph): CodeNode[] {
   return out;
 }
 
-/** Sentetik entity üretilecek Table id'leri (FK kapanışı; deterministik). */
+/** Table ids that get synthetic entity (FK closure; deterministic). */
 function computeSyntheticEntityIds(graph: CodeGraph): Set<string> {
-  // Model'siz Table'lar aday; Model'i olanlar dışlanır (Model entity üretilir).
+  // Model-less Tables are candidates; those with Model excluded (Model entity emitted).
   const tables = graph.allOf("Table").filter((t) => !hasBackingModel(t, graph));
   const byTableName = new Map<string, CodeNode>();
   for (const t of tables) byTableName.set(t.name, t);
 
-  // ── 1) ÇEKİRDEK: repo-referanslı Model'siz Table'lar ──────────────────────
+  // ── 1) CORE: repo-referenced Model-less Tables ──────────────────────
   const set = new Set<string>();
   for (const repo of graph.allOf("Repository")) {
     const ref = (repo.properties as Record<string, unknown>).EntityReference;
@@ -126,12 +126,12 @@ function computeSyntheticEntityIds(graph: CodeGraph): Set<string> {
     }
   }
 
-  // ── 2) FK KAPANIŞI (transitif, çift-yönlü; Model'siz aday'lar arasında) ────
+  // ── 2) FK CLOSURE (transitive, bidirectional; among Model-less candidates) ────
   let changed = true;
   while (changed) {
     changed = false;
     for (const t of tables) {
-      // (a) t -> hedef FK'leri: t kümedeyse hedef de eklenir; hedef kümedeyse t.
+      // (a) t -> target FKs: if t in set add target; if target in set add t.
       const fks = (propsOf<"Table">(t).ForeignKeys ?? []) as ForeignKey[];
       for (const fk of fks) {
         const target = byTableName.get(fk.ReferencesTable);
@@ -152,8 +152,8 @@ function computeSyntheticEntityIds(graph: CodeGraph): Set<string> {
   return set;
 }
 
-/** Bu Table'ı TableRef ile temsil eden bir Model var mı? (varsa Model entity
- *  üretilir; sentez gereksiz.) */
+/** Does a Model represent this Table via TableRef? (if yes Model entity
+ *  is emitted; synthesis unnecessary.) */
 function hasBackingModel(table: CodeNode, graph: CodeGraph): boolean {
   for (const m of graph.allOf("Model")) {
     const tableRef = (m.properties as Record<string, unknown>).TableRef;
@@ -164,7 +164,7 @@ function hasBackingModel(table: CodeNode, graph: CodeGraph): boolean {
   return false;
 }
 
-/** Bir Table node'unu SENTEZLENEN TypeORM entity dosyasına çevirir. */
+/** Convert a Table node to SYNTHESIZED TypeORM entity file. */
 export function emitSyntheticEntity(table: CodeNode, ctx: EmitterContext): GeneratedFile[] {
   const props = propsOf<"Table">(table);
   const className = entityClassNameForTable(table);
@@ -177,8 +177,8 @@ export function emitSyntheticEntity(table: CodeNode, ctx: EmitterContext): Gener
 
   const pk = pickPrimaryKey(columns);
 
-  // Üye adı çakışmalarını önlemek için kolon adları rezerve edilir; ilişki
-  // property'leri bu kümeye eklenir (deterministik; çakışan ilişki ATLANIR).
+  // Reserve column names to avoid member name collisions; relation
+  // properties added to this set (deterministic; conflicting relation SKIPPED).
   const usedNames = new Set<string>(columns.map((c) => c.Name));
 
   const fromPath = synthEntityFilePath(table, ctx.graph);
@@ -187,8 +187,8 @@ export function emitSyntheticEntity(table: CodeNode, ctx: EmitterContext): Gener
     memberBlocks.push(renderColumn(col, col === pk, imports, ctx.graph, fromPath));
   }
 
-  // İLİŞKİ SENTEZİ (M2): FK'lerden TypeORM ilişki dekoratörleri. Karşı taraf
-  // bir sentetik entity'ye çözülmezse ilişki üretilmez (saf/deterministik).
+  // RELATION SYNTHESIS (M2): TypeORM relation decorators from FKs. If other side
+  // does not resolve to synthetic entity, relation not emitted (pure/deterministic).
   for (const block of synthesizeRelations(table, ctx.graph, imports, usedNames)) {
     memberBlocks.push(block);
   }
@@ -214,16 +214,16 @@ export function emitSyntheticEntity(table: CodeNode, ctx: EmitterContext): Gener
 }
 
 /* ────────────────────────────────────────────────────────────────────────
- * İLİŞKİ SENTEZİ (M2) — FK'lerden TypeORM @ManyToOne/@OneToMany.
+ * RELATION SYNTHESIS (M2) — TypeORM @ManyToOne/@OneToMany from FKs.
  *
- * Sahip taraf (@ManyToOne): bu tablonun her TEK-KOLON FK'si için, hedef tablo
- *   bir SENTETİK entity'ye çözülürse. @JoinColumn FK kolonunu bağlar.
- * Ters yön (@OneToMany): bu tabloya işaret eden FK'si olan her DİĞER sentetik
- *   entity için. Bidirectional: inverse fonksiyonu sahip-taraf property adını
- *   kullanır (aynı FK + aynı algoritma -> iki taraf da AYNI adı türetir).
- * Varsayılan { eager: false } (lazy:false; otomatik yükleme yok -> N+1 yok).
- * SAFLIK: karşı taraf sentetik entity değilse (Model'li / repo-referanssız / yok)
- *   ilişki ATLANIR. Çoklu-kolon (composite) FK ATLANIR (tek-kolon eşleme yapılamaz).
+ * Owning side (@ManyToOne): for each SINGLE-COLUMN FK of this table when target
+ *   resolves to a SYNTHETIC entity. @JoinColumn binds FK column.
+ * Inverse (@OneToMany): for each OTHER synthetic entity with FK pointing to this table.
+ *   Bidirectional: inverse function uses owning-side property name
+ *   (same FK + same algorithm -> both sides derive SAME name).
+ * Default { eager: false } (lazy:false; no auto-load -> no N+1).
+ * PURITY: if other side is not synthetic entity (has Model / not repo-referenced / missing)
+ *   relation SKIPPED. Multi-column (composite) FK SKIPPED (no single-column mapping).
  * ──────────────────────────────────────────────────────────────────────── */
 function synthesizeRelations(
   table: CodeNode,
@@ -234,29 +234,29 @@ function synthesizeRelations(
   const fromPath = synthEntityFilePath(table, graph);
   const blocks: string[] = [];
 
-  // ── Sahip taraf: bu tablonun FK'leri -> @ManyToOne ────────────────────────
-  // owningRelationProps TEK KAYNAK: hem burada (sahip taraf) hem ters yönde
-  // (inverse fonksiyonu) AYNI property adlarını kullanır -> tutarlı bidirectional.
+  // ── Owning side: this table's FKs -> @ManyToOne ────────────────────────
+  // owningRelationProps SINGLE SOURCE: same property names here (owning side) and
+  // inverse direction -> consistent bidirectional.
   const ownCols = (propsOf<"Table">(table).Columns ?? []) as Column[];
   const fks = (propsOf<"Table">(table).ForeignKeys ?? []) as ForeignKey[];
   const ownProps = owningRelationProps(table, graph);
   for (let i = 0; i < fks.length; i++) {
     const prop = ownProps.get(i);
-    if (!prop) continue; // üretilmeyen FK (composite / sentetik değil / çakışma)
+    if (!prop) continue; // FK not emitted (composite / not synthetic / collision)
     usedNames.add(prop);
     const fkCol = ownCols.find((c) => c.Name === (fks[i].Columns ?? [])[0]);
-    // FK kolonu NOT NULL değilse ilişki opsiyoneldir (kolon şemasından okunur).
+    // If FK column not NOT NULL, relation is optional (read from column schema).
     const nullable = fkCol ? fkCol.IsNotNull !== true : false;
     const ref = resolveSyntheticEntity(fks[i].ReferencesTable, graph)!;
     blocks.push(renderManyToOne(prop, ref, (fks[i].Columns ?? [])[0], nullable, graph, imports, fromPath));
   }
 
-  // ── Ters yön: bu tabloya işaret eden DİĞER sentetik entity FK'leri -> @OneToMany
+  // ── Inverse: OTHER synthetic entity FKs pointing to this table -> @OneToMany
   for (const other of graph.allOf("Table")) {
     if (other.id === table.id) continue;
     if (!isSyntheticEntityTable(other, graph)) continue;
-    // Karşı tablonun ürettiği sahip-taraf property adlarını AYNI loop'la replay
-    // et -> inverse fonksiyonu (x) => x.<owningProp> iki tarafta da tutarlı kalır.
+    // Replay owning-side property names from other table with SAME loop
+    // -> inverse (x) => x.<owningProp> stays consistent on both sides.
     const owningProps = owningRelationProps(other, graph);
     const otherFks = (propsOf<"Table">(other).ForeignKeys ?? []) as ForeignKey[];
     for (let i = 0; i < otherFks.length; i++) {
@@ -264,16 +264,16 @@ function synthesizeRelations(
       const cols = fk.Columns ?? [];
       if (cols.length !== 1) continue;
       const target = resolveSyntheticEntity(fk.ReferencesTable, graph);
-      if (!target || target.id !== table.id) continue; // bana işaret etmiyor
+      if (!target || target.id !== table.id) continue; // does not point to me
       const owningProp = owningProps.get(i);
-      if (!owningProp) continue; // sahip tarafta üretilmediyse ters yön de üretilmez
+      if (!owningProp) continue; // if not emitted on owning side, inverse not emitted either
       const prop = oneToManyPropName(other, usedNames);
-      if (!prop) continue; // çakışma -> atla
+      if (!prop) continue; // collision -> skip
       usedNames.add(prop);
-      // AGGREGATE CASCADE: çocuk->ebeveyn FK'si ON DELETE CASCADE ise ebeveyn çocukları
-      // SAHİPLENİR (aggregate) -> ters @OneToMany'de ORM cascade:true (save ebeveyni
-      // yazınca çocuklar da yazılır; audit #11: çocuklar persist edilmiyordu). RESTRICT/
-      // SET_NULL -> bağımsız ilişki, cascade YOK.
+      // AGGREGATE CASCADE: child->parent FK ON DELETE CASCADE means parent owns children
+      // (aggregate) -> inverse @OneToMany ORM cascade:true (save parent persists children;
+      // audit #11: children were not persisted). RESTRICT/
+      // SET_NULL -> independent relation, cascade NONE.
       const cascade = (fk.OnDelete ?? "").toUpperCase() === "CASCADE";
       blocks.push(renderOneToMany(prop, other, owningProp, graph, imports, fromPath, cascade));
     }
@@ -282,11 +282,11 @@ function synthesizeRelations(
   return blocks;
 }
 
-/** Bir tablonun ÜRETTİĞİ sahip-taraf (@ManyToOne) property adlarını, sahip-taraf
- *  loop'uyla BİREBİR aynı algoritmayla hesaplar: FK index -> property adı.
- *  Üretilmeyen (composite / karşı taraf sentetik değil / çakışan) FK'ler haritada
- *  YER ALMAZ. Ters yön (@OneToMany) inverse fonksiyonu bu haritayı kullanır ->
- *  iki taraf DAİMA aynı property adında buluşur (deterministik bidirectional). */
+/** Owning-side (@ManyToOne) property names this table EMITS, computed with EXACTLY
+ *  the same algorithm as the owning-side loop: FK index -> property name.
+ *  FKs not emitted (composite / other side not synthetic / collision) are NOT in map.
+ *  Inverse (@OneToMany) uses this map ->
+ *  both sides ALWAYS meet on same property name (deterministic bidirectional). */
 function owningRelationProps(table: CodeNode, graph: CodeGraph): Map<number, string> {
   const out = new Map<number, string>();
   const cols = (propsOf<"Table">(table).Columns ?? []) as Column[];
@@ -305,9 +305,9 @@ function owningRelationProps(table: CodeNode, graph: CodeGraph): Map<number, str
   return out;
 }
 
-/** Sahip-taraf @ManyToOne property adı: FK kolonundan "id"/"_id" eki atılıp
- *  camelCase. Boş ya da çakışan -> hedef tablo tekil adına düş; o da çakışırsa
- *  null (ilişki atlanır). Deterministik (yalnız ad + verilen küme). */
+/** Owning-side @ManyToOne property name: strip "id"/"_id" suffix from FK column,
+ *  camelCase. Empty or collision -> fall back to target table singular name; if that
+ *  collides too -> null (relation skipped). Deterministic (name + given set only). */
 function manyToOnePropName(fk: ForeignKey, ref: CodeNode, used: Set<string>): string | null {
   const col = (fk.Columns ?? [])[0] ?? "";
   const stripped = col.replace(/_?[Ii]d$/, "");
@@ -318,10 +318,10 @@ function manyToOnePropName(fk: ForeignKey, ref: CodeNode, used: Set<string>): st
   return null;
 }
 
-/** Ters-yön @OneToMany property adı: sahip tablo adının çoğul-camelCase hali.
- *  Önce singularize sonra pluralize -> zaten çoğul ad TEKRAR çoğullanmaz
+/** Inverse @OneToMany property name: plural-camelCase of owning table name.
+ *  singularize then pluralize -> already-plural name not double-pluralized
  *  ("posts" -> "post" -> "posts"; "order_items" -> "order_item" -> "orderItems").
- *  Çakışan -> null. Deterministik. */
+ *  Collision -> null. Deterministic. */
 function oneToManyPropName(owning: CodeNode, used: Set<string>): string | null {
   const c = camelCase(pluralizeSnake(singularize(owning.name)));
   if (c.length > 0 && !used.has(c)) return c;
@@ -342,7 +342,7 @@ function renderManyToOne(
   imports.add("JoinColumn", "typeorm");
   imports.add("ManyToOne", "typeorm");
   imports.add(refClass, importPathOf(relativeImportPath(fromPath, synthEntityFilePath(ref, graph))));
-  // Nullable FK -> opsiyonel ilişki; aksi halde zorunlu (definite-assignment "!").
+  // Nullable FK -> optional relation; otherwise required (definite-assignment "!").
   const optional = nullable ? "?" : "";
   const assertion = optional ? "" : "!";
   const out: string[] = [];
@@ -352,10 +352,10 @@ function renderManyToOne(
   return out.join("\n");
 }
 
-/** @OneToMany(() => Other, (x) => x.<owningProp>). Koleksiyon -> definite-assignment
- *  "!" (strict altında derlenir). TypeORM ilişki property'lerinde dizi initializer'ı
- *  (= []) YASAKLAR (InitializedRelationError: metadata build'i bozar, migration/boot
- *  patlar); bu yüzden initializer YOK, "!" KULLANILIR — @ManyToOne ile aynı desen. */
+/** @OneToMany(() => Other, (x) => x.<owningProp>). Collection -> definite-assignment
+ *  "!" (compiles under strict). TypeORM forbids array initializer (= []) on relation
+ *  properties (InitializedRelationError: breaks metadata build, migration/boot
+ *  fails); so NO initializer, use "!" — same pattern as @ManyToOne. */
 function renderOneToMany(
   prop: string,
   other: CodeNode,
@@ -369,7 +369,7 @@ function renderOneToMany(
   imports.add("OneToMany", "typeorm");
   imports.add(otherClass, importPathOf(relativeImportPath(fromPath, synthEntityFilePath(other, graph))));
   const param = inverseParamName(other);
-  // AGGREGATE (FK ON DELETE CASCADE) -> { cascade: true } (save ebeveyni çocuklarla persist).
+  // AGGREGATE (FK ON DELETE CASCADE) -> { cascade: true } (save parent persists children).
   const opts = cascade ? ", { cascade: true }" : "";
   const out: string[] = [];
   out.push(`  @OneToMany(() => ${otherClass}, (${param}) => ${param}.${owningProp}${opts})`);
@@ -377,15 +377,15 @@ function renderOneToMany(
   return out.join("\n");
 }
 
-/** Inverse-fonksiyon parametre adı: karşı entity'nin tekil-camelCase'i
- *  (ör. "posts" -> "post"). Boşsa "x". */
+/** Inverse function parameter name: singular-camelCase of other entity
+ *  (e.g. "posts" -> "post"). Empty -> "x". */
 function inverseParamName(other: CodeNode): string {
   const p = camelCase(singularize(other.name));
   return p.length > 0 ? p : "x";
 }
 
-/** Bir tip token'ı / ref ismi bir SENTETİK entity Table'ına çözülüyor mu?
- *  (Model'siz + repository-referanslı.) Çözülürse Table node döner; aksi null. */
+/** Does a type token / ref name resolve to a SYNTHETIC entity Table?
+ *  (Model-less + repository-referenced.) Returns Table node if yes; else null. */
 function resolveSyntheticEntity(refName: string, graph: CodeGraph): CodeNode | null {
   if (typeof refName !== "string" || refName.length === 0) return null;
   const node = graph.resolveRef("Table", refName);
@@ -393,13 +393,13 @@ function resolveSyntheticEntity(refName: string, graph: CodeGraph): CodeNode | n
   return isSyntheticEntityTable(node, graph) ? node : null;
 }
 
-/** Bu Table bir SENTETİK entity üretiyor mu? tablesNeedingSyntheticEntity ile
- *  AYNI küme (repo-referanslı çekirdek + FK kapanışı). TEK KAYNAK. */
+/** Does this Table emit a SYNTHETIC entity? Same set as tablesNeedingSyntheticEntity
+ *  (repo-referenced core + FK closure). SINGLE SOURCE. */
 function isSyntheticEntityTable(table: CodeNode, graph: CodeGraph): boolean {
   return computeSyntheticEntityIds(graph).has(table.id);
 }
 
-/** "id" adlı kolon öncelik; yoksa IsPrimaryKey olan ilk kolon; yoksa ilk kolon. */
+/** Prefer column named "id"; else first IsPrimaryKey column; else first column. */
 function pickPrimaryKey(columns: Column[]): Column | null {
   const byId = columns.find((c) => c.Name.toLowerCase() === "id");
   if (byId) return byId;
@@ -408,10 +408,10 @@ function pickPrimaryKey(columns: Column[]): Column | null {
   return columns.length > 0 ? columns[0] : null;
 }
 
-/** Tek bir kolon -> dekoratörlü TypeORM alanı. ENUM kolonu TS tipi olarak generated
- *  enum sınıfını kullanır (DTO ile AYNI) ama @Column({ type: 'varchar' }) ile (native
- *  enum DEĞİL — #56; migration de VARCHAR + CHECK). JSON -> Record<string, unknown> +
- *  'jsonb'. (sql-type-map TEK KAYNAK.) */
+/** Single column -> decorated TypeORM field. ENUM column uses generated
+ *  enum class as TS type (SAME as DTO) but @Column({ type: 'varchar' }) (no native
+ *  enum — #56; migration also VARCHAR + CHECK). JSON -> Record<string, unknown> +
+ *  'jsonb'. (sql-type-map SINGLE SOURCE.) */
 function renderColumn(
   col: Column,
   isPrimaryKey: boolean,
@@ -434,8 +434,8 @@ function renderColumn(
   return out.join("\n");
 }
 
-/** Bir kolonun TS tipi (ENUM -> generated enum sınıfı + import; JSON ->
- *  Record<string, unknown>; aksi sqlTypeToTs). */
+/** Column TS type (ENUM -> generated enum class + import; JSON ->
+ *  Record<string, unknown>; else sqlTypeToTs). */
 function entityColumnTsType(
   col: Column,
   graph: CodeGraph,
@@ -449,10 +449,10 @@ function entityColumnTsType(
   });
 }
 
-/** @Column({ ... }) seçenekleri (deterministik). #56: ENUM kolonu VARCHAR olur
- *  (native Postgres enum DEĞİL) -> migration ile TUTARLI (o da VARCHAR + CHECK).
- *  TS alan tipi (entityColumnTsType) yine generated enum sınıfıdır; DB-seviyesi
- *  değer kısıtı migration'daki CHECK constraint'tedir. */
+/** @Column({ ... }) options (deterministic). #56: ENUM column becomes VARCHAR
+ *  (no native Postgres enum) -> CONSISTENT with migration (also VARCHAR + CHECK).
+ *  TS field type (entityColumnTsType) is still generated enum class; DB-level
+ *  value constraint is in migration CHECK constraint. */
 function columnOptions(col: Column): string {
   const parts: string[] = [];
   const isEnumCol = (col.DataType ?? "").toUpperCase() === "ENUM";
@@ -466,14 +466,14 @@ function columnOptions(col: Column): string {
   return `{ ${parts.join(", ")} }`;
 }
 
-/** TS alan bildirimi: PK her zaman zorunlu; aksi NOT NULL değilse "?".
- *  Zorunlu (initializer'sız) alanlar definite-assignment "!" alır; böylece
- *  strict:true (strictPropertyInitialization) altında da TS2564 vermeden derlenir
- *  — TypeORM/class-validator standardı. Opsiyonel "?" alanlar dokunulmaz. */
+/** TS field declaration: PK always required; else "?" when not NOT NULL.
+ *  Required fields (no initializer) get definite-assignment "!" so compile under
+ *  strict:true (strictPropertyInitialization) without TS2564
+ *  — TypeORM/class-validator standard. Optional "?" fields untouched. */
 function fieldDecl(col: Column, isPrimaryKey: boolean, tsType: string): string {
   const optional = !isPrimaryKey && col.IsNotNull !== true ? "?" : "";
   const assertion = optional ? "" : "!";
-  // TS üye adı camelCase (Id→id, CustomerId→customerId); DB kolon adı snakeCase ile
-  // ayrı türetilir + SnakeNamingStrategy member'ı aynı snake_case'e indirir → drift yok.
+  // TS member name camelCase (Id→id, CustomerId→customerId); DB column name derived
+  // separately as snakeCase + SnakeNamingStrategy maps member to same snake_case → no drift.
   return `${tsPropName(col.Name)}${optional}${assertion}: ${tsType};`;
 }

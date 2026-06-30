@@ -12,9 +12,9 @@ function isLegal(source: string, edge: string, target: string): boolean {
   });
 }
 
-// Regresyon: AI ajanı her create_edge'de ERR_NOT_WHITELISTED alıyordu çünkü grounding
-// (ORPHAN_HINTS/STREAMING/prompt) pasif node'ları KAYNAK yaptırıyordu — whitelist ise
-// onları yalnız HEDEF kabul ediyor. Bu testler grounding'in yönünü whitelist'e pinler.
+// Regression: AI agent kept getting ERR_NOT_WHITELISTED on every create_edge because grounding
+// (ORPHAN_HINTS/STREAMING/prompt) made passive nodes the SOURCE — whitelist only accepts
+// them as TARGET. These tests pin grounding direction to whitelist.
 describe("AI grounding direction == whitelist (agent-stuck regression)", () => {
   it.each([
     ["Controller", "USES", "DTO"],
@@ -27,7 +27,7 @@ describe("AI grounding direction == whitelist (agent-stuck regression)", () => {
     ["FrontendApp", "HAS", "UIComponent"],
     ["Middleware", "ROUTES_TO", "Controller"],
     ["Service", "CALLS", "Repository"],
-  ])("DOĞRU yön legal: %s -%s-> %s", (s, e, t) => expect(isLegal(s, e, t)).toBe(true));
+  ])("correct direction is legal: %s -%s-> %s", (s, e, t) => expect(isLegal(s, e, t)).toBe(true));
 
   it.each([
     ["DTO", "USES", "Controller"],
@@ -35,17 +35,17 @@ describe("AI grounding direction == whitelist (agent-stuck regression)", () => {
     ["Exception", "THROWS", "Service"],
     ["EnvironmentVariable", "READS_CONFIG", "Service"],
     ["Cache", "CACHES_IN", "Service"],
-  ])("TERS yön (eski bug) illegal: %s -%s-> %s", (s, e, t) => expect(isLegal(s, e, t)).toBe(false));
+  ])("reversed direction (old bug) is illegal: %s -%s-> %s", (s, e, t) => expect(isLegal(s, e, t)).toBe(false));
 });
 
 describe("system prompt grounding (agent-stuck regression)", () => {
   const p = buildSystemPrompt(emptyGraph as any);
-  it("gerçek whitelist matrisini gömer", () => {
-    expect(p).toContain("YASAL BAĞLANTILAR");
+  it("embeds the real whitelist matrix", () => {
+    expect(p).toContain("LEGAL CONNECTIONS");
     expect(p).toContain("Controller:");
     expect(p).toContain("CALLS → Service");
   });
-  it("bağlı OLMAYAN apply_architecture_graph yerine atomic araçları söyler", () => {
+  it("names atomic tools instead of apply_architecture_graph", () => {
     expect(p).toContain("create_node");
     expect(p).toContain("create_edge");
     expect(p).not.toContain("apply_architecture_graph");
@@ -53,24 +53,24 @@ describe("system prompt grounding (agent-stuck regression)", () => {
 });
 
 describe("buildSystemPrompt patterns", () => {
-  it("pattern yoksa REFERANS DESENLER bölümü yok", () => {
-    expect(buildSystemPrompt(emptyGraph as any)).not.toContain("REFERANS DESENLER");
+  it("omits REFERENCE PATTERNS section when no patterns", () => {
+    expect(buildSystemPrompt(emptyGraph as any)).not.toContain("REFERENCE PATTERNS");
   });
 
-  it("pattern varsa isim + skor + yapı enjekte eder", () => {
+  it("injects name + score + structure when patterns present", () => {
     const hits = [
       {
         score: 0.88,
         pattern: {
-          name: "Katmanlı CRUD",
-          description: "açıklama",
+          name: "Layered CRUD",
+          description: "description",
           graph: { nodes: [{ tempId: "t", type: "Controller", properties: {} }], edges: [] },
         },
       },
     ];
     const p = buildSystemPrompt(emptyGraph as any, hits as any);
-    expect(p).toContain("REFERANS DESENLER");
-    expect(p).toContain("Katmanlı CRUD");
+    expect(p).toContain("REFERENCE PATTERNS");
+    expect(p).toContain("Layered CRUD");
     expect(p).toContain("0.88");
     expect(p).toContain("Controller");
   });

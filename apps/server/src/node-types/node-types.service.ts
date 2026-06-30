@@ -37,7 +37,7 @@ export class NodeTypesService {
     const meta = this.find(id);
     return {
       ...this.toSummary(meta),
-      // zodV3ToOpenAPI'nin recursive type sig'i TS compiler'ı zorluyor — runtime'da OK
+      // zodV3ToOpenAPI recursive type sig stresses TS compiler — OK at runtime
       schema: zodV3ToOpenAPI(meta.schema as any),
       fieldHints: meta.fieldHints ?? {},
     };

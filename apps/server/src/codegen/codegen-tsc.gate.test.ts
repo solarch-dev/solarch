@@ -7,40 +7,40 @@ import { assembleRealisticFixture } from "./__fixtures__/load";
 import { ensureFillDepsCache } from "./codegen-fill-deps";
 
 /* ────────────────────────────────────────────────────────────────────────
- * codegen-tsc.gate.test.ts — BÜTÜN-PROJE TSC GEÇİDİ ("compiles out of the box").
+ * codegen-tsc.gate.test.ts — BUTUN-PROJE TSC GECIDI ("compiles out of the box").
  *
- * Gerçekçi grafı assemble eder → geçici dizine yazar → sıcak deps cache'ini
+ * Gercekci grafi assemble eder → gecici dizine yazar → sicak deps cache'ini
  * (ensureFillDepsCache, in-app verified-fill ile AYNI) node_modules olarak symlink'ler
- * → üretilen projeye `tsc --noEmit` koşar → 0 hata bekler. Bu, iskeletin GERÇEKTEN
- * derlendiğinin makine-kanıtıdır (README'nin "compiles out of the box" sözü).
+ * → uretilen projeye `tsc --noEmit` kosar → 0 hata bekler. Bu, iskeletin GERCEKTEN
+ * derlendiginin makine-kanitidir (README'nin "compiles out of the box" sozu).
  *
- * AYRI çalışır (`*.gate.test.ts`, `*.spec.ts` DEĞİL → default `pnpm test`'e girmez):
- * yavaş + node_modules gerektirir. `pnpm test:codegen-gate` ile / CI'da koşulur.
- *   - Cache kurulamazsa (npm yok / offline) ATLAR (gürültülü uyarı; CI npm sağlamalı).
- *   - Yerel: SOLARCH_FILL_DEPS_CACHE ile hazır bir node_modules'e işaret edilebilir.
+ * AYRI calisir (`*.gate.test.ts`, `*.spec.ts` NOT → default `pnpm test`'e girmez):
+ * yavas + node_modules gerektirir. `pnpm test:codegen-gate` ile / CI'da kosulur.
+ *   - Cache kurulamazsa (npm yok / offline) ATLAR (gurultulu uyari; CI npm saglamali).
+ *   - Yerel: SOLARCH_FILL_DEPS_CACHE ile hazir bir node_modules'e isaret edilebilir.
  *
- * NOT: bu geçit İSKELET'i derler (gövdeler `throw NOT_IMPLEMENTED`). Cast-ile-gizli
- * (PK casing) ve fill-sonrası (kardinalite) dikiş bug'ları burada GÖRÜNMEZ — onlar
- * codegen-assembly.spec.ts'teki yapısal seam-assertion'larıyla kilitlenir. İki geçit
- * BİRLİKTE "verified, not guessed" sağlar.
+ * NOT: bu gecit ISKELET'i derler (govdeler `throw NOT_IMPLEMENTED`). Cast-ile-gizli
+ * (PK casing) ve fill-sonrasi (kardinalite) dikis bug'lari burada GORUNMEZ — onlar
+ * codegen-assembly.spec.ts'teki yapisal seam-assertion'lariyla kilitlenir. Iki gecit
+ * TOGETHER "verified, not guessed" saglar.
  * ──────────────────────────────────────────────────────────────────────── */
 
 const GATE_TIMEOUT = 600_000;
 
-describe("codegen bütün-proje tsc geçidi (gerçekçi graf)", () => {
+describe("codegen butun-proje tsc gecidi (gercekci graf)", () => {
   it(
-    "üretilen iskelet tsc'den 0 hatayla geçer",
+    "generated skeleton passes tsc with 0 errors",
     async (ctx) => {
       const files = assembleRealisticFixture();
 
       const depsDir = await ensureFillDepsCache();
       if (!depsDir) {
         const msg =
-          "verified-deps cache yok (npm/offline) → tsc geçidi koşulamadı. " +
-          "Yerelde SOLARCH_FILL_DEPS_CACHE ile hazır node_modules verilebilir.";
-        // FALSE-GREEN KORUMASI: CI'da skip = sessiz yeşil. CI'da deps SAĞLANMALI;
-        // sağlanmadıysa geçidi FAIL et (atlama yalnız yerel geliştirmede).
-        if (process.env.CI) throw new Error(`[tsc-gate] ${msg} CI'da geçit atlanamaz.`);
+          "verified-deps cache missing (npm/offline) -> tsc gate could not run. " +
+          "Locally provide ready node_modules via SOLARCH_FILL_DEPS_CACHE.";
+        // FALSE-GREEN KORUMASI: CI'da skip = sessiz yesil. CI'da deps SAGLANMALI;
+        // saglanmadiysa gecidi FAIL et (atlama yalniz yerel gelistirmede).
+        if (process.env.CI) throw new Error(`[tsc-gate] ${msg} gate cannot be skipped in CI.`);
         console.warn(`[tsc-gate] ${msg} (yerel: ATLANDI)`);
         ctx.skip();
         return;
@@ -53,13 +53,13 @@ describe("codegen bütün-proje tsc geçidi (gerçekçi graf)", () => {
           await mkdir(dirname(abs), { recursive: true });
           await writeFile(abs, f.content);
         }
-        // Sıcak cache'i node_modules olarak symlink'le (kopya yok, hızlı).
+        // Sicak cache'i node_modules olarak symlink'le (kopya yok, hizli).
         await symlink(join(depsDir, "node_modules"), join(dir, "node_modules"), "dir");
 
         const { code, output } = await runTsc(dir);
-        expect(code, `üretilen iskelet tsc'den GEÇMEDİ:\n${output}`).toBe(0);
+        expect(code, `generated skeleton did NOT pass tsc:\n${output}`).toBe(0);
       } finally {
-        // ÖNCE symlink'i ayrı kaldır → rm paylaşılan cache'e inmesin.
+        // FIRST symlink'i ayri kaldir → rm paylasilan cache'e inmesin.
         await unlink(join(dir, "node_modules")).catch(() => {});
         await rm(dir, { recursive: true, force: true }).catch(() => {});
       }
@@ -68,8 +68,8 @@ describe("codegen bütün-proje tsc geçidi (gerçekçi graf)", () => {
   );
 });
 
-/** Üretilen projede `tsc --noEmit -p tsconfig.json` koşar. tsc'yi node ile doğrudan
- *  çağırır (.bin shim'ine değil) → platform-bağımsız. stdout+stderr birleşik döner. */
+/** Uretilen projede `tsc --noEmit -p tsconfig.json` kosar. tsc'yi node ile dogrudan
+ *  cagirir (.bin shim'ine degil) → platform-bagimsiz. stdout+stderr birlesik doner. */
 function runTsc(cwd: string): Promise<{ code: number; output: string }> {
   return new Promise((resolve) => {
     const tscEntry = join(cwd, "node_modules", "typescript", "bin", "tsc");

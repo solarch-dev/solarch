@@ -2,40 +2,40 @@ import type { CodeGraph, CodeNode } from "../../ir";
 import { pascalCase } from "../../naming";
 
 /* ────────────────────────────────────────────────────────────────────────
- * sql-type-map.ts — SQL DataType -> (TypeScript tipi, TypeORM @Column tipi).
+ * sql-type-map.ts — SQL DataType -> (TypeScript type, TypeORM @Column type).
  *
- * TEK KAYNAK. entity-synthesis / model.emitter / dto.emitter (ve dolaylı table
- * tarafı) bu modülü paylaşır; aksi halde her emitter kendi eksik eşlemesini
- * tutar ve ENUM/JSON gibi tipler GEÇERSİZ TS üretirdi (eski hata: `status: ENUM`,
- * `metadata: JSON` — ikisi de derlemeyi kırar / yanlış tip).
+ * SINGLE SOURCE. entity-synthesis / model.emitter / dto.emitter (and indirect table
+ * side) share this module; otherwise each emitter keeps its own incomplete mapping and
+ * types like ENUM/JSON would produce INVALID TS (old bug: `status: ENUM`,
+ * `metadata: JSON` — both break compilation / wrong type).
  *
- * EŞLEME (büyük/küçük harf duyarsız; eş anlamlılar normalize):
+ * MAPPING (case-insensitive; synonyms normalized):
  *   VARCHAR / TEXT / CHAR / UUID                 -> string
  *   INT / INTEGER / BIGINT / SMALLINT            -> number
  *   DECIMAL / NUMERIC / FLOAT / DOUBLE / REAL    -> number
  *   BOOLEAN / BOOL                               -> boolean
  *   TIMESTAMP / DATETIME / DATE / TIME           -> Date
  *   JSON / JSONB                                 -> Record<string, unknown>
- *   ENUM                                         -> ilgili generated enum tipi
- *                                                   (EnumRef çözülürse) yoksa string
+ *   ENUM                                         -> generated enum type when
+ *                                                   EnumRef resolves, else string
  *
- * SAF + DETERMİNİSTİK: yalnız string + (ENUM için) graph üzerinde ref çözümü;
- * timestamp/random yok. Bilinmeyen tip -> string (güvenli; geçersiz TS üretmez).
+ * PURE + DETERMINISTIC: string only + (for ENUM) ref resolution on graph;
+ * no timestamp/random. Unknown type -> string (safe; no invalid TS).
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Bir SQL DataType token'ını normalize edilmiş büyük-harf forma indirger. */
+/** Reduce a SQL DataType token to normalized uppercase form. */
 function norm(raw: string | undefined): string {
   return (raw ?? "").trim().toUpperCase();
 }
 
-/** SQL/şema DataType -> TypeScript SKALER tipi (ENUM hariç — ENUM için
- *  columnTsType kullan; çünkü generated enum adını çözmek graph gerektirir).
+/** SQL/schema DataType -> TypeScript SCALAR type (except ENUM — use
+ *  columnTsType for ENUM because resolving generated enum name requires graph).
  *
  *  unknownAsString:
- *   - true (varsayılan): bilinmeyen tip -> "string" (entity/Table güvenli yolu;
- *     SQL DataType enum'ı kapalıdır, geçersiz TS üretme).
- *   - false: bilinmeyen tip OLDUĞU GİBİ döner (DTO/Model serbest tip geçişi —
- *     ör. özel sınıf/embedded tip adı; eski davranış korunur).
+ *   - true (default): unknown type -> "string" (entity/Table safe path;
+ *     SQL DataType enum is closed, no invalid TS).
+ *   - false: unknown type returned AS-IS (DTO/Model free-type passthrough —
+ *     e.g. custom class/embedded type name; preserves old behavior).
  */
 export function sqlTypeToTs(
   dataType: string | undefined,
@@ -79,8 +79,8 @@ export function sqlTypeToTs(
     case "DATE":
     case "TIME":
       return "Date";
-    // JSON blob eş anlamlıları: object/map/record/dict (LLM şemasız bir gövde alanını
-    // "object" diye verir; bare `object` zayıf ama Record<string, unknown> tutarlı).
+    // JSON blob synonyms: object/map/record/dict (LLM may label a schemaless body field
+    // "object"; bare `object` is weak but Record<string, unknown> is consistent).
     case "JSON":
     case "JSONB":
     case "OBJECT":
@@ -90,9 +90,9 @@ export function sqlTypeToTs(
       return "Record<string, unknown>";
     case "ENUM":
       return "string";
-    // İkili/dosya verisi (file upload, blob). Ham `binary` GEÇERSİZ TS (TS2304: Cannot
-    // find name 'binary') — DTO yolunda unknownAsString=false olduğu için default'tan
-    // ham geçiyordu. Geçerli TS: Buffer (Node ikili tipi).
+    // Binary/file data (file upload, blob). Raw `binary` is INVALID TS (TS2304: Cannot
+    // find name 'binary') — DTO path had unknownAsString=false so it passed through raw.
+    // Valid TS: Buffer (Node binary type).
     case "BINARY":
     case "VARBINARY":
     case "BLOB":
@@ -103,21 +103,21 @@ export function sqlTypeToTs(
     case "BYTES":
     case "BYTE":
       return "Buffer";
-    // Parametresiz koleksiyon-ism'i (DataType="Array"/"List", eleman tipi yok) → bare
-    // `Array` GEÇERSİZ TS (TS2314). Güvenli degradasyon: `unknown` (IsArray ekiyle unknown[]).
+    // Parameterless collection name (DataType="Array"/"List", no element type) → bare
+    // `Array` is INVALID TS (TS2314). Safe degradation: `unknown` (with IsArray → unknown[]).
     case "ARRAY":
     case "LIST":
       return "unknown";
     default:
-      // Bilinmeyen tip: entity için güvenli "string"; DTO/Model için ham geçiş.
+      // Unknown type: safe "string" for entity; raw passthrough for DTO/Model.
       return unknownAsString ? "string" : (dataType ?? "string");
   }
 }
 
-/** Bir kolonun TS tipi — ENUM ise generated enum sınıf adını (EnumRef çözülürse)
- *  döndürür ve `imports` callback'i ile import edilmesine izin verir; aksi halde
- *  sqlTypeToTs. enumImporter(node) çözülen Enum node'unu alıp sınıf adını (import
- *  ekledikten sonra) döndürmelidir — null dönerse "string"e düşülür. */
+/** Column TS type — for ENUM returns generated enum class name (when EnumRef resolves)
+ *  and allows import via `imports` callback; otherwise sqlTypeToTs. enumImporter(node)
+ *  receives resolved Enum node and must return class name (after adding import) —
+ *  return null to fall back to "string". */
 export function columnTsType(
   dataType: string | undefined,
   enumRef: string | undefined,
@@ -133,12 +133,12 @@ export function columnTsType(
   return sqlTypeToTs(dataType);
 }
 
-/** Bir kolonun TypeORM `@Column` `type` seçeneği (deterministik). ENUM/JSON dahil
- *  TypeORM'a uygun fiziksel tip. ENUM -> "enum" (çağıran ayrıca enum: TheEnum
- *  ekler), JSON/JSONB -> "jsonb". */
+/** TypeORM `@Column` `type` option for a column (deterministic). ENUM/JSON included —
+ * physical type suitable for TypeORM. ENUM -> "enum" (caller also adds enum: TheEnum),
+ * JSON/JSONB -> "jsonb". */
 export function columnOrmType(dataType: string | undefined): string {
   switch (norm(dataType)) {
-    // SQL + Model serbest tip eş anlamlıları aynı fiziksel TypeORM tipine düşer.
+    // SQL + Model free-type synonyms map to same physical TypeORM type.
     case "VARCHAR":
     case "CHAR":
     case "BPCHAR":
@@ -177,8 +177,8 @@ export function columnOrmType(dataType: string | undefined): string {
     case "DECIMAL":
     case "NUMERIC":
       return "decimal";
-    // JSON blob eş anlamlıları → jsonb. TypeORM'da "object" diye kolon tipi YOK;
-    // default'a düşse `type: "object"` üretirdi (TS2769: no overload — gerçek bug).
+    // JSON blob synonyms → jsonb. TypeORM has no "object" column type;
+    // default would emit `type: "object"` (TS2769: no overload — real bug).
     case "JSON":
     case "JSONB":
     case "OBJECT":
@@ -186,8 +186,8 @@ export function columnOrmType(dataType: string | undefined): string {
     case "RECORD":
     case "DICT":
       return "jsonb";
-    // İkili/dosya verisi → postgres bytea (TypeORM'da ham `binary` MySQL'e özgü;
-    // codegen postgres hedefler → bytea tutarlı).
+    // Binary/file data → postgres bytea (TypeORM raw `binary` is MySQL-specific;
+    // codegen targets postgres → bytea is consistent).
     case "BINARY":
     case "VARBINARY":
     case "BLOB":

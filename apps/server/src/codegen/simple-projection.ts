@@ -1,26 +1,26 @@
-/** simple-projection.ts — TEKNİK graf → "Basit Görünüm" projeksiyonu (non-dev).
+/** simple-projection.ts — TECHNICAL graph -> "Simple View" projection (non-dev).
  *
- *  Solarch'ın Mermaid/SQL export'unun kardeşi: kanonik CodeGraph'tan DETERMİNİSTİK,
- *  READ-ONLY bir SystemMap üretir. Frontend (src/features/simple) bunu render eder.
- *  Ayrı state yok → drift yok; graf değişince projeksiyon de değişir.
+ *  Sibling to Solarch's Mermaid/SQL export: DETERMINISTIC, READ-ONLY SystemMap from
+ *  canonical CodeGraph. Frontend (src/features/simple) renders it.
+ *  No separate state -> no drift; projection changes when graph changes.
  *
- *  İKİ SEVİYE:
- *   A) Sistem Haritası: feature kutuları + "kullanır"(dependsOn)/"tetikler"(pub→sub)
- *      okları. TAMAMEN deterministik — codegen'in NestJS module wiring'i ürettiği
- *      AYNI Feature modeli (features()/dependsOn/forwardRefDeps).
- *   B) Capability listesi: her Controller endpoint'i → sade bir yetenek kartı +
- *      mantık şeması (flowchart). Teknik zincir (Controller→Service→Repo→Table)
- *      collapse edilir; DTO/Cache/Middleware gizlenir → "+N detay".
+ *  TWO LEVELS:
+ *   A) System Map: feature boxes + "uses"(dependsOn)/"triggers"(pub→sub)
+ *      arrows. FULLY deterministic — SAME Feature model codegen's NestJS module wiring
+ *      produces (features()/dependsOn/forwardRefDeps).
+ *   B) Capability list: each Controller endpoint -> simple capability card +
+ *      logic diagram (flowchart). Technical chain (Controller→Service→Repo→Table)
+ *      collapsed; DTO/Cache/Middleware hidden -> "+N details".
  *
- *  DÜRÜSTLÜK: yalnız graf-modellenmiş gerçekler çizilir. Karar düğümü SADECE gerçek
- *  bir koşuldan gelir (RequiresAuth → auth-guard). İş-mantığı koşulları (dolu metot
- *  gövdesinde) GRAF'ta olmadığı için UYDURULMAZ. Fiil etiketleri deterministik tablo
- *  (LLM yok); endpoint.Description varsa o tercih edilir. */
+ *  HONESTY: only graph-modeled facts are drawn. Decision node ONLY from real
+ *  condition (RequiresAuth -> auth-guard). Business-logic conditions (in filled method
+ *  bodies) NOT in GRAPH so NOT invented. Verb labels from deterministic table
+ *  (no LLM); endpoint.Description preferred when present. */
 
 import type { CodeGraph, CodeNode, Feature } from "./ir";
 import { propsOf } from "./ir";
 
-/* ── DTO'lar (frontend src/features/simple/types.ts ile YAPISAL eşleşir) ──── */
+/* ── DTOs (structurally matches frontend src/features/simple/types.ts) ──── */
 
 export type DataAccess = "writes" | "reads";
 export type FlowNodeKind = "terminal" | "process" | "decision" | "data" | "external" | "end" | "state";
@@ -58,9 +58,9 @@ export interface SystemMapDTO {
   shared?: { items: string[] };
 }
 
-/* ── Sözlük + yardımcılar (deterministik) ──────────────────────────────── */
+/* ── Dictionary + helpers (deterministic) ──────────────────────────────── */
 
-/** slug → Başlık Düzeni ("user-profile" → "User Profile"). */
+/** slug -> Title Case ("user-profile" -> "User Profile"). */
 function titleOf(slug: string): string {
   return slug
     .split(/[-_]/)
@@ -69,17 +69,17 @@ function titleOf(slug: string): string {
     .join(" ");
 }
 
-/** Tek bir tanımlayıcıyı insan-okur tekil nesneye indirger ("messages" → "Message"). */
+/** Reduce a single identifier to human-readable singular noun ("messages" -> "Message"). */
 function objectOf(raw: string): string {
   let s = raw.replace(/[^A-Za-z0-9]+/g, " ").trim();
   if (!s) return "";
-  // basit tekilleştirme (sade): "ies"→"y", sondaki "s" düş.
+  // simple singularization (plain): "ies"->"y", drop trailing "s".
   if (/ies$/i.test(s)) s = s.replace(/ies$/i, "y");
   else if (/[^s]s$/i.test(s)) s = s.replace(/s$/i, "");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Route'tan anlamlı nesne ("/messages/:id" → "Message"); yoksa controller adı. */
+/** Meaningful noun from route ("/messages/:id" -> "Message"); else controller name. */
 function routeObject(route: string, controllerName: string): string {
   const seg = route
     .split("/")
@@ -135,9 +135,9 @@ function actionSentence(ep: EndpointProps, controllerName: string): string {
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-/* ── A) Sistem Haritası ─────────────────────────────────────────────────── */
+/* ── A) System Map ─────────────────────────────────────────────────── */
 
-/** dependsOn (eager, forwardRef hariç) zincir derinliği = tier (temel sol). */
+/** dependsOn (eager, excluding forwardRef) chain depth = tier (base left). */
 function computeTiers(features: Feature[]): Map<string, number> {
   const bySlug = new Map(features.map((f) => [f.slug, f]));
   const cache = new Map<string, number>();
@@ -159,7 +159,7 @@ function computeTiers(features: Feature[]): Map<string, number> {
   return cache;
 }
 
-/** Bir feature'ın insan-okur veri etiketleri (entity + sentez tablo adları). */
+/** Human-readable data labels for a feature (entity + synthesized table names). */
 function dataLabelsOf(f: Feature): string[] {
   const out = new Set<string>();
   for (const e of f.entities) out.add(objectOf(e.name));
@@ -167,7 +167,7 @@ function dataLabelsOf(f: Feature): string[] {
   return [...out].sort();
 }
 
-/** Feature'ın kullandığı dış servis adları. */
+/** External service names used by feature. */
 function externalsOf(f: Feature): string[] {
   return f.infraProviders
     .filter((n) => n.kindOf() === "ExternalService")
@@ -175,17 +175,17 @@ function externalsOf(f: Feature): string[] {
     .sort();
 }
 
-/** pub→sub "tetikler" ilişkileri: bir feature'ın PUBLISHES ettiği kuyruğu başka bir
- *  feature'ın EventHandler'ı SUBSCRIBES ediyorsa kaynak→tüketici "tetikler". */
+/** pub→sub "triggers" relations: when another feature's EventHandler SUBSCRIBES to a queue
+ *  this feature PUBLISHES to, source→consumer "triggers". */
 function triggerArrows(graph: CodeGraph): FeatureArrowDTO[] {
   const arrows = new Map<string, FeatureArrowDTO>();
   for (const handler of graph.allOf("EventHandler")) {
     const consumer = graph.featureOf(handler);
-    // Bu handler'ın dinlediği kuyruklar (SUBSCRIBES).
+    // Queues this handler listens to (SUBSCRIBES).
     for (const sub of graph.outEdges(handler.id, "SUBSCRIBES")) {
       const queue = graph.byId(sub.targetNodeId);
       if (!queue) continue;
-      // Bu kuyruğa PUBLISHES eden node'lar → kaynak feature.
+      // Nodes that PUBLISH to this queue -> source feature.
       for (const pub of graph.inEdges(queue.id, "PUBLISHES")) {
         const src = graph.byId(pub.sourceNodeId);
         if (!src) continue;
@@ -201,22 +201,22 @@ function triggerArrows(graph: CodeGraph): FeatureArrowDTO[] {
 
 /* ── B) Capability'ler ──────────────────────────────────────────────────── */
 
-/** Bir endpoint → CapabilityDTO (kart + mantık şeması). */
+/** One endpoint -> CapabilityDTO (card + logic diagram). */
 function capabilityOf(ep: EndpointProps, controller: CodeNode, feature: Feature): CapabilityDTO {
   const controllerName = controller.name;
   const isWrite = WRITE_METHODS.has(ep.HttpMethod);
   const actor = ep.RequiresAuth ? "Signed-in user" : "Any user";
   const action = actionSentence(ep, controllerName);
 
-  // Veri: feature'ın birincil entity'si + HTTP metoduna göre yön (yazma/okuma).
+  // Data: feature's primary entity + direction by HTTP method (write/read).
   const labels = dataLabelsOf(feature);
   const primary = labels[0];
   const data: CapabilityDatumDTO[] = primary ? [{ access: isWrite ? "writes" : "reads", label: primary }] : [];
 
-  // Tetikler (feature seviyesinde): bu feature'ın tetiklediği başka feature'lar (yalnız yazma).
+  // Triggers (feature level): other features this one triggers (write only).
   const external = externalsOf(feature);
 
-  // Gizli teknik detay: request/response DTO + middleware + feature cache sayısı.
+  // Hidden technical details: request/response DTO + middleware + feature cache count.
   let hidden = 0;
   if (ep.RequestDTORef) hidden++;
   if (ep.ResponseDTORef) hidden++;
@@ -361,7 +361,7 @@ function buildDataFlow(feature: Feature, enums: CodeNode[]): CapabilityFlowDTO |
   return nodes.length > 0 ? { nodes, edges } : undefined;
 }
 
-/** Bir feature'ın tüm capability'leri (controller endpoint'lerinden, sıralı). */
+/** All capabilities for a feature (from controller endpoints, sorted). */
 function capabilitiesOf(feature: Feature): CapabilityDTO[] {
   const caps: CapabilityDTO[] = [];
   const controllers = [...feature.controllers].sort((a, b) => (a.name < b.name ? -1 : 1));
@@ -372,7 +372,7 @@ function capabilitiesOf(feature: Feature): CapabilityDTO[] {
   return caps;
 }
 
-/* ── Üst seviye projeksiyon ─────────────────────────────────────────────── */
+/* ── Top-level projection ─────────────────────────────────────────────── */
 
 /** CodeGraph → deterministic Mermaid flowchart of the Simple View (subgraph per
  *  feature; node shapes encode kind; cross-feature arrows). This is the deterministic
@@ -426,7 +426,7 @@ export function projectSimpleMermaid(graph: CodeGraph): string {
   return lines.join("\n");
 }
 
-/** CodeGraph → Basit Görünüm SystemMap (deterministik, saf). */
+/** CodeGraph -> Simple View SystemMap (deterministic, pure). */
 export function projectSimpleView(graph: CodeGraph): SystemMapDTO {
   const features = graph.features();
   const tiers = computeTiers(features);
@@ -457,7 +457,7 @@ export function projectSimpleView(graph: CodeGraph): SystemMapDTO {
     };
   });
 
-  // Oklar: dependsOn ("kullanır", forwardRef → mutual) + pub→sub ("tetikler").
+  // Arrows: dependsOn ("uses", forwardRef -> mutual) + pub->sub ("triggers").
   const arrows: FeatureArrowDTO[] = [];
   for (const f of features) {
     for (const dep of f.dependsOn) {
@@ -469,7 +469,7 @@ export function projectSimpleView(graph: CodeGraph): SystemMapDTO {
     if (known.has(t.from) && known.has(t.to)) arrows.push(t);
   }
 
-  // Ortak (common) altyapı.
+  // Shared (common) infrastructure.
   const common = graph.commonFeature();
   const shared = common
     ? { items: [...new Set([...common.infraProviders, ...common.services, ...common.repositories].map((n) => n.name))].sort() }
@@ -482,7 +482,7 @@ export function projectSimpleView(graph: CodeGraph): SystemMapDTO {
   };
 }
 
-/* ── C) Yapısal sketch modeli (tool-calling üretiminin + ELK layout'un girdisi) ──── */
+/* ── C) Structural sketch model (input for tool-calling generation + ELK layout) ──── */
 
 /** A structured, Mermaid-FREE model of the Simple View. The deterministic projector below
  *  is the grounding + fallback; the AI tool-calling agent refines the PRESENTATION on top of

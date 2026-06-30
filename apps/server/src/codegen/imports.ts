@@ -1,29 +1,29 @@
 /* ────────────────────────────────────────────────────────────────────────
- * imports.ts — DETERMİNİSTİK import bloku üretimi.
+ * imports.ts — DETERMINISTIC import block generation.
  *
- * Her emitter kendi ImportCollector'ını kurar, sembolleri ekler, sonunda
- * render() ile sıralı import blokunu alır. Elle "import { X } from ..." yazma
- * YASAK — tutarlılık ve determinizm bu sınıftan gelir.
+ * Each emitter builds its ImportCollector, adds symbols, then gets sorted import
+ * block via render(). Manual "import { X } from ..." FORBIDDEN — consistency and
+ * determinism come from this class.
  *
- * Sıralama kuralı (deterministik):
- *   1) Modüller alfabetik (bir kez), ama "yan-tip" sıralaması:
- *      - 3rd-party / paketler (./ veya ../ ile başlamayan) ÖNCE
- *      - göreli ("./", "../") SONRA
- *      her grup kendi içinde modül yoluna göre alfabetik.
- *   2) Her modül için semboller alfabetik, tekilleştirilmiş.
- *   3) Yalnız-tip importları `import type { ... }` olarak ayrı satıra çıkar
- *      (eğer aynı modülden hem değer hem tip varsa, değer importu `type`
- *      niteleyiciyle inline taşır: import { A, type B }).
+ * Sorting rules (deterministic):
+ *   1) Modules alphabetical (once), but with "side-type" ordering:
+ *      - 3rd-party / packages (not starting with ./ or ../) FIRST
+ *      - relative ("./", "../") AFTER
+ *      each group alphabetically by module path internally.
+ *   2) Per module, symbols alphabetical, deduplicated.
+ *   3) Type-only imports on separate `import type { ... }` line
+ *      (when same module has both value and type, value import carries inline
+ *      `type` qualifier: import { A, type B }).
  * ──────────────────────────────────────────────────────────────────────── */
 
 interface ModuleImports {
-  /** değer (runtime) sembolleri */
+  /** value (runtime) symbols */
   values: Set<string>;
-  /** yalnız-tip sembolleri */
+  /** type-only symbols */
   types: Set<string>;
-  /** default import sembolü (varsa) */
+  /** default import symbol (if any) */
   defaultName?: string;
-  /** `import * as ns from "..."` namespace adı (varsa) */
+  /** `import * as ns from "..."` namespace name (if any) */
   namespace?: string;
 }
 
@@ -39,15 +39,15 @@ export class ImportCollector {
     return slot;
   }
 
-  /** Değer (runtime) sembolü ekle: `import { symbol } from "..."`. */
+  /** Add value (runtime) symbol: `import { symbol } from "..."`. */
   add(symbol: string, fromModulePath: string): this {
     const slot = this.slot(fromModulePath);
     slot.values.add(symbol);
-    slot.types.delete(symbol); // değer importu tip importunu kapsar
+    slot.types.delete(symbol); // value import covers type import
     return this;
   }
 
-  /** Yalnız-tip sembolü ekle: `import type { symbol } from "..."`. */
+  /** Add type-only symbol: `import type { symbol } from "..."`. */
   addType(symbol: string, fromModulePath: string): this {
     const slot = this.slot(fromModulePath);
     if (!slot.values.has(symbol)) slot.types.add(symbol);
@@ -66,18 +66,18 @@ export class ImportCollector {
     return this;
   }
 
-  /** Hiç import var mı? (boşsa render() "" döner.) */
+  /** Any imports? (render() returns "" when empty.) */
   get isEmpty(): boolean {
     return this.modules.size === 0;
   }
 
-  /** Sıralı import bloku — satır sonu dahil DEĞİL (emitter birleştirir). */
+  /** Sorted import block — does NOT include trailing newline (emitter merges). */
   render(): string {
     const isRelative = (p: string) => p.startsWith(".") || p.startsWith("/");
     const paths = [...this.modules.keys()].sort((a, b) => {
       const ra = isRelative(a) ? 1 : 0;
       const rb = isRelative(b) ? 1 : 0;
-      if (ra !== rb) return ra - rb; // paketler önce, göreli sonra
+      if (ra !== rb) return ra - rb; // packages first, relative after
       return a < b ? -1 : a > b ? 1 : 0;
     });
 
@@ -87,12 +87,12 @@ export class ImportCollector {
       const sortedValues = [...slot.values].sort();
       const sortedTypes = [...slot.types].sort();
 
-      // default + namespace satırları (ayrı)
+      // default + namespace lines (separate)
       if (slot.defaultName) lines.push(`import ${slot.defaultName} from "${path}";`);
       if (slot.namespace) lines.push(`import * as ${slot.namespace} from "${path}";`);
 
       if (sortedValues.length > 0 && sortedTypes.length > 0) {
-        // hem değer hem tip -> inline `type` niteleyici
+        // both value and type -> inline `type` qualifier
         const parts = [...sortedValues, ...sortedTypes.map((t) => `type ${t}`)].sort(byBareName);
         lines.push(`import { ${parts.join(", ")} } from "${path}";`);
       } else if (sortedValues.length > 0) {
@@ -105,7 +105,7 @@ export class ImportCollector {
   }
 }
 
-/** "type Foo" ve "Foo" karışık listede çıplak isme göre sırala. */
+/** Sort mixed "type Foo" and "Foo" list by bare name. */
 function byBareName(a: string, b: string): number {
   const bare = (s: string) => s.replace(/^type\s+/, "");
   const ba = bare(a);

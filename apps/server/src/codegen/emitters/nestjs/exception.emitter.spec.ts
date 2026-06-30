@@ -4,7 +4,7 @@ import { buildCodeGraph } from "../../ir";
 import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function exceptionNode(
   properties: Record<string, unknown>,
   id = "11111111-1111-4111-8111-111111111111",
@@ -30,14 +30,14 @@ function ctxFor(...nodes: StoredNode[]): { ctx: EmitterContext } {
 
 const USER_NOT_FOUND = {
   ExceptionName: "UserNotFoundException",
-  Description: "İstenen kullanıcı bulunamadı",
+  Description: "Requested user not found",
   HttpStatusCode: 404,
   LogSeverity: "Warning",
   ErrorCode: "ERR_USER_NOT_FOUND",
 };
 
 describe("emitException", () => {
-  it("HttpException tabanlı — snapshot", () => {
+  it("HttpException-based — snapshot", () => {
     const node = exceptionNode(USER_NOT_FOUND);
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
@@ -45,14 +45,14 @@ describe("emitException", () => {
       {
         "content": "import { HttpException, HttpStatus } from "@nestjs/common";
 
-      /** İstenen kullanıcı bulunamadı */
+      /** Requested user not found */
       export class UserNotFoundException extends HttpException {
         static readonly httpStatus = HttpStatus.NOT_FOUND;
         static readonly errorCode = "ERR_USER_NOT_FOUND";
         static readonly logSeverity = "Warning";
 
         constructor(message?: string) {
-          super({ code: "ERR_USER_NOT_FOUND", message: message ?? "İstenen kullanıcı bulunamadı" }, HttpStatus.NOT_FOUND);
+          super({ code: "ERR_USER_NOT_FOUND", message: message ?? "Requested user not found" }, HttpStatus.NOT_FOUND);
         }
       }
       ",
@@ -63,7 +63,7 @@ describe("emitException", () => {
     `);
   });
 
-  it("dosya yolu kebab-case common/exceptions altında", () => {
+  it("file path under kebab-case common/exceptions", () => {
     const node = exceptionNode(USER_NOT_FOUND);
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
@@ -79,7 +79,7 @@ describe("emitException", () => {
     );
   });
 
-  it("HttpStatusCode -> doğru HttpStatus member", () => {
+  it("HttpStatusCode -> correct HttpStatus member", () => {
     const node = exceptionNode({ ...USER_NOT_FOUND, HttpStatusCode: 409 });
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
@@ -87,18 +87,18 @@ describe("emitException", () => {
     expect(file.content).toContain(", HttpStatus.CONFLICT);");
   });
 
-  it("bilinmeyen HttpStatusCode -> cast'e düşer", () => {
+  it("unknown HttpStatusCode -> falls back to cast", () => {
     const node = exceptionNode({ ...USER_NOT_FOUND, HttpStatusCode: 499 });
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
     expect(file.content).toContain("(499 as HttpStatus)");
   });
 
-  it("ParentExceptionRef çözülürse o sınıfı extends eder + göreli import", () => {
+  it("when ParentExceptionRef resolves extends that class + relative import", () => {
     const parent = exceptionNode(
       {
         ExceptionName: "AppException",
-        Description: "Uygulama temel hatası",
+        Description: "Application base error",
         HttpStatusCode: 500,
         LogSeverity: "Error",
       },
@@ -107,7 +107,7 @@ describe("emitException", () => {
     const child = exceptionNode(
       {
         ExceptionName: "UserNotFoundException",
-        Description: "İstenen kullanıcı bulunamadı",
+        Description: "Requested user not found",
         HttpStatusCode: 404,
         LogSeverity: "Warning",
         ErrorCode: "ERR_USER_NOT_FOUND",
@@ -123,31 +123,31 @@ describe("emitException", () => {
     expect(file.content).toContain(
       'import { AppException } from "./app.exception";',
     );
-    // Kalıtımda HttpException artık import edilmez.
+    // HttpException no longer imported in inheritance.
     expect(file.content).not.toContain("HttpException");
   });
 
-  it("ErrorCode yoksa response yalnız message içerir + static errorCode atlanır", () => {
+  it("without ErrorCode response contains only message + static errorCode skipped", () => {
     const node = exceptionNode({
       ExceptionName: "ValidationException",
-      Description: "Geçersiz istek",
+      Description: "Invalid request",
       HttpStatusCode: 400,
       LogSeverity: "Info",
     });
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
     expect(file.content).toContain(
-      'super({ message: message ?? "Geçersiz istek" }, HttpStatus.BAD_REQUEST);',
+      'super({ message: message ?? "Invalid request" }, HttpStatus.BAD_REQUEST);',
     );
     expect(file.content).not.toContain("static readonly errorCode");
   });
 
-  it("EDGE-CASE: kayıp ParentExceptionRef -> THROW yok, HttpException'a düşer + TODO", () => {
+  it("EDGE-CASE: missing ParentExceptionRef -> no THROW, falls back to HttpException + TODO", () => {
     const node = exceptionNode({
       ...USER_NOT_FOUND,
       ParentExceptionRef: "GhostException",
     });
-    const { ctx } = ctxFor(node); // parent graph'ta YOK
+    const { ctx } = ctxFor(node); // parent graph'ta NONE
     expect(() => emitException(ctx.graph.byId(node.id)!, ctx)).not.toThrow();
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
     expect(file.content).toContain("extends HttpException {");
@@ -155,7 +155,7 @@ describe("emitException", () => {
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("surgical marker YOK (constructor algoritma alanı değil)", () => {
+  it("surgical marker NONE (constructor not algorithm field)", () => {
     const node = exceptionNode(USER_NOT_FOUND);
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
@@ -163,7 +163,7 @@ describe("emitException", () => {
     expect(file.content).not.toContain("@solarch:surgical");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const node = exceptionNode(USER_NOT_FOUND);
     const { ctx } = ctxFor(node);
     const [file] = emitException(ctx.graph.byId(node.id)!, ctx);
@@ -171,7 +171,7 @@ describe("emitException", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const node = exceptionNode(USER_NOT_FOUND);
     const { ctx } = ctxFor(node);
     const a = emitException(ctx.graph.byId(node.id)!, ctx)[0].content;

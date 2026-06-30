@@ -8,10 +8,9 @@ import { SurgicalFillRepository } from "./surgical-fill.repository";
 import { ProjectsModule } from "../projects/projects.module";
 import { NodesModule } from "../nodes/nodes.module";
 import { EdgesModule } from "../edges/edges.module";
-import { BillingModule } from "../billing/billing.module";
 
 @Module({
-  imports: [ProjectsModule, NodesModule, EdgesModule, BillingModule],
+  imports: [ProjectsModule, NodesModule, EdgesModule],
   controllers: [CodegenController],
   providers: [CodegenService, CodegenFillService, CodegenDepsWarmupService, ImportResolverService, SurgicalFillRepository],
   exports: [CodegenService],

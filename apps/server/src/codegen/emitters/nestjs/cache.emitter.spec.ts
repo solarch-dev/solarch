@@ -4,7 +4,7 @@ import { buildCodeGraph } from "../../ir";
 import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 const CACHE = "33333333-3333-4333-8333-333333333333";
@@ -31,7 +31,7 @@ function ctxFor(...nodes: StoredNode[]): { ctx: EmitterContext } {
 
 const DYNAMIC = {
   CacheName: "ImageResultCache",
-  Description: "Üretilen görsel sonuçlarını önbellekler",
+  Description: "Caches generated image results",
   KeyPattern: "image:result:{id}",
   TTL_Seconds: 3600,
   Engine: "Redis",
@@ -39,14 +39,14 @@ const DYNAMIC = {
 
 const STATIC = {
   CacheName: "ConfigCache",
-  Description: "Uygulama konfigürasyonu önbelleği",
+  Description: "Application configuration cache",
   KeyPattern: "app:config",
   TTL_Seconds: 60,
   Engine: "Memory",
 };
 
 describe("emitCache", () => {
-  it("dinamik anahtar (KeyPattern yer tutuculu) — snapshot", () => {
+  it("dynamic key (KeyPattern with placeholder) — snapshot", () => {
     const node = cacheNode(DYNAMIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
@@ -57,7 +57,7 @@ describe("emitCache", () => {
       import type { Cache } from "cache-manager";
 
       /**
-       * Üretilen görsel sonuçlarını önbellekler
+       * Caches generated image results
        *
        * Engine: Redis · TTL: 3600s · KeyPattern: image:result:{id}
        */
@@ -98,7 +98,7 @@ describe("emitCache", () => {
     `);
   });
 
-  it("sabit anahtar (yer tutucu yok) — get/set/del parametresiz", () => {
+  it("static key (no placeholder) — get/set/del without parameters", () => {
     const node = cacheNode(STATIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
@@ -109,14 +109,14 @@ describe("emitCache", () => {
     expect(file.content).not.toContain("suffix");
   });
 
-  it("dosya yolu: Cache rol eki düşer, base kebab + .cache.ts", () => {
+  it("file path: Cache role suffix stripped, base kebab + .cache.ts", () => {
     const node = cacheNode(DYNAMIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
     expect(file.path).toBe("common/image-result.cache.ts");
   });
 
-  it("TTL_Seconds ms'e çevrilir (saniye*1000) ve sınıf @Injectable", () => {
+  it("TTL_Seconds converted to ms (seconds*1000) and class is @Injectable", () => {
     const node = cacheNode(DYNAMIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
@@ -125,7 +125,7 @@ describe("emitCache", () => {
     expect(file.content).toContain("@Inject(CACHE_MANAGER) private readonly cache: Cache,");
   });
 
-  it("CACHE_MANAGER + Cache import'ları doğru paketten", () => {
+  it("CACHE_MANAGER + Cache imports from correct packages", () => {
     const node = cacheNode(STATIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
@@ -134,7 +134,7 @@ describe("emitCache", () => {
     expect(file.content).toContain('import { Inject, Injectable } from "@nestjs/common";');
   });
 
-  it("metot gövdeleri gerçek impl — surgical marker yok", () => {
+  it("method bodies are real impl — no surgical markers", () => {
     const node = cacheNode(DYNAMIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
@@ -143,7 +143,7 @@ describe("emitCache", () => {
     expect(file.content).not.toContain("NOT_IMPLEMENTED");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const node = cacheNode(DYNAMIC);
     const { ctx } = ctxFor(node);
     const [file] = emitCache(ctx.graph.byId(node.id)!, ctx);
@@ -151,7 +151,7 @@ describe("emitCache", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const node = cacheNode(DYNAMIC);
     const { ctx } = ctxFor(node);
     const a = emitCache(ctx.graph.byId(node.id)!, ctx)[0].content;

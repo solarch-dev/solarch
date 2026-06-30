@@ -5,7 +5,7 @@ import type { StoredNode } from "../nodes/nodes.repository";
 export type NodeKindOrWildcard = NodeKind | "*";
 export type EdgeKindOrWildcard = EdgeKind | "*";
 
-/** Whitelist allow rule — Plans/Kurallar Matrisi izin verilen bağlantılar. */
+/** Whitelist allow rule — Plans/Rules Matrix permitted connections. */
 export interface AllowRule {
   source: NodeKind | NodeKind[];
   edge: EdgeKind | EdgeKind[];
@@ -14,7 +14,7 @@ export interface AllowRule {
   note?: string;
 }
 
-/** Blacklist deny rule — Plans/Kurallar Matrisi keskin yasaklar (ERR_001..007). */
+/** Blacklist deny rule — Plans/Rules Matrix hard prohibitions (ERR_001..007). */
 export interface DenyRule {
   code: string;
   source: NodeKindOrWildcard | NodeKindOrWildcard[];
@@ -25,7 +25,7 @@ export interface DenyRule {
   docLink?: string;
 }
 
-/** Conditional rule descriptor — checker'lar runtime'da çalışır. */
+/** Conditional rule descriptor — checkers run at runtime. */
 export interface ConditionalRuleDescriptor {
   code: string;
   type: "CIRCULAR_DEPENDENCY" | "TYPE_MISMATCH" | "EMPTY_SCHEMA";
@@ -47,7 +47,7 @@ export const RULE_LAYER_LABELS: Record<RuleLayer, string> = {
   client: "1. Client and External Access",
   presentation: "2. Processing and Presentation",
   business: "3. Business Logic",
-  background: "4. Arka Plan ve Asenkron",
+  background: "4. Background and Async",
   data: "5. Data Access",
   schema: "6. Data, Schema and Inheritance",
   structure: "7. Modular Structure",
@@ -70,8 +70,8 @@ export interface EvaluationResult {
   docLink?: string;
 }
 
-/** Whole-graph review finding — mevcut bir edge'in kural ihlali/uyarısı.
- *  POST /projects/:id/review döndürür; frontend Problems paneli gösterir. */
+/** Whole-graph review finding — rule violation/warning on an existing edge.
+ *  Returned by POST /projects/:id/review; frontend Problems panel displays it. */
 export interface ReviewFinding {
   severity: "error" | "warning";
   code: string;
@@ -81,7 +81,7 @@ export interface ReviewFinding {
   docLink?: string;
   edgeId: string;
   edgeKind: EdgeKind;
-  /** [sourceId, targetId] — frontend focusNode/focusEdge için. */
+  /** [sourceId, targetId] — for frontend focusNode/focusEdge. */
   nodeIds: string[];
 }
 

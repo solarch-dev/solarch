@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ServiceName: "PaymentService",
-  Description: "Ödeme işlemleri",
+  Description: "Payment processing",
   IsTransactionScoped: true,
   Methods: [
     {
@@ -29,13 +29,13 @@ const parse = (properties: unknown) =>
   ServiceNodeSchema.parse({ ...validBase, type: "Service", properties });
 
 describe("ServiceNodeSchema (enriched)", () => {
-  it("geçerli Service'i parse eder", () => {
+  it("parses valid Service", () => {
     const node = parse(validProperties);
     expect(node.properties.IsTransactionScoped).toBe(true);
     expect(node.properties.Methods[0].Parameters).toHaveLength(1);
   });
 
-  it("method default'ları (Visibility/Parameters/IsAsync/Throws)", () => {
+  it("method defaults (Visibility/Parameters/IsAsync/Throws)", () => {
     const node = parse({ ...validProperties, Methods: [{ MethodName: "ping", ReturnType: "void" }] });
     const m = node.properties.Methods[0];
     expect(m.Visibility).toBe("public");
@@ -44,26 +44,26 @@ describe("ServiceNodeSchema (enriched)", () => {
     expect(m.Throws).toEqual([]);
   });
 
-  it("Dependencies (DI) default boş, geçerli Kind kabul eder", () => {
+  it("Dependencies (DI) default empty, accepts valid Kind", () => {
     expect(parse(validProperties).properties.Dependencies).toEqual([]);
     const node = parse({ ...validProperties, Dependencies: [{ Kind: "Repository", Ref: "UserRepository" }] });
     expect(node.properties.Dependencies[0].Kind).toBe("Repository");
   });
 
-  it("geçersiz Dependency Kind reddeder", () => {
+  it("rejects invalid Dependency Kind", () => {
     expect(() => parse({ ...validProperties, Dependencies: [{ Kind: "Database", Ref: "x" }] })).toThrow();
   });
 
-  it("eski InputParams alanını reddeder (strict)", () => {
+  it("rejects legacy InputParams field (strict)", () => {
     expect(() => parse({ ...validProperties, Methods: [{ MethodName: "x", InputParams: [], ReturnType: "void" }] })).toThrow();
   });
 
-  it("Description zorunlu", () => {
+  it("Description is required", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Methods boşsa fırlatır", () => {
+  it("throws when Methods is empty", () => {
     expect(() => parse({ ...validProperties, Methods: [] })).toThrow();
   });
 });

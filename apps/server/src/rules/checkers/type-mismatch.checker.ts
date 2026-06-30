@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { EvaluationContext, EvaluationResult } from "../types";
 
-/** ERR_COND_002 — Controller → CALLS → Service'te RequestDTORef ↔ Parameter uyumu. */
+/** ERR_COND_002 — Controller → CALLS → Service RequestDTORef ↔ Parameter alignment. */
 @Injectable()
 export class TypeMismatchChecker {
   check(ctx: EvaluationContext): EvaluationResult {
@@ -19,18 +19,18 @@ export class TypeMismatchChecker {
     for (const ep of ctrlEndpoints) {
       if (ep.RequestDTORef) ctrlDTOs.add(ep.RequestDTORef);
     }
-    // Controller hiç RequestDTORef belirtmediyse atla (örn sadece GET endpoints)
+    // Skip when Controller specifies no RequestDTORef (e.g. GET-only endpoints)
     if (ctrlDTOs.size === 0) return { allowed: true };
 
     const srvInputTypes = new Set<string>();
     for (const m of srvMethods) {
       for (const p of m.Parameters ?? []) {
-        // DtoRef öncelikli (DTO referansı), yoksa ham Type.
+        // DtoRef preferred (DTO reference), else raw Type.
         if (p.DtoRef) srvInputTypes.add(p.DtoRef);
         if (p.Type) srvInputTypes.add(p.Type);
       }
     }
-    // Service hiç parametre beklemiyorsa atla
+    // Skip when Service expects no parameters
     if (srvInputTypes.size === 0) return { allowed: true };
 
     const matches = [...ctrlDTOs].filter((dto) => srvInputTypes.has(dto));

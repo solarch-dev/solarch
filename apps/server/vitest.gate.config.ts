@@ -1,9 +1,9 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 
-/* Bütün-proje tsc geçidi (codegen-tsc.gate.test.ts) — AYRI config.
- * Yavaş + node_modules gerektirir; default `*.spec.ts` keşfine girmez.
- * `pnpm test:codegen-gate` ile / CI'da koşulur. */
+/* Whole-project tsc gate (codegen-tsc.gate.test.ts) — SEPARATE config.
+* Slow + requires node_modules; By default it does not explore `*.spec.ts`.
+* Run on CI with `pnpm test:codegen-gate`. */
 export default defineConfig({
   test: {
     include: ["src/**/*.gate.test.ts"],
@@ -11,8 +11,8 @@ export default defineConfig({
     globals: false,
     testTimeout: 600_000,
     hookTimeout: 600_000,
-    // env.ts top-level parseEnv'i import sırasında patlamasın diye minimal default'lar
-    // (default vitest.config ile aynı).
+//minimal defaults to prevent env.ts top-level parseEnv from exploding during import
+// (same as default geart.config).
     env: {
       NEO4J_URI: "bolt://localhost:7687",
       NEO4J_USER: "neo4j",

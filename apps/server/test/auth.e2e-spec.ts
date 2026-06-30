@@ -8,7 +8,7 @@ import request from "supertest";
 import { Neo4jContainer, StartedNeo4jContainer } from "@testcontainers/neo4j";
 import { AppModule } from "../src/app.module";
 import { Neo4jService } from "../src/neo4j/neo4j.service";
-import { ClerkAuthGuard } from "../src/auth/clerk-auth.guard";
+import { LocalAuthGuard } from "../src/auth/local-auth.guard";
 import { SchemaErrorFilter } from "../src/common/filters/schema-error.filter";
 import { NotFoundFilter } from "../src/common/filters/not-found.filter";
 import { ConflictFilter } from "../src/common/filters/conflict.filter";
@@ -17,9 +17,9 @@ import { UnauthorizedFilter } from "../src/common/filters/unauthorized.filter";
 import { ForbiddenFilter } from "../src/common/filters/forbidden.filter";
 import { headerAuthGuardValue } from "./test-auth";
 
-/** Kimlik doğrulama + çok-kiracılık (tenancy/BOLA) e2e.
- *  ClerkAuthGuard header-stub'ı ile (x-test-user) iki kullanıcı simüle edilir;
- *  ProjectAccessGuard GERÇEK çalışır — asıl BOLA korumasını sınar. */
+/** Authentication + multi-tenancy (BOLA) e2e.
+* With the LocalAuthGuard header-stub (x-test-user) two users are simulated;
+* ProjectAccessGuard works REAL — it tests the actual BOLA protection. */
 describe("Auth + Tenancy E2E", () => {
   let container: StartedNeo4jContainer;
   let app: INestApplication;
@@ -43,7 +43,7 @@ describe("Auth + Tenancy E2E", () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(Neo4jService)
       .useValue(neo4j)
-      .overrideProvider(ClerkAuthGuard)
+      .overrideProvider(LocalAuthGuard)
       .useValue(headerAuthGuardValue())
       .compile();
 
@@ -78,19 +78,19 @@ describe("Auth + Tenancy E2E", () => {
       .set("x-test-user", user)
       .send({ name, description: "", status: "draft" });
 
-  it("kimlik yoksa → 401 ERR_UNAUTHORIZED", async () => {
+  it("returns 401 ERR_UNAUTHORIZED when identity is missing", async () => {
     const res = await request(app.getHttpServer()).get(`${base}/projects`).expect(401);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe("ERR_UNAUTHORIZED");
   });
 
-  it("create projeye ownerId damgalar", async () => {
-    const res = await createProject(USER_A, "A'nın projesi").expect(201);
+  it("create stamps ownerId on project", async () => {
+    const res = await createProject(USER_A, "User A project").expect(201);
     expect(res.body.data.ownerId).toBe(USER_A);
     expect(res.body.data.orgId).toBeNull();
   });
 
-  it("list yalnız çağıranın projelerini döner", async () => {
+  it("list returns only caller's projects", async () => {
     await createProject(USER_A, "A1").expect(201);
     await createProject(USER_B, "B1").expect(201);
 
@@ -101,26 +101,26 @@ describe("Auth + Tenancy E2E", () => {
     expect(namesA).not.toContain("B1");
   });
 
-  it("başka kullanıcı projeye erişemez → 403 ERR_PROJECT_FORBIDDEN", async () => {
+  it("other user cannot access project → 403 ERR_PROJECT_FORBIDDEN", async () => {
     const created = await createProject(USER_A, "A2").expect(201);
     const projectId = created.body.data.id;
 
-    // A erişebilir
+// can access A
     await request(app.getHttpServer())
       .get(`${base}/projects/${projectId}`).set("x-test-user", USER_A).expect(200);
 
-    // B alt-kaynağa erişemez (ProjectAccessGuard)
+// B cannot access the sub-resource (ProjectAccessGuard)
     const denied = await request(app.getHttpServer())
       .get(`${base}/projects/${projectId}/nodes`).set("x-test-user", USER_B).expect(403);
     expect(denied.body.error.code).toBe("ERR_PROJECT_FORBIDDEN");
 
-    // B tekil projeyi de göremez (service assertAccess)
+// B cannot see the individual project either (service assertAccess)
     const deniedGet = await request(app.getHttpServer())
       .get(`${base}/projects/${projectId}`).set("x-test-user", USER_B).expect(403);
     expect(deniedGet.body.error.code).toBe("ERR_PROJECT_FORBIDDEN");
   });
 
-  it("sahip kendi projesinin node listesine erişir → 200", async () => {
+  it("owner can access own project node list → 200", async () => {
     const created = await createProject(USER_A, "A3").expect(201);
     const projectId = created.body.data.id;
     await request(app.getHttpServer())

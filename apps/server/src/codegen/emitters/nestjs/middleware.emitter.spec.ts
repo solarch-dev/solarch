@@ -5,7 +5,7 @@ import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -47,7 +47,7 @@ const SVC_ID = "53333333-3333-4333-8333-333333333333";
 
 const AUTH_MIDDLEWARE = node("Middleware", MW_ID, {
   MiddlewareName: "AuthMiddleware",
-  Description: "Gelen isteklerde JWT doğrular",
+  Description: "Validates JWT on incoming requests",
   AppliesTo: "SpecificRoutes",
   ExecutionOrder: 0,
   MiddlewareType: "Auth",
@@ -59,21 +59,21 @@ const AUTH_MIDDLEWARE = node("Middleware", MW_ID, {
 
 const AUTH_CONTROLLER = node("Controller", CTRL_ID, {
   ControllerName: "AuthController",
-  Description: "Kimlik doğrulama HTTP yüzeyi",
+  Description: "Authentication HTTP surface",
   BaseRoute: "auth",
   Endpoints: [],
 });
 
 const AUTH_SERVICE = node("Service", SVC_ID, {
   ServiceName: "AuthService",
-  Description: "Kimlik iş mantığı",
+  Description: "Identity business logic",
   IsTransactionScoped: false,
   Methods: [],
   Dependencies: [],
 });
 
 describe("emitMiddleware", () => {
-  it("ROUTES_TO ile feature'a düşen tam middleware — snapshot", () => {
+  it("ROUTES_TO ile feature'a dusen tam middleware — snapshot", () => {
     // Middleware -ROUTES_TO-> AuthController -CALLS-> AuthService => feature "auth".
     const ctx = ctxFor(
       [AUTH_MIDDLEWARE, AUTH_CONTROLLER, AUTH_SERVICE],
@@ -88,7 +88,7 @@ describe("emitMiddleware", () => {
         "content": "import { Injectable, type NestMiddleware } from "@nestjs/common";
       import type { NextFunction, Request, Response } from "express";
 
-      /** Gelen isteklerde JWT doğrular */
+      /** Validates JWT on incoming requests */
       @Injectable()
       export class AuthMiddleware implements NestMiddleware {
         use(req: Request, res: Response, next: NextFunction): void {
@@ -109,7 +109,7 @@ describe("emitMiddleware", () => {
     `);
   });
 
-  it("@Injectable() implements NestMiddleware sınıfı + use(req,res,next) imzası", () => {
+  it("@Injectable() implements NestMiddleware sinifi + use(req,res,next) imzasi", () => {
     const ctx = ctxFor([AUTH_MIDDLEWARE]);
     const [file] = emitMiddleware(ctx.graph.byId(MW_ID)!, ctx);
     expect(file.content).toContain("@Injectable()");
@@ -124,7 +124,7 @@ describe("emitMiddleware", () => {
     expect(file.content).toContain('import type { NextFunction, Request, Response } from "express";');
   });
 
-  it("use() gövdesinde surgical marker + NOT_IMPLEMENTED var", () => {
+  it("use() govdesinde surgical marker + NOT_IMPLEMENTED var", () => {
     const ctx = ctxFor([AUTH_MIDDLEWARE]);
     const [file] = emitMiddleware(ctx.graph.byId(MW_ID)!, ctx);
     expect(file.surgicalMarkers).toBe(1);
@@ -132,14 +132,14 @@ describe("emitMiddleware", () => {
     expect(file.content).toContain('throw new Error("NOT_IMPLEMENTED: AuthMiddleware.use");');
   });
 
-  it("feature yoksa (cross-cutting / bağlantısız) common/ altına iner", () => {
-    // Hiç edge yok -> referrerFeatures boş -> pickFeature null -> "common".
+  it("feature yoksa (cross-cutting / baglantisiz) common/ altina iner", () => {
+    // Hic edge yok -> referrerFeatures bos -> pickFeature null -> "common".
     const ctx = ctxFor([AUTH_MIDDLEWARE]);
     const [file] = emitMiddleware(ctx.graph.byId(MW_ID)!, ctx);
     expect(file.path).toBe("common/auth.middleware.ts");
   });
 
-  it("filePathFor kullanır: feature'a düştüğünde <feature>/<base>.middleware.ts", () => {
+  it("filePathFor kullanir: feature'a dustugunde <feature>/<base>.middleware.ts", () => {
     const ctx = ctxFor(
       [AUTH_MIDDLEWARE, AUTH_CONTROLLER, AUTH_SERVICE],
       [
@@ -149,11 +149,11 @@ describe("emitMiddleware", () => {
     );
     const [file] = emitMiddleware(ctx.graph.byId(MW_ID)!, ctx);
     expect(file.path).toBe("auth/auth.middleware.ts");
-    // Dosya kök adı baseNameOf(AuthMiddleware) = "Auth" -> kebab "auth".
+    // Dosya kok adi baseNameOf(AuthMiddleware) = "Auth" -> kebab "auth".
     expect(file.path).not.toContain("auth-middleware.middleware");
   });
 
-  it("ROUTES_TO Controller adı uygulanış ipucu olarak markera girer", () => {
+  it("ROUTES_TO Controller adi uygulanis ipucu olarak markera girer", () => {
     const ctx = ctxFor(
       [AUTH_MIDDLEWARE, AUTH_CONTROLLER, AUTH_SERVICE],
       [
@@ -167,11 +167,11 @@ describe("emitMiddleware", () => {
     );
   });
 
-  it("Config: yalnız Key'ler markera girer, gizli Value ASLA gömülmez", () => {
+  it("Config: yalniz Key'ler markera girer, gizli Value ASLA gomulmez", () => {
     const ctx = ctxFor([AUTH_MIDDLEWARE]);
     const [file] = emitMiddleware(ctx.graph.byId(MW_ID)!, ctx);
     expect(file.content).toContain("// Config keys: tokenHeader, secretEnv.");
-    // Değerler (authorization / JWT_SECRET) içeriğe SIZMAMALI.
+    // Degerler (authorization / JWT_SECRET) icerige SIZMAMALI.
     expect(file.content).not.toContain("authorization");
     expect(file.content).not.toContain("JWT_SECRET");
   });
@@ -179,7 +179,7 @@ describe("emitMiddleware", () => {
   it("Global AppliesTo + Config'siz minimal middleware", () => {
     const minimal = node("Middleware", MW_ID, {
       MiddlewareName: "LoggingMiddleware",
-      Description: "İstekleri loglar",
+      Description: "Logs requests",
       AppliesTo: "Global",
       ExecutionOrder: 5,
       Config: [],
@@ -189,20 +189,20 @@ describe("emitMiddleware", () => {
     expect(file.content).toContain("export class LoggingMiddleware implements NestMiddleware {");
     expect(file.content).toContain("// Scope: applied to all routes (Global).");
     expect(file.content).toContain("// Execution order (ExecutionOrder): 5.");
-    // MiddlewareType yoksa tür öneki olmadan "middleware use() ..." satırı.
+    // MiddlewareType yoksa tur oneki olmadan "middleware use() ..." satiri.
     expect(file.content).toContain("// middleware: implement the use() body.");
-    // Config boş -> "Config keys" satırı yok.
+    // Config bos -> "Config keys" satiri yok.
     expect(file.content).not.toContain("Config keys");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFor([AUTH_MIDDLEWARE]);
     const [file] = emitMiddleware(ctx.graph.byId(MW_ID)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı graph iki kez -> byte-identical", () => {
+  it("DETERMINISM: same graph twice -> byte-identical", () => {
     const ctx = ctxFor(
       [AUTH_MIDDLEWARE, AUTH_CONTROLLER, AUTH_SERVICE],
       [
@@ -215,8 +215,8 @@ describe("emitMiddleware", () => {
     expect(a).toBe(b);
   });
 
-  it("kind adıyla bitmeyen / boş'a düşmeyen ad korunur (rol eki adın TAMAMIYSA)", () => {
-    // "Middleware" -> baseNameOf adın tamamı eki -> orijinal ad korunur.
+  it("kind adiyla bitmeyen / bos'a dusmeyen ad korunur (rol eki adin TAMAMIYSA)", () => {
+    // "Middleware" -> baseNameOf adin tamami eki -> orijinal ad korunur.
     const odd = node("Middleware", MW_ID, {
       MiddlewareName: "Middleware",
       Description: "kenar durum",

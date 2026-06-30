@@ -8,8 +8,8 @@ import { ok } from "../common/envelope";
 import type { NodeResponse, NodeListResponse } from "./dto/node-response.dto";
 import { NODE_KINDS, type NodeKind } from "./schemas";
 
-// Tüm 21 NodeKind — eski liste sadece Veri ailesini (5 tip) içeriyordu, diğer
-// tiplerle ?type=Exception gibi query'ler sessizce yok sayılıyordu.
+// All 21 NodeKinds — old list only included Data family (5 types), so queries like
+// ?type=Exception were silently ignored for other types.
 const KIND_VALUES: readonly NodeKind[] = NODE_KINDS;
 
 @ApiTags("Nodes")

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createZodDto } from "nestjs-zod";
 
-/** POST /projects/:projectId/codegen gövdesi. target opsiyonel (default nestjs). */
+/** POST /projects/:projectId/codegen body. target optional (default nestjs). */
 export const CodegenRequestSchema = z
   .object({
     target: z.enum(["nestjs"]).default("nestjs"),

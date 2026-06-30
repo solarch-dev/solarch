@@ -7,18 +7,18 @@ const graph = {
 };
 
 describe("CreatePatternSchema", () => {
-  it("geçerli pattern'i parse eder, tags default boş", () => {
+  it("parses valid pattern, tags default empty", () => {
     const p = CreatePatternSchema.parse({ name: "n", description: "d", graph });
     expect(p.tags).toEqual([]);
     expect(p.graph.nodes).toHaveLength(1);
     expect(p.graph.edges).toEqual([]);
   });
 
-  it("graph.nodes boşsa fırlatır", () => {
+  it("throws when graph.nodes is empty", () => {
     expect(() => PatternGraphSchema.parse({ nodes: [], edges: [] })).toThrow();
   });
 
-  it("geçerli edgeType ile edge kabul eder", () => {
+  it("accepts edge with valid edgeType", () => {
     const g = PatternGraphSchema.parse({
       nodes: graph.nodes,
       edges: [{ sourceTempId: "a", targetTempId: "b", edgeType: "CALLS" }],
@@ -26,14 +26,14 @@ describe("CreatePatternSchema", () => {
     expect(g.edges[0].edgeType).toBe("CALLS");
   });
 
-  it("geçersiz edgeType reddeder", () => {
+  it("rejects invalid edgeType", () => {
     expect(() => PatternGraphSchema.parse({
       nodes: graph.nodes,
       edges: [{ sourceTempId: "a", targetTempId: "b", edgeType: "BOGUS" }],
     })).toThrow();
   });
 
-  it("bilinmeyen üst alanı reddeder (strict)", () => {
+  it("rejects unknown top-level field (strict)", () => {
     expect(() => CreatePatternSchema.parse({ name: "n", description: "d", graph, extra: 1 })).toThrow();
   });
 });

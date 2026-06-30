@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { createZodDto } from "nestjs-zod";
 
-/** CLI `status --report` / VS Code eklentisinin gönderdiği implementasyon
- *  sayaçları. Yapısal mutasyon değildir — graphRevision'a dokunmaz. */
+/** Implementation counters sent by CLI `status --report` / VS Code extension.
+ *  Not a structural mutation — does not touch graphRevision. */
 const ImplementationEntrySchema = z
   .object({
     nodeId: z.string().uuid(),
-    /** İşaretli üye toplamı (surgical marker sayısı). */
+    /** Total marked members (surgical marker count). */
     total: z.number().int().nonnegative(),
     filled: z.number().int().nonnegative(),
-    /** İmzaya göre AI'ın doldurduğu üye sayısı. */
+    /** Members filled by AI by signature. */
     filledAi: z.number().int().nonnegative(),
   })
   .strict()

@@ -5,17 +5,17 @@ import { ZodValidationPipe } from "./zod-validation.pipe";
 const Schema = z.object({ name: z.string(), age: z.number() }).strict();
 
 describe("ZodValidationPipe", () => {
-  it("geçerli body'i transform eder", () => {
+  it("transforms valid body", () => {
     const pipe = new ZodValidationPipe(Schema);
     expect(pipe.transform({ name: "x", age: 1 })).toEqual({ name: "x", age: 1 });
   });
 
-  it("invalid body'de ZodError fırlatır", () => {
+  it("throws ZodError on invalid body", () => {
     const pipe = new ZodValidationPipe(Schema);
     expect(() => pipe.transform({ name: "x" })).toThrow(ZodError);
   });
 
-  it("bilinmeyen alanda ZodError fırlatır (strict)", () => {
+  it("throws ZodError on unknown field (strict)", () => {
     const pipe = new ZodValidationPipe(Schema);
     expect(() => pipe.transform({ name: "x", age: 1, extra: "y" })).toThrow(ZodError);
   });

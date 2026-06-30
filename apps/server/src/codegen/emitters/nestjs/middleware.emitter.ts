@@ -7,29 +7,28 @@ import type { MiddlewareNode } from "../../../nodes/schemas";
 
 /* ────────────────────────────────────────────────────────────────────────
  * middleware.emitter.ts — MiddlewareNode -> <feature>/<base>.middleware.ts
- *                                          (feature yoksa common/<base>.middleware.ts).
+ *                                          (common/<base>.middleware.ts when no feature).
  *
- * @Injectable() implements NestMiddleware bir NestJS middleware'i üretir:
- *   - Sınıf adı = pascalCase(MiddlewareName) (ör. "AuthMiddleware").
- *   - Tek metot: use(req: Request, res: Response, next: NextFunction): void.
- *     Gövde = surgicalMarker (Description + MiddlewareType + AppliesTo +
- *     ExecutionOrder + Config ipuçları) + notImplemented(). Surgical AI bu
- *     işaretli noktayı doldurur.
- *   - ROUTES_TO ettiği Controller'lar marker açıklamasında "uygulanış ipucu"
- *     olarak verilir; gerçek `configure(consumer).apply(X).forRoutes(...)`
- *     bağlaması Wire/module fazında o Controller'ın feature module'üne eklenir
- *     (bu emitter SADECE middleware sınıfını üretir).
+ * Emits @Injectable() implements NestMiddleware NestJS middleware:
+ *   - Class name = pascalCase(MiddlewareName) (e.g. "AuthMiddleware").
+ *   - Single method: use(req: Request, res: Response, next: NextFunction): void.
+ *     Body = surgicalMarker (Description + MiddlewareType + AppliesTo +
+ *     ExecutionOrder + Config hints) + notImplemented(). Surgical AI fills
+ *     the marked point.
+ *   - Controllers it ROUTES_TO appear as "application hint" in marker description;
+ *     actual `configure(consumer).apply(X).forRoutes(...)` wiring happens in Wire/
+ *     module phase on that Controller's feature module (this emitter ONLY
+ *     produces the middleware class).
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar verildiği/sıralı düzende, kayıp ref tolere
- * edilir (THROW yok), import'lar ImportCollector ile, içerik tek "\n" ile biter.
+ * PURE + DETERMINISTIC: collections in given/sorted order, missing refs tolerated
+ * (NO THROW), imports via ImportCollector, content ends with single "\n".
  *
- * NOT: Middleware, ir.ts PropsByKind içinde DEĞİL (12 stub-ailesinden biriydi) ->
- * propsOf<"Middleware"> KULLANILAMAZ. Tipli erişim için yerel middlewareProps()
- * helper'ı (DB zaten Zod-doğrulanmış; yalnız tip daraltma, çalışma-zamanı dönüşümü
- * yok) kullanılır.
+ * NOTE: Middleware NOT in ir.ts PropsByKind (was one of 12 stub families) ->
+ * propsOf<"Middleware"> CANNOT be used. Use local middlewareProps() helper for
+ * typed access (DB already Zod-validated; type narrowing only, no runtime transform).
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Tipli Middleware properties erişimi (PropsByKind dışı olduğundan yerel). */
+/** Typed Middleware properties access (local because outside PropsByKind). */
 type MiddlewareProps = MiddlewareNode["properties"];
 function middlewareProps(node: CodeNode): MiddlewareProps {
   return node.properties as MiddlewareProps;
@@ -44,12 +43,12 @@ export const emitMiddleware: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   const imports = new ImportCollector();
   imports.add("Injectable", "@nestjs/common");
   imports.addType("NestMiddleware", "@nestjs/common");
-  // Express tipleri — NestJS varsayılan HTTP adaptörü (Express) ile uyumlu.
+  // Express types — compatible with NestJS default HTTP adapter (Express).
   imports.addType("NextFunction", "express");
   imports.addType("Request", "express");
   imports.addType("Response", "express");
 
-  // ── Surgical gövde açıklaması ──────────────────────────────────────────────
+  // ── Surgical body description ──────────────────────────────────────────────
   const desc = describeMiddleware(node, props, graph);
   const marker = surgicalMarker({
     nodeId: node.id,
@@ -80,11 +79,11 @@ export const emitMiddleware: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   return [file];
 };
 
-/** Surgical marker'ın çok-satırlı iş açıklamasını DETERMİNİSTİK kurar:
- *   - kullanıcı Description'ı (varsa),
- *   - MiddlewareType + AppliesTo + ExecutionOrder bağlamı,
- *   - ROUTES_TO ettiği Controller adları (uygulanış ipucu),
- *   - Config anahtarları (verildiği sırada; gizli değer YAZILMAZ — yalnız Key'ler). */
+/** Build DETERMINISTIC multi-line work description for surgical marker:
+ *   - user Description (when present),
+ *   - MiddlewareType + AppliesTo + ExecutionOrder context,
+ *   - Controller names it ROUTES_TO (application hint),
+ *   - Config keys (in given order; secret values NEVER written — Keys only). */
 function describeMiddleware(
   node: CodeNode,
   props: MiddlewareProps,
@@ -102,9 +101,9 @@ function describeMiddleware(
   }
   parts.push(`Execution order (ExecutionOrder): ${props.ExecutionOrder}.`);
 
-  // ROUTES_TO -> Controller (middleware bir/birkaç controller'a yönlenir).
-  //   CodeGraph edge'leri kind,source.name,target.name,id'ye sıralı tutar ->
-  //   outEdges deterministik sıralı gelir.
+  // ROUTES_TO -> Controller (middleware routes to one or more controllers).
+  //   CodeGraph keeps edges sorted by kind,source.name,target.name,id ->
+  //   outEdges arrive in deterministic order.
   const routedControllers: string[] = [];
   for (const e of graph.outEdges(node.id, "ROUTES_TO")) {
     const tgt = graph.byId(e.targetNodeId);
@@ -117,7 +116,7 @@ function describeMiddleware(
     );
   }
 
-  // Config anahtarları (yalnız Key'ler; secret değerler ASLA gömülmez).
+  // Config keys (Keys only; secret values NEVER embedded).
   const configKeys = (props.Config ?? []).map((c) => c.Key).filter((k) => k.length > 0);
   if (configKeys.length > 0) {
     parts.push(`Config keys: ${configKeys.join(", ")}.`);

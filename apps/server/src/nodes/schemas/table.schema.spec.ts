@@ -21,7 +21,7 @@ const col = (over: Record<string, unknown> = {}) => ({
 
 const validProperties = {
   TableName: "users",
-  Description: "Kayıtlı kullanıcılar",
+  Description: "Registered users",
   Columns: [col()],
 };
 
@@ -29,12 +29,12 @@ const parse = (properties: unknown) =>
   TableNodeSchema.parse({ ...validBase, type: "Table", properties });
 
 describe("TableNodeSchema (enriched)", () => {
-  it("geçerli Table node'u parse eder", () => {
+  it("parses valid Table node", () => {
     const node = parse(validProperties);
     expect(node.properties.TableName).toBe("users");
   });
 
-  it("constraint dizileri verilmezse default boş array olur", () => {
+  it("defaults constraint arrays to empty when omitted", () => {
     const node = parse(validProperties);
     expect(node.properties.ForeignKeys).toEqual([]);
     expect(node.properties.UniqueConstraints).toEqual([]);
@@ -68,14 +68,14 @@ describe("TableNodeSchema (enriched)", () => {
     expect(node.properties.ForeignKeys[0].OnDelete).toBe("CASCADE");
   });
 
-  it("geçersiz FK action reddeder", () => {
+  it("rejects invalid FK action", () => {
     expect(() => parse({
       ...validProperties,
       ForeignKeys: [{ Columns: ["x"], ReferencesTable: "t", ReferencesColumns: ["id"], OnDelete: "DROP" }],
     })).toThrow();
   });
 
-  it("DECIMAL precision/scale + ENUM EnumRef kolonları kabul eder", () => {
+  it("accepts DECIMAL precision/scale and ENUM EnumRef columns", () => {
     const node = parse({
       ...validProperties,
       Columns: [
@@ -88,7 +88,7 @@ describe("TableNodeSchema (enriched)", () => {
     expect(node.properties.Columns[2].EnumRef).toBe("OrderStatus");
   });
 
-  it("zengin Index (unique + partial + WhereClause) kabul eder", () => {
+  it("accepts rich Index (unique + partial + WhereClause)", () => {
     const node = parse({
       ...validProperties,
       Indexes: [{ IndexName: "idx_active", Columns: ["id"], Type: "GIN", IsUnique: true, IsPartial: true, WhereClause: "active = true" }],
@@ -114,24 +114,24 @@ describe("TableNodeSchema (enriched)", () => {
     expect(node.properties.CheckConstraints[0].Expression).toBe("age >= 0");
   });
 
-  it("Description eksikse fırlatır", () => {
+  it("throws when Description is missing", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Columns boşsa fırlatır", () => {
+  it("throws when Columns is empty", () => {
     expect(() => parse({ ...validProperties, Columns: [] })).toThrow();
   });
 
-  it("Bilinmeyen DataType reddeder", () => {
+  it("rejects unknown DataType", () => {
     expect(() => parse({ ...validProperties, Columns: [col({ DataType: "FOOBAR" })] })).toThrow();
   });
 
-  it("eski IsForeignKey/References alanını reddeder (strict)", () => {
+  it("rejects legacy IsForeignKey/References field (strict)", () => {
     expect(() => parse({ ...validProperties, Columns: [col({ IsForeignKey: false })] })).toThrow();
   });
 
-  it("properties içinde bilinmeyen alanı reddeder (strict)", () => {
+  it("rejects unknown field in properties (strict)", () => {
     expect(() => parse({ ...validProperties, ExtraField: "x" })).toThrow();
   });
 });

@@ -1,16 +1,16 @@
 import type { TestingModuleBuilder } from "@nestjs/testing";
 import { UnauthorizedException } from "@nestjs/common";
-import { ClerkAuthGuard } from "../src/auth/clerk-auth.guard";
+import { LocalAuthGuard } from "../src/auth/local-auth.guard";
 import { ProjectAccessGuard } from "../src/auth/project-access.guard";
 
 export const TEST_AUTH = { userId: "user_test", orgId: null as string | null, orgRole: null as string | null };
 
-/** Mevcut e2e'ler için: kimlik doğrulamayı sabit bir kullanıcıyla baypas et ve
- *  proje erişim guard'ını da geç (bu testler tenancy'yi denemiyor). */
+/** For existing e2e: bypass authentication with a fixed user and
+* bypass project access guard (these tests do not test tenancy). */
 export function bypassAuth(builder: TestingModuleBuilder): TestingModuleBuilder {
   return builder
-    // ClerkAuthGuard APP_GUARD'a useExisting ile bağlı → overrideProvider global guard'ı değiştirir.
-    .overrideProvider(ClerkAuthGuard)
+// LocalAuthGuard bound to APP_GUARD with useExisting → overrideProvider replaces global guard.
+    .overrideProvider(LocalAuthGuard)
     .useValue({
       canActivate: (ctx: { switchToHttp: () => { getRequest: () => { auth?: unknown } } }) => {
         ctx.switchToHttp().getRequest().auth = TEST_AUTH;
@@ -21,15 +21,15 @@ export function bypassAuth(builder: TestingModuleBuilder): TestingModuleBuilder 
     .useValue({ canActivate: () => true });
 }
 
-/** auth.e2e için header-güdümlü kimlik stub'ı: x-test-user / x-test-org header'larından
- *  req.auth üretir; header yoksa 401. ProjectAccessGuard GERÇEK kalır (BOLA testi). */
+/** Header-driven identity stub for auth.e2e: from x-test-user / x-test-org headers
+* generates req.auth; If there is no header, 401. ProjectAccessGuard remains TRUE (BOLA test). */
 export function headerAuthGuardValue() {
   return {
     canActivate: (ctx: { switchToHttp: () => { getRequest: () => Record<string, any> } }) => {
       const req = ctx.switchToHttp().getRequest();
       const userId = req.headers["x-test-user"] as string | undefined;
       if (!userId) {
-        throw new UnauthorizedException({ code: "ERR_UNAUTHORIZED", message: "Kimlik doğrulama gerekli." });
+throw new UnauthorizedException({ code: "ERR_UNAUTHORIZED", message: "Authentication required." });
       }
       const orgId = (req.headers["x-test-org"] as string | undefined) ?? null;
       req.auth = { userId, orgId, orgRole: null };

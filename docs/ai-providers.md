@@ -18,6 +18,11 @@ server config change.
 If the active provider has no key, the AI endpoints return `503` and the rest of the app keeps
 working.
 
+**Provider choice is required** — set `LLM_GENERATION_PROVIDER` and `LLM_CHAT_PROVIDER` plus the
+matching API key in `.env`. There is no baked-in default in code; `./install.sh` starts with OpenAI.
+
+How Agent and Instruct use these providers: [AI Architect](ai-architect.md).
+
 ## Supported providers
 
 Set `LLM_GENERATION_PROVIDER` (and `LLM_CHAT_PROVIDER`) to one of the ids below, then set that
@@ -28,7 +33,7 @@ provider's key. Optionally set `LLM_MODEL` to override the default model.
 | `openai` | `OPENAI_API_KEY` (`OPENAI_BASE_URL` for Azure) | `gpt-4o` | ✓ | |
 | `anthropic` | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-latest` | ✓ | Claude |
 | `google` | `GOOGLE_API_KEY` | `gemini-1.5-pro` | ✓ | Gemini |
-| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-v4-pro` / `-flash` | ✓ | Default; proven tool calling |
+| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-v4-pro` / `-flash` | ✓ | Proven tool calling |
 | `mistral` | `MISTRAL_API_KEY` | `mistral-large-latest` | ✓ | |
 | `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | ✓ | Fast inference |
 | `openrouter` | `OPENROUTER_API_KEY` | `openai/gpt-4o` | ✓* | Gateway to 300+ models; `LLM_MODEL` = `vendor/model` |
@@ -50,8 +55,6 @@ Run [Ollama](https://ollama.com) on the host, then set `LLM_GENERATION_PROVIDER=
 inside Docker, point at the host: `OLLAMA_BASE_URL=http://host.docker.internal:11434` and set
 `LLM_MODEL` to a tool-calling-capable model (e.g. `llama3.1`). No API key, no data leaves the box.
 
-## Billing / metering
+## Usage limits
 
-Self-host runs with `BILLING_ENABLED=false` (the default in `docker-compose.yml`), which
-bypasses all metering — **unlimited** AI and code generation with your own key. The paid SaaS
-sets `BILLING_ENABLED=true` to enforce plan limits via Polar.
+The OSS edition has **no metering** — AI and code generation are unlimited, bounded only by your LLM provider quota and hardware.

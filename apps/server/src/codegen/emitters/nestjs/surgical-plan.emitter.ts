@@ -2,36 +2,36 @@ import type { GeneratedFile } from "../../types";
 import type { CodeGraph } from "../../ir";
 
 /* ────────────────────────────────────────────────────────────────────────
- * surgical-plan.emitter.ts — SURGICAL_PLAN.md (proje KÖKÜNDE).
+ * surgical-plan.emitter.ts — SURGICAL_PLAN.md (proje KOKUNDE).
  *
- * Constructor (deterministik) yalnız İSKELET üretir; metot gövdeleri
- * "@solarch:surgical" marker'larıyla işaretli BOŞ algoritma alanlarıdır. Bu
- * emitter, MONTAJ SONRASI tüm dosyaları tarayıp tek bir İNGİLİZCE Markdown
- * dosyası üretir: bir AI'a OLDUĞU GİBİ yapıştırılabilen bir PROMPT.
+ * Constructor (deterministik) yalniz ISKELET uretir; metot govdeleri
+ * "@solarch:surgical" marker'lariyla isaretli BOS algoritma alanlaridir. Bu
+ * emitter, MONTAJ AFTERSI tum dosyalari tarayip tek bir INGILIZCE Markdown
+ * dosyasi uretir: bir AI'a OLDUGU GIBI yapistirilabilen bir PROMPT.
  *
- * İki bölüm:
- *   (1) CODEBASE INTRODUCTION — bu kod Solarch-üretimi NestJS+TS'tir; mimari
- *       (feature-based modules + CoreModule + shared/) + stack + proje yapısı
- *       (feature listesi graph'tan) anlatılır.
- *   (2) SURGICAL IMPLEMENTATION PLAN — üretilen TÜM .ts dosyalarındaki
- *       "// @solarch:surgical ..." marker'ları taranır; her biri için dosya
- *       yolu + üzerindeki metot imzası + throws/deps + "Implement: ..." maddesi
- *       (feature/dosyaya göre grupli, deterministik sıralı) listelenir.
+ * Iki bolum:
+ *   (1) CODEBASE INTRODUCTION — bu kod Solarch-uretimi NestJS+TS'tir; mimari
+ *       (feature-based modules + CoreModule + shared/) + stack + proje yapisi
+ *       (feature listesi graph'tan) anlatilir.
+ *   (2) SURGICAL IMPLEMENTATION PLAN — uretilen TUM .ts dosyalarindaki
+ *       "// @solarch:surgical ..." marker'lari taranir; her biri icin dosya
+ *       yolu + uzerindeki metot imzasi + throws/deps + "Implement: ..." maddesi
+ *       (feature/dosyaya gore grupli, deterministik sirali) listelenir.
  *
- * SAF + DETERMİNİSTİK: yalnız `files` (path'e sıralı verilir) + `graph` okunur;
- * timestamp/random yok. Aynı graph -> byte-identical MD. MD'NİN KENDİSİ marker
- * TAŞIMAZ (surgicalMarkers: 0) — yalnız marker'ları BETİMLEYEN düz metindir.
+ * SAF + DETERMINISTIC: yalniz `files` (path'e sirali verilir) + `graph` okunur;
+ * timestamp/random yok. Ayni graph -> byte-identical MD. MD'NIN KENDISI marker
+ * TASIMAZ (surgicalMarkers: 0) — yalniz marker'lari BETIMLEYEN duz metindir.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Marker satırından ayrıştırılan tek bir surgical alan. */
+/** Marker satirindan ayristirilan tek bir surgical alan. */
 interface SurgicalSite {
-  /** GeneratedFile.path (montaj sonrası nihai yol, ör. "src/users/users.service.ts"). */
+  /** GeneratedFile.path (montaj sonrasi nihai yol, or. "src/users/users.service.ts"). */
   filePath: string;
-  /** Marker'daki `id=<nodeId>#<member>` -> member (metot/üye adı). */
+  /** Marker'daki `id=<nodeId>#<member>` -> member (metot/uye adi). */
   member: string;
-  /** Marker'ın hemen ÜSTÜNDEKİ kod satırı (metot imzası), trim'li. */
+  /** Marker'in hemen USTUNDEKI kod satiri (metot imzasi), trim'li. */
   signature: string;
-  /** Marker description satırları (id/throws/deps DIŞINDA kalan `// ...` satırları). */
+  /** Marker description satirlari (id/throws/deps DISINDA kalan `// ...` satirlari). */
   description: string[];
   /** `// throws: A, B` -> ["A", "B"]. */
   throws: string[];
@@ -45,8 +45,8 @@ const DEPS_RE = /^\s*\/\/\s*deps:\s*(.+)$/;
 const COMMENT_RE = /^\s*\/\/\s?(.*)$/;
 
 /**
- * SURGICAL_PLAN.md üretir. `files` montaj sonrası TÜM dosyalardır (path'e göre
- * sıralı verilmelidir -> tarama deterministik). `graph` feature listesi için.
+ * SURGICAL_PLAN.md uretir. `files` montaj sonrasi TUM dosyalardir (path'e gore
+ * sirali verilmelidir -> tarama deterministik). `graph` feature listesi icin.
  */
 export function emitSurgicalPlan(files: GeneratedFile[], graph: CodeGraph): GeneratedFile {
   const sites = collectSurgicalSites(files);
@@ -57,9 +57,9 @@ export function emitSurgicalPlan(files: GeneratedFile[], graph: CodeGraph): Gene
     path: "SURGICAL_PLAN.md",
     content: body.endsWith("\n") ? body : body + "\n",
     language: "markdown",
-    // MD marker İÇERMEZ; yalnız marker'ları BETİMLER -> surgicalMarkers sayımı
-    // bozulmasın diye 0. (countSurgicalMarkers KULLANILMAZ: bu metin
-    // "@solarch:surgical" alt-dizesini içermez; kasıtlı.)
+    // MD marker ICERMEZ; yalniz marker'lari BETIMLER -> surgicalMarkers sayimi
+    // bozulmasin diye 0. (countSurgicalMarkers KULLANILMAZ: bu metin
+    // "@solarch:surgical" alt-dizesini icermez; kasitli.)
     surgicalMarkers: 0,
   };
 }
@@ -142,14 +142,14 @@ function renderPlan(sites: SurgicalSite[]): string {
     return lines.join("\n");
   }
 
-  // Dosyaya göre grupla (sites zaten filePath, sonra member sırasında gelir).
+  // Dosyaya gore grupla (sites zaten filePath, sonra member sirasinda gelir).
   const byFile = new Map<string, SurgicalSite[]>();
   for (const s of sites) {
     const arr = byFile.get(s.filePath);
     if (arr) arr.push(s);
     else byFile.set(s.filePath, [s]);
   }
-  // Dosya yolları deterministik sırada (files path'e sıralı verilir; yine de garanti).
+  // Dosya yollari deterministik sirada (files path'e sirali verilir; yine de garanti).
   const filePaths = [...byFile.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   for (const filePath of filePaths) {
@@ -182,29 +182,29 @@ function renderClosing(): string {
   return lines.join("\n");
 }
 
-/* ── Marker taraması ───────────────────────────────────────────────────────── */
+/* ── Marker taramasi ───────────────────────────────────────────────────────── */
 
 /**
- * Üretilen TÜM .ts dosyalarını satır satır tarayıp surgical alanları çıkarır.
- * Deterministik: dosyalar verilen sırada (path'e sıralı), her dosya içinde
- * marker satır sırasında işlenir.
+ * Uretilen TUM .ts dosyalarini satir satir tarayip surgical alanlari cikarir.
+ * Deterministik: dosyalar verilen sirada (path'e sirali), her dosya icinde
+ * marker satir sirasinda islenir.
  */
 function collectSurgicalSites(files: GeneratedFile[]): SurgicalSite[] {
   const sites: SurgicalSite[] = [];
   for (const f of files) {
-    // Yalnız TypeScript kaynak dosyalarını tara (SQL/JSON/MD marker taşımaz).
+    // Yalniz TypeScript kaynak dosyalarini tara (SQL/JSON/MD marker tasimaz).
     if (f.language !== "typescript") continue;
     const lines = f.content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const m = MARKER_RE.exec(lines[i]);
       if (!m) continue;
       const member = m[2];
-      // İmza: marker'ın hemen ÜSTÜNDEKİ kod satırı(ları). Çok-satırlı imzalar
-      // (ör. NestJS controller'da @Body() dekoratörlü parametreler) tek satırda
-      // KAPANIR (`): Promise<void> {`); o yüzden parantezler dengeleninceye dek
-      // YUKARI doğru satır topla, sonra tek satıra birleştir.
+      // Imza: marker'in hemen USTUNDEKI kod satiri(lari). Cok-satirli imzalar
+      // (or. NestJS controller'da @Body() dekoratorlu parametreler) tek satirda
+      // KAPANIR (`): Promise<void> {`); o yuzden parantezler dengeleninceye dek
+      // YUKARI dogru satir topla, sonra tek satira birlestir.
       const signature = reconstructSignature(lines, i);
-      // Marker'ın ALTINDAKİ description/throws/deps satırlarını topla.
+      // Marker'in ALTINDAKI description/throws/deps satirlarini topla.
       const description: string[] = [];
       const throwsList: string[] = [];
       const depsList: string[] = [];
@@ -227,39 +227,39 @@ function collectSurgicalSites(files: GeneratedFile[]): SurgicalSite[] {
           if (text.length > 0) description.push(text);
           continue;
         }
-        // İlk yorum-olmayan satır -> marker bloğu bitti.
+        // Ilk yorum-olmayan satir -> marker blogu bitti.
         break;
       }
       sites.push({ filePath: f.path, member, signature, description, throws: throwsList, deps: depsList });
-      i = j - 1; // bloğu atla (iç döngü tükettiği satırları tekrar tarama).
+      i = j - 1; // blogu atla (ic dongu tukettigi satirlari tekrar tarama).
     }
   }
   return sites;
 }
 
-/* ── Yardımcılar ───────────────────────────────────────────────────────────── */
+/* ── Yardimcilar ───────────────────────────────────────────────────────────── */
 
 /**
- * Marker'ın (markerIdx) hemen ÜSTÜNDEKİ metot imzasını döndürür. Tek satırlık
- * imzalar olduğu gibi gelir. NestJS controller imzaları gibi ÇOK satırlılar
- * marker'ın üstünde KAPANIŞ satırıyla (`): Promise<void> {`) biter; bu yüzden
- * parantezler dengeleninceye dek (ya da en çok birkaç satır) YUKARI doğru
- * satır toplar ve aralarındaki boşlukları sadeleştirerek TEK satıra birleştirir.
- * Deterministik: yalnız verilen satır dizisine bakar.
+ * Marker'in (markerIdx) hemen USTUNDEKI metot imzasini dondurur. Tek satirlik
+ * imzalar oldugu gibi gelir. NestJS controller imzalari gibi COK satirlilar
+ * marker'in ustunde KAPANIS satiriyla (`): Promise<void> {`) biter; bu yuzden
+ * parantezler dengeleninceye dek (ya da en cok birkac satir) YUKARI dogru
+ * satir toplar ve aralarindaki bosluklari sadelestirerek TEK satira birlestirir.
+ * Deterministik: yalniz verilen satir dizisine bakar.
  */
 function reconstructSignature(lines: string[], markerIdx: number): string {
   if (markerIdx <= 0) return "";
   const above = lines[markerIdx - 1].trim();
   if (above.length === 0) return "";
 
-  // Üst satır zaten dengeli parantezli bir imza ise (tek-satır), olduğu gibi al.
+  // Ust satir zaten dengeli parantezli bir imza ise (tek-satir), oldugu gibi al.
   let open = countChar(above, "(");
   let close = countChar(above, ")");
   if (close <= open) return above;
 
-  // Kapanış fazla -> açılış üst satırlarda. Dengeleninceye dek yukarı topla.
+  // Kapanis fazla -> acilis ust satirlarda. Dengeleninceye dek yukari topla.
   const collected: string[] = [above];
-  // Güvenlik sınırı: çok uzun bir blokta sonsuza yürüme (imzalar kısadır).
+  // Guvenlik siniri: cok uzun bir blokta sonsuza yurume (imzalar kisadir).
   const MAX_LINES = 40;
   for (let k = markerIdx - 2; k >= 0 && collected.length < MAX_LINES; k--) {
     const t = lines[k].trim();
@@ -268,7 +268,7 @@ function reconstructSignature(lines: string[], markerIdx: number): string {
     close += countChar(t, ")");
     if (open >= close) break;
   }
-  // Tek satıra birleştir; çoklu boşlukları sadeleştir.
+  // Tek satira birlestir; coklu bosluklari sadelestir.
   return collected.join(" ").replace(/\s+/g, " ").trim();
 }
 
@@ -285,7 +285,7 @@ function splitList(raw: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-/** Marker'da description YOKSA üretilecek nötr İngilizce ipucu. */
+/** Marker'da description NONESA uretilecek notr Ingilizce ipucu. */
 function defaultImplHint(member: string): string {
   return `the body of \`${member}\` as required by its signature and the architecture.`;
 }

@@ -8,10 +8,10 @@ import { ProjectsRepository } from "../projects/projects.repository";
 import { hasProjectAccess } from "./access";
 import type { AuthContext } from "./auth.types";
 
-/** /projects/:projectId/* alt-kaynaklarında çok-kiracılık (BOLA) zorlaması.
- *  projectId param'ı yoksa (proje-kapsamsız route) geçer — global ClerkAuthGuard
- *  zaten kimlik doğrulamayı garanti eder. Proje yoksa VEYA çağırana ait değilse
- *  403 (var/yok sızıntısını önlemek için ikisi de aynı yanıt). */
+/** Multi-tenancy (BOLA) enforcement on /projects/:projectId/* sub-resources.
+ *  Passes when projectId param is absent (non-project-scoped route) — global LocalAuthGuard
+ *  already guarantees authentication. Returns 403 if the project is missing OR not owned by
+ *  the caller (same response for both to prevent existence leakage). */
 @Injectable()
 export class ProjectAccessGuard implements CanActivate {
   constructor(private readonly projects: ProjectsRepository) {}
@@ -26,7 +26,7 @@ export class ProjectAccessGuard implements CanActivate {
 
     const auth = req.auth;
     if (!auth) {
-      throw new ForbiddenException({ code: "ERR_FORBIDDEN", message: "Yetki yok." });
+      throw new ForbiddenException({ code: "ERR_FORBIDDEN", message: "Access denied." });
     }
     const project = await this.projects.getById(projectId);
     if (!project || !hasProjectAccess(project, auth)) {

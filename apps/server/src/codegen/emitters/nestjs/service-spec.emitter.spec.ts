@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları (service.emitter.spec.ts ile aynı şekil) ───────── */
+/* ── Fixture helpers (same shape as service.emitter.spec.ts) ───────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -47,7 +47,7 @@ const SVC = "10000000-0000-4000-8000-000000000001";
 const REPO = "10000000-0000-4000-8000-000000000002";
 const DEP_SVC = "10000000-0000-4000-8000-000000000003";
 
-/* ── Node fixture'ları ──────────────────────────────────────────────────── */
+/* ── Node fixtures ──────────────────────────────────────────────────── */
 const usersRepository = node("Repository", REPO, {
   RepositoryName: "UsersRepository",
   EntityReference: "User",
@@ -109,10 +109,10 @@ const usersService = node("Service", SVC, {
 const fullNodes = [usersService, usersRepository, paymentService];
 
 describe("emitServiceSpecs", () => {
-  it("tam davranış iskeleti — snapshot (mock provider'lar + per-metot delegasyon TODO)", () => {
+  it("tam davranis iskeleti — snapshot (mock provider'lar + per-metot delegasyon TODO)", () => {
     const ctx = ctxFrom(fullNodes, []);
     const files = emitServiceSpecs(ctx);
-    // İki Service var (UsersService + PaymentService) -> iki spec.
+    // Iki Service var (UsersService + PaymentService) -> iki spec.
     const usersSpec = files.find((f) => f.path === "users/users.service.spec.ts");
     expect(usersSpec).toBeDefined();
     expect(usersSpec!.content).toMatchInlineSnapshot(`
@@ -184,33 +184,33 @@ describe("emitServiceSpecs", () => {
     `);
   });
 
-  it("yalnız PUBLIC metotlar test edilir (private/protected dış API değil)", () => {
+  it("yalniz PUBLIC metotlar test edilir (private/protected dis API degil)", () => {
     const ctx = ctxFrom(fullNodes, []);
     const usersSpec = emitServiceSpecs(ctx).find((f) => f.path === "users/users.service.spec.ts")!;
     expect(usersSpec.content).toContain('describe("createUser", () =>');
     expect(usersSpec.content).toContain('describe("validateNow", () =>');
-    // private metot için ne describe ne çağrı üretilir.
+    // private metot icin ne describe ne cagri uretilir.
     expect(usersSpec.content).not.toContain('describe("secretInternal"');
     expect(usersSpec.content).not.toContain("secretInternal(");
   });
 
-  it("davranış iskeleti: her public metot bir it.skip bloğu (bayat stub assert'i YOK)", () => {
+  it("davranis iskeleti: her public metot bir it.skip blogu (bayat stub assert'i NONE)", () => {
     const ctx = ctxFrom(fullNodes, []);
     const usersSpec = emitServiceSpecs(ctx).find((f) => f.path === "users/users.service.spec.ts")!;
-    // Her metot ATLANMIŞ iskelet (it.skip) -> dolu metot jest'i KIRMAZ.
+    // Her metot ATLANMIS iskelet (it.skip) -> dolu metot jest'i KIRMAZ.
     expect(usersSpec.content).toContain('it.skip("delegates to its dependencies", () => {');
     // act ipucu yorum olarak: async metot -> await; sync -> await yok.
     expect(usersSpec.content).toContain("//   const result = await usersService.createUser(/* input */);");
     expect(usersSpec.content).toContain("//   const result = usersService.validateNow();");
-    // Eski stub-sözleşmesi assert'i KALMADI (metot dolunca bayatlayıp fail ederdi).
+    // Eski stub-sozlesmesi assert'i KALMADI (metot dolunca bayatlayip fail ederdi).
     expect(usersSpec.content).not.toContain("NOT_IMPLEMENTED");
     expect(usersSpec.content).not.toContain(".rejects.toThrow");
-    // Tek AKTİF assert: DI-resolves smoke'undaki toBeDefined.
+    // Tek AKTIF assert: DI-resolves smoke'undaki toBeDefined.
     const definedOnly = usersSpec.content.split("toBeDefined").length - 1;
     expect(definedOnly).toBe(1);
   });
 
-  it("delegasyon iskeleti: her mock metodu için arrange + assert ipucu (yorum)", () => {
+  it("delegasyon iskeleti: her mock metodu icin arrange + assert ipucu (yorum)", () => {
     const ctx = ctxFrom(fullNodes, []);
     const usersSpec = emitServiceSpecs(ctx).find((f) => f.path === "users/users.service.spec.ts")!;
     // Arrange ipucu (mockResolvedValue) + assert ipucu (toHaveBeenCalled) yorum olarak.
@@ -220,22 +220,22 @@ describe("emitServiceSpecs", () => {
     expect(usersSpec.content).toContain("// Behavior skeleton — un-skip");
   });
 
-  it("mock provider'lar gerçek public metot adlarından kurulur (Service.Methods / Repository.CustomQueries)", () => {
+  it("mock provider'lar gercek public metot adlarindan kurulur (Service.Methods / Repository.CustomQueries)", () => {
     const ctx = ctxFrom(fullNodes, []);
     const usersSpec = emitServiceSpecs(ctx).find((f) => f.path === "users/users.service.spec.ts")!;
-    // Repository mock'u CustomQueries'ten (countActive, findByEmail), isme sıralı.
+    // Repository mock'u CustomQueries'ten (countActive, findByEmail), isme sirali.
     expect(usersSpec.content).toContain("const usersRepository = { countActive: jest.fn(), findByEmail: jest.fn() };");
-    // Service mock'u yalnız PUBLIC metottan (charge; private internalHelper DEĞİL).
+    // Service mock'u yalniz PUBLIC metottan (charge; private internalHelper NOT).
     expect(usersSpec.content).toContain("const paymentService = { charge: jest.fn() };");
     expect(usersSpec.content).not.toContain("internalHelper");
-    // useValue, sınıf tipine cast'lenir (strict altında DI tip-uyumu).
+    // useValue, sinif tipine cast'lenir (strict altinda DI tip-uyumu).
     expect(usersSpec.content).toContain(
       "{ provide: UsersRepository, useValue: usersRepository as unknown as UsersRepository },",
     );
   });
 
-  it("DI = Dependencies ∪ CALLS hedefleri, DEDUP (aynı repo iki yoldan -> tek mock)", () => {
-    // Dependencies'te UsersRepository + CALLS edge ile de aynı repo -> tek mock alanı.
+  it("DI = Dependencies ∪ CALLS hedefleri, DEDUP (ayni repo iki yoldan -> tek mock)", () => {
+    // Dependencies'te UsersRepository + CALLS edge ile de ayni repo -> tek mock alani.
     const ctx = ctxFrom(fullNodes, [edge("e-dup", "CALLS", SVC, REPO)]);
     const usersSpec = emitServiceSpecs(ctx).find((f) => f.path === "users/users.service.spec.ts")!;
     const mockDecls = usersSpec.content.split("const usersRepository = {").length - 1;
@@ -244,7 +244,7 @@ describe("emitServiceSpecs", () => {
     expect(providerLines).toBe(1);
   });
 
-  it("bağımlılıksız servis: constructor mock yok, providers tek satır, davranış bloğu yine üretilir", () => {
+  it("bagimliliksiz servis: constructor mock yok, providers tek satir, davranis blogu yine uretilir", () => {
     const lonely = node("Service", SVC, {
       ServiceName: "LonelyService",
       Description: "No deps",
@@ -257,20 +257,20 @@ describe("emitServiceSpecs", () => {
     const ctx = ctxFrom([lonely], []);
     const [spec] = emitServiceSpecs(ctx);
     expect(spec.path).toBe("lonely/lonely.service.spec.ts");
-    // Boş DI -> mock bloğu ve jest.clearAllMocks YOK; providers tek satır.
+    // Bos DI -> mock blogu ve jest.clearAllMocks NONE; providers tek satir.
     expect(spec.content).not.toContain("Mocked dependencies");
     expect(spec.content).not.toContain("jest.clearAllMocks();");
     expect(spec.content).toContain("providers: [LonelyService],");
-    // Davranış iskeleti yine var (atlanmış it.skip; mock'suz da üretilir).
+    // Davranis iskeleti yine var (atlanmis it.skip; mock'suz da uretilir).
     expect(spec.content).toContain('describe("ping", () =>');
     expect(spec.content).toContain('it.skip("delegates to its dependencies", () => {');
     expect(spec.content).toContain("//   const result = lonelyService.ping();");
-    // Mock yokken arrange ipucu placeholder'a düşer.
+    // Mock yokken arrange ipucu placeholder'a duser.
     expect(spec.content).toContain("<no resolvable dependencies — inject test doubles as needed>");
   });
 
-  it("metotsuz servis: davranış bloğu yok ama DI-resolves smoke korunur", () => {
-    // Şema Methods.min(1) ister ama emitter THROW etmemeli; boş Methods'a dayanıklı.
+  it("metotsuz servis: davranis blogu yok ama DI-resolves smoke korunur", () => {
+    // Sema Methods.min(1) ister ama emitter THROW etmemeli; bos Methods'a dayanikli.
     const empty = node("Service", SVC, {
       ServiceName: "EmptyService",
       Description: "No methods",
@@ -284,7 +284,7 @@ describe("emitServiceSpecs", () => {
     expect(spec.content).not.toContain("delegates to its dependencies");
   });
 
-  it("çözülemeyen bağımlılık ref'i ATLANIR (mock üretilmez -> spec derlenebilir kalır)", () => {
+  it("cozulemeyen bagimlilik ref'i ATLANIR (mock uretilmez -> spec derlenebilir kalir)", () => {
     const svc = node("Service", SVC, {
       ServiceName: "GhostUserService",
       Description: "Has an unresolvable dep",
@@ -296,20 +296,20 @@ describe("emitServiceSpecs", () => {
     });
     const ctx = ctxFrom([svc], []);
     const [spec] = emitServiceSpecs(ctx);
-    // Çözülemeyen ref import edilmez/mocklanmaz.
+    // Cozulemeyen ref import edilmez/mocklanmaz.
     expect(spec.content).not.toContain("MissingRepository");
-    // Davranış bloğu yine üretilir.
+    // Davranis blogu yine uretilir.
     expect(spec.content).toContain('describe("run", () =>');
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFrom(fullNodes, []);
     const usersSpec = emitServiceSpecs(ctx).find((f) => f.path === "users/users.service.spec.ts")!;
     expect(usersSpec.content.endsWith("});\n")).toBe(true);
     expect(usersSpec.content.endsWith("});\n\n")).toBe(false);
   });
 
-  it("test dosyaları surgical marker TAŞIMAZ ve nodeId taşımaz", () => {
+  it("test dosyalari surgical marker TASIMAZ ve nodeId tasimaz", () => {
     const ctx = ctxFrom(fullNodes, []);
     for (const f of emitServiceSpecs(ctx)) {
       expect(f.surgicalMarkers).toBe(0);
@@ -318,7 +318,7 @@ describe("emitServiceSpecs", () => {
     }
   });
 
-  it("DETERMİNİZM: iki bağımsız graph kuruluşu -> byte-identical", () => {
+  it("DETERMINISM: two independent graph builds -> byte-identical", () => {
     const a = emitServiceSpecs(ctxFrom(fullNodes, [edge("e", "CALLS", SVC, REPO)]));
     const b = emitServiceSpecs(ctxFrom(fullNodes, [edge("e", "CALLS", SVC, REPO)]));
     expect(a.map((f) => f.content)).toEqual(b.map((f) => f.content));

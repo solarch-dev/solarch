@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-/** plans/AI Agent & Tool Şeması — apply_architecture_graph fonksiyon şeması.
- *  LLM bu şemaya uygun {nodes, edges} üretir; GraphService.apply işler. */
+/** plans/AI Agent & Tool Schema — apply_architecture_graph function schema.
+ *  LLM produces {nodes, edges} matching this schema; GraphService.apply processes it. */
 export const ApplyArchitectureArgsSchema = z.object({
   nodes: z.array(
     z.object({
       tempId: z.string().describe("Temporary unique ID for reference in edges (e.g. 'temp_user_controller')."),
-      type: z.string().describe("Node tipi (Table, Service, Controller, ...)."),
+      type: z.string().describe("Node type (Table, Service, Controller, ...)."),
       properties: z.record(z.unknown()).describe("Type-specific fields (e.g. TableName + Columns for Table)."),
     }),
   ).describe("Architecture components to be created."),

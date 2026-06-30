@@ -1,12 +1,12 @@
 import { Neo4jService } from "../../neo4j.service";
 import { env } from "../../../config/env";
 
-/** Faz A veri migration'ı: mevcut Veri ailesi node'larını (Table/DTO/Model/
- *  Enum/View) zengin v2 şemaya dönüştürür.
+/** Phase A data migration: converts existing Data-family nodes (Table/DTO/Model/
+ *  Enum/View) to enriched v2 schema.
  *
- *  Idempotent — eksik zorunlu dizileri default ile doldurur, eski alanları
- *  (Column.IsForeignKey/References, string[] Enum Values) yeni biçime taşır.
- *  Tekrar çalıştırmak güvenlidir. */
+ *  Idempotent — fills missing required arrays with defaults, migrates legacy fields
+ *  (Column.IsForeignKey/References, string[] Enum Values) to new shape.
+ *  Safe to re-run. */
 async function main(): Promise<void> {
   const svc = new Neo4jService({
     uri: env.NEO4J_URI,
@@ -46,7 +46,7 @@ function enrich(kind: string, p: any): any {
       CheckConstraints: p.CheckConstraints ?? [],
       Indexes: (p.Indexes ?? []).map((i: any) => ({ Type: "BTree", IsUnique: false, ...i })),
       Columns: (p.Columns ?? []).map((c: any) => {
-        const { IsForeignKey, References, ...rest } = c; // eski alanları at
+        const { IsForeignKey, References, ...rest } = c; // drop legacy fields
         return rest;
       }),
     };
@@ -58,9 +58,9 @@ function enrich(kind: string, p: any): any {
       ...p,
       Fields: (p.Fields ?? []).map((f: any) => {
         const { ValidationRule, ValidationRules, ...rest } = f;
-        // Kaynak: yeni yapısal ValidationRules[] varsa onu, yoksa eski string'i.
+        // Source: structural ValidationRules[] if present, else legacy string.
         const source = ValidationRules ?? (ValidationRule ? [{ Rule: ValidationRule }] : []);
-        // Rule'u enum'a normalize et (case-insensitive); serbest metin/tanınmayanı düşür.
+        // Normalize Rule to enum (case-insensitive); drop free-text/unrecognized.
         const cleaned = source
           .map((r: any) => {
             const matched = norm(r.Rule);

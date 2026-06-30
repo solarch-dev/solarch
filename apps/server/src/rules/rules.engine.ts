@@ -26,9 +26,9 @@ export class RulesEngine {
     private readonly emptySchemaChecker: EmptySchemaChecker,
   ) {}
 
-  /** 3 fazlı evaluator: blacklist → whitelist (default deny) → conditional. */
+  /** 3-phase evaluator: blacklist → whitelist (default deny) → conditional. */
   async evaluate(ctx: EvaluationContext): Promise<EvaluationResult> {
-    // 1. Blacklist — keskin yasak
+    // 1. Blacklist — hard deny
     const denyHit = this.checkBlacklist(ctx);
     if (denyHit) return denyHit;
 
@@ -46,7 +46,7 @@ export class RulesEngine {
       };
     }
 
-    // 3. Conditional — derin kontroller
+    // 3. Conditional — deep checks
     const circular = await this.circularChecker.check(ctx);
     if (!circular.allowed) return circular;
 
@@ -59,10 +59,10 @@ export class RulesEngine {
     return { allowed: true };
   }
 
-  /** Whole-graph review — her mevcut edge'i Rules Engine'den geçirip sıralı
-   *  Problems listesi döndürür (errors önce). Deterministik; LLM yok, mutasyon
-   *  yok. "Verify my architecture" Pass-1. evaluate() çoğu edge için ucuzdur
-   *  (circular Neo4j sorgusu yalnız Service→Service CALLS'ta tetiklenir). */
+  /** Whole-graph review — runs every existing edge through Rules Engine and returns
+   *  sorted Problems list (errors first). Deterministic; no LLM, no mutation.
+   *  "Verify my architecture" Pass-1. evaluate() is cheap for most edges
+   *  (circular Neo4j query only on Service→Service CALLS). */
   async reviewGraph(
     projectId: string,
     nodes: { id: string; type: NodeKind; properties: Record<string, unknown> }[],
@@ -109,7 +109,7 @@ export class RulesEngine {
     return findings;
   }
 
-  /** Belirli bir node tipi için ilgili tüm whitelist + blacklist kuralları. */
+  /** All whitelist + blacklist rules relevant to a given node kind. */
   rulesForNodeKind(kind: NodeKind) {
     const allowAsSource = WHITELIST.filter((r) => matchesKind(r.source, kind));
     const allowAsTarget = WHITELIST.filter((r) => matchesKind(r.target, kind));
@@ -118,7 +118,7 @@ export class RulesEngine {
     return { allowAsSource, allowAsTarget, denyAsSource, denyAsTarget };
   }
 
-  /** Belirli bir edge tipi için ilgili tüm whitelist + blacklist kuralları. */
+  /** All whitelist + blacklist rules relevant to a given edge kind. */
   rulesForEdgeKind(kind: EdgeKind) {
     const allow = WHITELIST.filter((r) => matchesEdge(r.edge, kind));
     const deny = BLACKLIST.filter((r) => matchesDenyEdge(r.edge, kind));

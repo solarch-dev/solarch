@@ -7,30 +7,30 @@ import { countSurgicalMarkers, surgicalMarker } from "../../surgical";
 /* ────────────────────────────────────────────────────────────────────────
  * message-queue.emitter.ts — MessageQueueNode -> <feature>/<base>.queue.ts.
  *
- * enum.emitter.ts'i (kanonik referans) birebir taklit eder:
- *   - named `export const emitMessageQueue: NodeEmitter`; default export YOK.
- *   - SAF fonksiyon (node, ctx) -> GeneratedFile[]; I/O yok, throw YOK.
- *   - Yol her zaman filePathFor(node, ctx.graph) ile (hardcode YASAK).
- *   - import'lar ImportCollector ile (elle "import" YASAK).
- *   - DETERMİNİSTİK: tek dosya, sabit sıralama, timestamp/random YOK.
- *   - İçerik tek "\n" ile biter.
+ * Mirrors enum.emitter.ts (canonical reference) exactly:
+ *   - named `export const emitMessageQueue: NodeEmitter`; no default export.
+ *   - PURE function (node, ctx) -> GeneratedFile[]; no I/O, no throw.
+ *   - Path always via filePathFor(node, ctx.graph) (hardcode FORBIDDEN).
+ *   - imports via ImportCollector (manual "import" FORBIDDEN).
+ *   - DETERMINISTIC: single file, fixed ordering, no timestamp/random.
+ *   - Content ends with single "\n".
  *
- * ÜRETİLEN: @Injectable() bir BullMQ PRODUCER (kuyruğa iş ekleyen taraf).
- *   - constructor'da `@InjectQueue(QUEUE_NAME) private readonly queue: Queue`
- *     enjekte edilir (Queue tipi "bullmq" paketinden, @InjectQueue/@nestjs/bullmq).
- *   - Kuyruk adı deterministik bir export sabiti olarak yazılır
- *     (`export const <QUEUE>_QUEUE = "<QueueName>"`) — module'deki
- *     BullModule.registerQueue({ name }) ile @InjectQueue arasında TEK KAYNAK.
- *   - `publish(payload: <MessageDto>)` metodu GERÇEK gövde taşır:
+ * OUTPUT: @Injectable() BullMQ PRODUCER (job enqueue side).
+ *   - constructor injects `@InjectQueue(QUEUE_NAME) private readonly queue: Queue`
+ *     (Queue type from "bullmq", @InjectQueue/@nestjs/bullmq).
+ *   - Queue name written as deterministic export const
+ *     (`export const <QUEUE>_QUEUE = "<QueueName>"`) — SINGLE SOURCE between
+ *     BullModule.registerQueue({ name }) in module and @InjectQueue.
+ *   - `publish(payload: <MessageDto>)` carries REAL body:
  *       await this.queue.add(<jobName>, payload);
- *     Üstte bir surgical marker bırakılır — Surgical AI retry/opts/idempotency
- *     gibi davranışı işaretli noktada genişletir (gövde yine de DERLENİR + çalışır).
+ *     Surgical marker left above — Surgical AI extends retry/opts/idempotency
+ *     at marked point (body still COMPILES + runs).
  *
- * MessageFormat -> DTO node Name (şema açıklaması). Çözülürse payload tipi o DTO
- *   sınıfıdır (import edilir); çözülemezse `unknown`a düşer (ASLA throw etmez).
+ * MessageFormat -> DTO node Name (schema description). When resolved payload type
+ *   is that DTO class (imported); else falls back to `unknown` (never throws).
  *
- * Type=Topic ise NOT: BullMQ tek kuyruk modelidir; Topic anlamı kuyruk adına
- *   gömülür (job name = "publish"); kanal/exchange farkı Surgical AI'ye bırakılır.
+ * When Type=Topic NOTE: BullMQ is single-queue model; Topic semantics embedded in
+ *   queue name (job name = "publish"); channel/exchange difference left to Surgical AI.
  * ──────────────────────────────────────────────────────────────────────── */
 
 type MessageQueueProps = {
@@ -51,12 +51,12 @@ export const emitMessageQueue: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   const className = pascalCase(node.name);
   const filePath = filePathFor(node, graph);
 
-  // Kuyruk adı = QueueName (yoksa çözülmüş node adı). @InjectQueue + module
-  // registerQueue bu DEĞERİ aynen paylaşır -> tek kaynak sabiti.
+  // Queue name = QueueName (else resolved node name). @InjectQueue + module
+  // registerQueue share this VALUE -> single source const.
   const queueName = (props.QueueName && props.QueueName.length > 0 ? props.QueueName : node.name) || "queue";
   const queueConst = queueNameConst(node);
 
-  // Payload tipi: MessageFormat -> DTO node. Çözülürse sınıf + import; yoksa unknown.
+  // Payload type: MessageFormat -> DTO node. When resolved class + import; else unknown.
   const payloadType = resolvePayloadType(props.MessageFormat, graph, filePath);
 
   const imports = new ImportCollector();
@@ -69,7 +69,7 @@ export const emitMessageQueue: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
 
   const lines: string[] = [];
 
-  // Kuyruk adı sabiti — module registerQueue ile @InjectQueue arasında TEK KAYNAK.
+  // Queue name const — SINGLE SOURCE between module registerQueue and @InjectQueue.
   lines.push(`/** "${node.kindOf()}" queue name — single source of truth shared between BullModule.registerQueue and @InjectQueue. */`);
   lines.push(`export const ${queueConst} = ${JSON.stringify(queueName)};`);
   lines.push("");
@@ -78,13 +78,13 @@ export const emitMessageQueue: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   lines.push("@Injectable()");
   lines.push(`export class ${className} {`);
 
-  // DI: BullMQ Queue (Wire fazı BullModule.registerQueue({ name: <queueConst> }) bağlar).
+  // DI: BullMQ Queue (Wire phase binds BullModule.registerQueue({ name: <queueConst> })).
   lines.push("  constructor(");
   lines.push(`    @InjectQueue(${queueConst}) private readonly queue: Queue,`);
   lines.push("  ) {}");
   lines.push("");
 
-  // publish(payload) — GERÇEK gövde + surgical marker (retry/opts genişletme noktası).
+  // publish(payload) — REAL body + surgical marker (retry/opts extension point).
   lines.push(...renderPublishMethod(node, className, payloadType.className, props));
 
   lines.push("}");
@@ -101,10 +101,10 @@ export const emitMessageQueue: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   return [file];
 };
 
-/** Kuyruk adı sabiti — `IMAGE_MESSAGE_QUEUE_QUEUE` benzeri SCREAMING_SNAKE.
- *  pascal(name) sözcüklere bölünüp upper-snake'lenir + "_QUEUE" eki.
- *  EXPORT: module.emitter (Wire fazı) BullModule.registerQueue({ name: <CONST> })
- *  için bu SEMBOL ADINI ister; sabitin DEĞERİ .queue.ts'te (tek kaynak) kalır. */
+/** Queue name const — SCREAMING_SNAKE like `IMAGE_MESSAGE_QUEUE_QUEUE`.
+ *  pascal(name) split into words + upper-snake + "_QUEUE" suffix.
+ *  EXPORT: module.emitter (Wire phase) wants this SYMBOL NAME for BullModule.registerQueue({ name: <CONST> });
+ *  const VALUE stays in .queue.ts (single source). */
 export function queueNameConst(node: CodeNode): string {
   const screaming = pascalCase(node.name)
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
@@ -114,7 +114,7 @@ export function queueNameConst(node: CodeNode): string {
   return base.endsWith("_QUEUE") || base === "QUEUE" ? base : `${base}_QUEUE`;
 }
 
-/** publish(payload) metodu: gerçek `queue.add` çağrısı + üstte surgical marker. */
+/** publish(payload) method: real `queue.add` call + surgical marker above. */
 function renderPublishMethod(
   node: CodeNode,
   className: string,
@@ -122,10 +122,10 @@ function renderPublishMethod(
   props: MessageQueueProps,
 ): string[] {
   const indent = "  ";
-  // Job adı deterministik "publish" (BullMQ tek kuyruk; job adı sabittir).
+  // Job name deterministic "publish" (BullMQ single queue; job name fixed).
   const jobName = '"publish"';
 
-  // Surgical marker: davranış genişletme noktası (retry/backoff/idempotency).
+  // Surgical marker: behavior extension point (retry/backoff/idempotency).
   const deliveryNote = props.DeliveryGuarantee ? `delivery: ${props.DeliveryGuarantee}` : undefined;
   const retryNote = typeof props.MaxRetries === "number" ? `maxRetries: ${props.MaxRetries}` : undefined;
   const dlqNote = props.DeadLetterQueue ? `dead-letter: ${props.DeadLetterQueue}` : undefined;
@@ -149,18 +149,18 @@ function renderPublishMethod(
   lines.push(`${indent}/** Adds a message/job to the queue. */`);
   lines.push(`${indent}async publish(payload: ${payloadType}): Promise<void> {`);
   for (const ml of marker.split("\n")) lines.push(`${indent}${indent}${ml}`);
-  // Gövde DETERMİNİSTİK olarak TAM üretildi (BullMQ producer = this.queue.add). Marker bir
-  // genişletme noktası olarak KORUNUR ama bu bölge "doldurulacak" DEĞİL → codegen-dolu
-  // damgası. Aksi halde NOT_IMPLEMENTED içermediği için "filled" sayılıp fill tarafından
-  // sessizce atlanır ve sayım tutarsız olur (toplam gösterilir, daha azı doldurulur).
+  // Body DETERMINISTICALLY FULLY generated (BullMQ producer = this.queue.add). Marker kept as
+  // extension point but this region NOT "to fill" -> codegen-filled stamp. Else without
+  // NOT_IMPLEMENTED it would count as "filled" and fill silently skips -> count mismatch
+  // (total shown, fewer processed).
   lines.push(`${indent}${indent}// @solarch:filled by=codegen`);
   lines.push(`${indent}${indent}await this.queue.add(${jobName}, payload);`);
   lines.push(`${indent}}`);
   return lines;
 }
 
-/** MessageFormat -> DTO node Name. Çözülürse payload tipi o DTO sınıfı (import
- *  edilir); çözülemezse `unknown` (ASLA throw etmez). */
+/** MessageFormat -> DTO node Name. When resolved payload type is that DTO class (imported);
+ *  else `unknown` (never throws). */
 function resolvePayloadType(
   messageFormat: string | undefined,
   graph: CodeGraph,
@@ -172,12 +172,12 @@ function resolvePayloadType(
   if (dto) {
     return { className: pascalCase(dto.name), importFrom: filePathFor(dto, graph) };
   }
-  // Çözülemeyen serbest ad -> unknown (tolerans; import üretilmez).
+  // Unresolved free name -> unknown (tolerance; no import).
   return { className: "unknown", importFrom: null };
 }
 
-/** node.properties'i MessageQueueProps olarak güvenle okur (Zod-doğrulanmış DB;
- *  yalnız tip daraltma — çalışma zamanı dönüşümü YOK). */
+/** Read node.properties as MessageQueueProps safely (Zod-validated DB;
+ *  type narrowing only — no runtime transform). */
 function readProps(node: CodeNode): MessageQueueProps {
   return node.properties as MessageQueueProps;
 }

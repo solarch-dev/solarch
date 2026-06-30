@@ -35,17 +35,17 @@ describe("RulesEngine", () => {
   });
 
   describe("whitelist", () => {
-    it("Controller → CALLS → Service izinli", async () => {
+    it("Controller → CALLS → Service allowed", async () => {
       const r = await engine.evaluate(ctx(makeNode("Controller", "c1"), "CALLS", makeNode("Service", "s1")));
       expect(r.allowed).toBe(true);
     });
 
-    it("Service → CALLS → Repository izinli", async () => {
+    it("Service → CALLS → Repository allowed", async () => {
       const r = await engine.evaluate(ctx(makeNode("Service", "s1"), "CALLS", makeNode("Repository", "r1")));
       expect(r.allowed).toBe(true);
     });
 
-    it("Repository → QUERIES → Table izinli (Columns dolu)", async () => {
+    it("Repository → QUERIES → Table allowed (Columns populated)", async () => {
       const r = await engine.evaluate(ctx(
         makeNode("Repository", "r1"),
         "QUERIES",
@@ -54,7 +54,7 @@ describe("RulesEngine", () => {
       expect(r.allowed).toBe(true);
     });
 
-    it("Service → IMPLEMENTS → Service izinli (arayüz/kontrat)", async () => {
+    it("Service → IMPLEMENTS → Service allowed (interface/contract)", async () => {
       const r = await engine.evaluate(ctx(makeNode("Service", "s1"), "IMPLEMENTS", makeNode("Service", "s2")));
       expect(r.allowed).toBe(true);
     });
@@ -73,7 +73,7 @@ describe("RulesEngine", () => {
       expect(r.code).toBe("ERR_002");
     });
 
-    it("ERR_003: Table → USES → Service (veri pasiftir)", async () => {
+    it("ERR_003: Table → USES → Service (data is passive)", async () => {
       const r = await engine.evaluate(ctx(makeNode("Table", "t1"), "USES", makeNode("Service", "s1")));
       expect(r.allowed).toBe(false);
       expect(r.code).toBe("ERR_003");
@@ -104,15 +104,15 @@ describe("RulesEngine", () => {
     });
   });
 
-  describe("default deny (whitelist match yok + blacklist match yok)", () => {
+  describe("default deny (no whitelist match + no blacklist match)", () => {
     it("Worker → REQUESTS → ExternalService → ERR_NOT_WHITELISTED", async () => {
-      // Worker'ın REQUESTS edge'i whitelist'te yok ve blacklist'e de takılmıyor.
+      // Worker's REQUESTS edge is not in whitelist and does not hit blacklist.
       const r = await engine.evaluate(ctx(makeNode("Worker", "w1"), "REQUESTS", makeNode("ExternalService", "x1")));
       expect(r.allowed).toBe(false);
       expect(r.code).toBe("ERR_NOT_WHITELISTED");
     });
 
-    it("Controller → IMPLEMENTS → Service → ERR_NOT_WHITELISTED (yalnız Service→Service izinli)", async () => {
+    it("Controller → IMPLEMENTS → Service → ERR_NOT_WHITELISTED (only Service→Service allowed)", async () => {
       const r = await engine.evaluate(ctx(makeNode("Controller", "c1"), "IMPLEMENTS", makeNode("Service", "s1")));
       expect(r.allowed).toBe(false);
       expect(r.code).toBe("ERR_NOT_WHITELISTED");
@@ -132,7 +132,7 @@ describe("RulesEngine", () => {
       expect(r.code).toBe("ERR_COND_002");
     });
 
-    it("Controller (UserDTO) → Service (UserDTO) izinli", async () => {
+    it("Controller (UserDTO) → Service (UserDTO) allowed", async () => {
       const ctrl = makeNode("Controller", "c1", {
         Endpoints: [{ HttpMethod: "POST", Route: "/", RequestDTORef: "UserDTO", RequiresAuth: false }],
       });
@@ -154,13 +154,13 @@ describe("RulesEngine", () => {
       expect(r.code).toBe("WARN_COND_001");
     });
 
-    it("ERR_COND_001 circular checker'a delege eder", async () => {
+    it("ERR_COND_001 delegates to circular checker", async () => {
       circular.check = vi.fn(async () => ({
         allowed: false,
         code: "ERR_COND_001",
         severity: "error",
         ruleViolated: "CIRCULAR_DEPENDENCY",
-        message: "döngü",
+        message: "cycle",
       }));
       const r = await engine.evaluate(ctx(makeNode("Service", "a"), "CALLS", makeNode("Service", "b")));
       expect(r.allowed).toBe(false);
@@ -169,19 +169,19 @@ describe("RulesEngine", () => {
   });
 
   describe("rulesFor* + catalog", () => {
-    it("rulesForNodeKind('Service') allowAsSource/Target listeleri döner", () => {
+    it("rulesForNodeKind('Service') returns allowAsSource/Target lists", () => {
       const r = engine.rulesForNodeKind("Service");
       expect(r.allowAsSource.length).toBeGreaterThan(0);
       expect(r.allowAsTarget.length).toBeGreaterThan(0);
     });
 
-    it("rulesForEdgeKind('CALLS') deny listesi içerir", () => {
+    it("rulesForEdgeKind('CALLS') includes deny list", () => {
       const r = engine.rulesForEdgeKind("CALLS");
       // ERR_006 APIGateway CALLS Repository — deny rule
       expect(r.deny.some((d) => d.code === "ERR_006")).toBe(true);
     });
 
-    it("catalog() whitelist/blacklist/conditional sayıları döner", () => {
+    it("catalog() returns whitelist/blacklist/conditional counts", () => {
       const c = engine.catalog();
       expect(c.whitelist.length).toBeGreaterThanOrEqual(30);
       expect(c.blacklist.length).toBe(7);

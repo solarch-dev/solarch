@@ -1,15 +1,15 @@
-/** Solarch value-set registry — static enum/lookup catalog'u.
- *  Tüm node tiplerinin properties'lerinde paylaşılan domain enum'ları.
- *  fieldHint.valueSet ile referans edilir; frontend Select widget kullanır. */
+/** Solarch value-set registry — static enum/lookup catalog.
+ *  Shared domain enums across all node type properties.
+ *  Referenced via fieldHint.valueSet; frontend uses Select widget. */
 
 export interface ValueOption {
-  /** Canonical machine value — DB/JSON'da saklanan. */
+  /** Canonical machine value — stored in DB/JSON. */
   value: string;
-  /** Görsel label — yoksa value kullanılır. */
+  /** Display label — falls back to value if omitted. */
   label?: string;
-  /** Tooltip / açıklama. */
+  /** Tooltip / description. */
   description?: string;
-  /** Alt grup (örn primitives, collections, async). */
+  /** Subgroup (e.g. primitives, collections, async). */
   group?: string;
 }
 
@@ -21,7 +21,7 @@ export interface ValueSet {
 }
 
 export const VALUE_SETS: Record<string, ValueSet> = {
-  // ── Temel tipler ───────────────────────────────────────────────
+  // ── Basic types ───────────────────────────────────────────────
   "primitive-types": {
     id: "primitive-types",
     label: "Primitive Types",
@@ -134,7 +134,7 @@ export const VALUE_SETS: Record<string, ValueSet> = {
       { value: "Email", description: "Valid email format" },
       { value: "Url", description: "Valid URL format" },
       { value: "Regex", description: "Regex pattern match" },
-      { value: "Pattern", description: "Genel pattern (Regex alias)" },
+      { value: "Pattern", description: "General pattern (Regex alias)" },
       { value: "Positive", description: "Number greater than zero" },
       { value: "Negative", description: "Number less than zero" },
       { value: "Required", description: "Cannot be empty" },
@@ -185,7 +185,7 @@ export const VALUE_SETS: Record<string, ValueSet> = {
       { value: "CASCADE", description: "When the parent is deleted, the child is deleted too" },
       { value: "RESTRICT", description: "Prevent deletion if a child exists" },
       { value: "SET_NULL", description: "The FK on the child is set to NULL (column must be nullable)" },
-      { value: "NO_ACTION", description: "DB-level default (genelde RESTRICT)" },
+      { value: "NO_ACTION", description: "DB-level default (usually RESTRICT)" },
     ],
   },
 
@@ -212,8 +212,8 @@ export const VALUE_SETS: Record<string, ValueSet> = {
     values: [
       { value: "Repository", description: "Persistence layer (DB)" },
       { value: "Service", description: "Another bounded-context service" },
-      { value: "Cache", description: "Redis / Memcached vb." },
-      { value: "ExternalService", description: "Stripe, SendGrid, OpenAI vb." },
+      { value: "Cache", description: "Redis / Memcached etc." },
+      { value: "ExternalService", description: "Stripe, SendGrid, OpenAI etc." },
     ],
   },
 

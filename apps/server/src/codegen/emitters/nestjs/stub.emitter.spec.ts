@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { NodeKind } from "../../../nodes/schemas";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function node(type: NodeKind, properties: Record<string, unknown>, id: string): StoredNode {
   return {
     id,
@@ -40,7 +40,7 @@ function ctxFor(nodes: StoredNode[], edges: StoredEdge[]): { ctx: EmitterContext
   return { ctx: { graph, target: "nestjs" } };
 }
 
-/* Sabit UUID'ler — determinizm + okunabilirlik. */
+/* Fixed UUIDs — determinism + readability. */
 const ID_CACHE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ID_SERVICE = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const ID_QUEUE = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -51,35 +51,35 @@ const ID_UI = "11111111-aaaa-4aaa-8aaa-111111111111";
 
 const CACHE_PROPS = {
   CacheName: "UserSessionCache",
-  Description: "Oturum verisi için Redis cache",
+  Description: "Redis cache for session data",
   KeyPattern: "session:{userId}",
   TTL_Seconds: 3600,
   Engine: "Redis",
 };
 
-/* Cache/View ARTIK tam emitter'lı (filePathFor onları .cache.ts / migration'a
- * yönlendirir) -> emitStub stub-yolu (stubs/...stub.ts) için kapsam-dışı KALAN
- * tipler kullanılır: FrontendApp / UIComponent (EXCLUDED_KINDS, default stub kolu). */
+/* Cache/View now have full emitters (filePathFor routes them to .cache.ts / migration)
+ * -> emitStub uses remaining out-of-scope types for stub path (stubs/...stub.ts):
+ * FrontendApp / UIComponent (EXCLUDED_KINDS, default stub branch). */
 const APP_PROPS = {
   AppName: "AdminWebApp",
-  Description: "Yönetici tek-sayfa uygulaması",
+  Description: "Admin single-page application",
   Framework: "React",
 };
 
-describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
-  it("FrontendApp (kapsam-dışı KALAN) + edge özeti — snapshot", () => {
+describe("emitStub (12 out-of-scope types — single stub emitter)", () => {
+  it("FrontendApp (remaining out-of-scope) + edge summary — snapshot", () => {
     const app = node("FrontendApp", APP_PROPS, ID_APP);
     const svc = node("Service", { ServiceName: "UserService" }, ID_SERVICE);
     const queue = node("MessageQueue", { QueueName: "EventsQueue" }, ID_QUEUE);
-    // Service -CALLS-> FrontendApp (gelen), FrontendApp -REQUESTS-> MessageQueue (çıkan)
+    // Service -CALLS-> FrontendApp (incoming), FrontendApp -REQUESTS-> MessageQueue (outgoing)
     const edges = [
       edge("CALLS", ID_SERVICE, ID_APP, "10000000-0000-4000-8000-000000000001"),
       edge("REQUESTS", ID_APP, ID_QUEUE, "10000000-0000-4000-8000-000000000002"),
     ];
     const { ctx } = ctxFor([app, svc, queue], edges);
     const [file] = emitStub(ctx.graph.byId(ID_APP)!, ctx);
-    // FrontendApp enjekte edilen bir provider DEĞİL -> @Injectable() YOK. Dosya
-    // feature kökünde DEĞİL, <feature>/stubs/ altında (gerçek kod ile karışmasın).
+    // FrontendApp is NOT an injected provider -> no @Injectable(). File lives under
+    // <feature>/stubs/ not feature root (don't mix with real code).
     expect(file).toMatchInlineSnapshot(`
       {
         "content": "/**
@@ -90,7 +90,7 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
        */
       // @solarch:surgical id=ffffffff-ffff-4fff-8fff-ffffffffffff#stub
       // out-of-scope: FrontendApp "AdminWebApp" is not deterministically generated in v1
-      // Yönetici tek-sayfa uygulaması
+      // Admin single-page application
       //
       // edges:
       //   REQUESTS -> MessageQueue EventsQueue
@@ -104,7 +104,7 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     `);
   });
 
-  it("tam olarak 1 surgical marker bırakır", () => {
+  it("leaves exactly 1 surgical marker", () => {
     const cache = node("Cache", CACHE_PROPS, ID_CACHE);
     const { ctx } = ctxFor([cache], []);
     const [file] = emitStub(ctx.graph.byId(ID_CACHE)!, ctx);
@@ -112,7 +112,7 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     expect(file.content).toContain(`// @solarch:surgical id=${ID_CACHE}#stub`);
   });
 
-  it("export edilen placeholder sınıf üretir (sessizce düşmez)", () => {
+  it("emits exported placeholder class (not silently dropped)", () => {
     const cache = node("Cache", CACHE_PROPS, ID_CACHE);
     const { ctx } = ctxFor([cache], []);
     const [file] = emitStub(ctx.graph.byId(ID_CACHE)!, ctx);
@@ -120,19 +120,18 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     expect(file.language).toBe("typescript");
   });
 
-  it("dosya yolu filePathFor ile <feature>/stubs/<kebab>.<kindkebab>.stub.ts", () => {
-    // FrontendApp kapsam-dışı KALAN bir tip -> filePathFor default stub kolu.
+  it("file path via filePathFor as <feature>/stubs/<kebab>.<kindkebab>.stub.ts", () => {
+    // FrontendApp is a remaining out-of-scope type -> filePathFor default stub branch.
     const app = node("FrontendApp", APP_PROPS, ID_APP);
     const { ctx } = ctxFor([app], []);
     const [file] = emitStub(ctx.graph.byId(ID_APP)!, ctx);
-    // Stub'lar feature KÖKÜNE saçılmaz; ayrı stubs/ alt klasöründe (gerçek kod
-    // ile karışmasın).
+    // Stubs not scattered at feature root; separate stubs/ subfolder (don't mix with real code).
     expect(file.path).toBe("common/stubs/admin-web-app.frontend-app.stub.ts");
     expect(file.path.includes("/stubs/")).toBe(true);
     expect(file.path.endsWith(".stub.ts")).toBe(true);
   });
 
-  it("çıkan + gelen edge'ler doğru yön işaretiyle özetlenir", () => {
+  it("outgoing + incoming edges summarized with correct direction markers", () => {
     const cache = node("Cache", CACHE_PROPS, ID_CACHE);
     const svc = node("Service", { ServiceName: "UserService" }, ID_SERVICE);
     const queue = node("MessageQueue", { QueueName: "EventsQueue" }, ID_QUEUE);
@@ -146,21 +145,21 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     expect(file.content).toContain("Service UserService -> CACHES_IN (incoming)");
   });
 
-  it("EDGE-CASE: bağlantısız node -> 'edges: (yok)'", () => {
-    // UIComponent kapsam-dışı KALAN bir tip (View artık gerçek SQL migration üretir).
-    const ui = node("UIComponent", { ComponentName: "UserCard", Description: "Kullanıcı kartı" }, ID_UI);
+  it("EDGE-CASE: disconnected node -> 'edges: (none)'", () => {
+    // UIComponent is a remaining out-of-scope type (View now emits real SQL migration).
+    const ui = node("UIComponent", { ComponentName: "UserCard", Description: "User card" }, ID_UI);
     const { ctx } = ctxFor([ui], []);
     const [file] = emitStub(ctx.graph.byId(ID_UI)!, ctx);
     expect(file.content).toContain("// edges: (none)");
     expect(file.content).toContain("export class UserCardStub {}");
-    // UIComponent enjekte edilmeyen bir stub -> @Injectable() YOK.
+    // UIComponent is non-injected stub -> no @Injectable().
     expect(file.content).not.toContain("@Injectable()");
     expect(file.path).toBe("common/stubs/user-card.ui-component.stub.ts");
   });
 
-  it("EDGE-CASE: kayıp ref'li edge ucu -> '(?)' (throw etmez)", () => {
+  it("EDGE-CASE: edge with missing ref endpoint -> '(?)' (does not throw)", () => {
     const cache = node("Cache", CACHE_PROPS, ID_CACHE);
-    // hedef node fixture'da YOK -> resolve null -> "(?)" beklenir.
+    // target node not in fixture -> resolve null -> expect "(?)".
     const edges = [edge("PUBLISHES", ID_CACHE, ID_DANGLING, "10000000-0000-4000-8000-000000000003")];
     const { ctx } = ctxFor([cache], edges);
     expect(() => emitStub(ctx.graph.byId(ID_CACHE)!, ctx)).not.toThrow();
@@ -168,7 +167,7 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     expect(file.content).toContain("PUBLISHES -> (?)");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const cache = node("Cache", CACHE_PROPS, ID_CACHE);
     const { ctx } = ctxFor([cache], []);
     const [file] = emitStub(ctx.graph.byId(ID_CACHE)!, ctx);
@@ -176,7 +175,7 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const cache = node("Cache", CACHE_PROPS, ID_CACHE);
     const svc = node("Service", { ServiceName: "UserService" }, ID_SERVICE);
     const edges = [edge("CACHES_IN", ID_SERVICE, ID_CACHE, "10000000-0000-4000-8000-000000000001")];
@@ -186,7 +185,7 @@ describe("emitStub (kapsam-dışı 12 tip — tek stub emitter)", () => {
     expect(a).toBe(b);
   });
 
-  it("Description olmayan node -> açıklama satırı atlanır (throw yok)", () => {
+  it("node without Description -> description line skipped (no throw)", () => {
     const worker = node("Worker", { WorkerName: "CleanupWorker" }, ID_VIEW);
     const { ctx } = ctxFor([worker], []);
     const [file] = emitStub(ctx.graph.byId(ID_VIEW)!, ctx);

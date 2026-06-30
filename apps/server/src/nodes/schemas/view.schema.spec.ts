@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ViewName: "active_users_view",
-  Description: "Aktif kullanıcıları döner",
+  Description: "Returns active users",
   Definition: "SELECT id, email FROM users WHERE active = true",
   SourceTables: ["users"],
   Materialized: false,
@@ -21,17 +21,17 @@ const parse = (properties: unknown) =>
   ViewNodeSchema.parse({ ...validBase, type: "View", properties });
 
 describe("ViewNodeSchema (enriched)", () => {
-  it("geçerli View'i parse eder", () => {
+  it("parses valid View", () => {
     const node = parse(validProperties);
     expect(node.properties.SourceTables).toEqual(["users"]);
   });
 
-  it("Columns verilmezse default boş array", () => {
+  it("defaults Columns to empty array when omitted", () => {
     const node = parse(validProperties);
     expect(node.properties.Columns).toEqual([]);
   });
 
-  it("Columns + materialized RefreshStrategy kabul eder", () => {
+  it("accepts Columns + materialized RefreshStrategy", () => {
     const node = parse({
       ...validProperties,
       Materialized: true,
@@ -42,19 +42,19 @@ describe("ViewNodeSchema (enriched)", () => {
     expect(node.properties.Columns).toHaveLength(2);
   });
 
-  it("geçersiz RefreshStrategy reddeder", () => {
+  it("rejects invalid RefreshStrategy", () => {
     expect(() => parse({ ...validProperties, RefreshStrategy: "always" })).toThrow();
   });
 
-  it("Definition boşsa fırlatır", () => {
+  it("throws when Definition is empty", () => {
     expect(() => parse({ ...validProperties, Definition: "" })).toThrow();
   });
 
-  it("SourceTables boşsa fırlatır", () => {
+  it("throws when SourceTables is empty", () => {
     expect(() => parse({ ...validProperties, SourceTables: [] })).toThrow();
   });
 
-  it("Materialized boolean değilse fırlatır", () => {
+  it("throws when Materialized is not boolean", () => {
     expect(() => parse({ ...validProperties, Materialized: "no" })).toThrow();
   });
 });

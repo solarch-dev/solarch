@@ -4,7 +4,7 @@ import { buildCodeGraph } from "../../ir";
 import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function viewNode(properties: Record<string, unknown>, id: string): StoredNode {
   return {
     id,
@@ -46,7 +46,7 @@ const ORDERS_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 const ACTIVE_USERS_VIEW = {
   ViewName: "ActiveUsersView",
-  Description: "Aktif kullanıcı özeti",
+  Description: "Active user summary",
   Definition: "SELECT id, email FROM users WHERE is_active = true",
   SourceTables: ["users"],
   Materialized: false,
@@ -58,7 +58,7 @@ const ACTIVE_USERS_VIEW = {
 
 const USERS_TABLE = {
   TableName: "users",
-  Description: "Kullanıcı",
+  Description: "User",
   Columns: [
     { Name: "Id", DataType: "INT", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: true },
     { Name: "IsActive", DataType: "BOOLEAN", IsPrimaryKey: false, IsNotNull: true, IsUnique: false },
@@ -67,7 +67,7 @@ const USERS_TABLE = {
 
 const ORDERS_TABLE = {
   TableName: "orders",
-  Description: "Sipariş",
+  Description: "Order",
   Columns: [
     { Name: "Id", DataType: "INT", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: true },
   ],
@@ -80,7 +80,7 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     const [file] = emitView(ctx.graph.byId(node.id)!, ctx);
     expect(file).toMatchInlineSnapshot(`
       {
-        "content": "-- Aktif kullanıcı özeti
+        "content": "-- Active user summary
 
       CREATE VIEW "active_users_view" AS
       SELECT id, email FROM users WHERE is_active = true;
@@ -92,7 +92,7 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     `);
   });
 
-  it("TS @ViewEntity de emit eder (repository View'ı tip olarak import edebilsin)", () => {
+  it("TS @ViewEntity de emit eder (repository View'i tip olarak import edebilsin)", () => {
     const node = viewNode(ACTIVE_USERS_VIEW, VIEW_ID);
     const { ctx } = ctxFor(node);
     const files = emitView(ctx.graph.byId(node.id)!, ctx);
@@ -111,7 +111,7 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     const node = viewNode(
       {
         ViewName: "RevenueDaily",
-        Description: "Günlük gelir",
+        Description: "Daily revenue",
         Definition: "SELECT date_trunc('day', created_at) AS d, sum(total) FROM orders GROUP BY 1",
         SourceTables: ["orders"],
         Materialized: true,
@@ -127,7 +127,7 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     expect(file.content).toContain("GROUP BY 1;");
   });
 
-  it("Materialized=false -> RefreshStrategy verilse bile yorum yazılmaz", () => {
+  it("Materialized=false -> RefreshStrategy verilse bile yorum yazilmaz", () => {
     const node = viewNode(
       {
         ...ACTIVE_USERS_VIEW,
@@ -141,11 +141,11 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     expect(file.content).toContain('CREATE VIEW "active_users_view" AS');
   });
 
-  it("Definition'daki sondaki ; ve fazladan boşluk tekrarlanmaz", () => {
+  it("Definition'daki sondaki ; ve fazladan bosluk tekrarlanmaz", () => {
     const node = viewNode(
       {
         ViewName: "TrimMe",
-        Description: "kırp",
+        Description: "trim",
         Definition: "  SELECT 1 ;  ",
         SourceTables: ["users"],
         Materialized: false,
@@ -155,16 +155,16 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     );
     const { ctx } = ctxFor(node);
     const [file] = emitView(ctx.graph.byId(node.id)!, ctx);
-    // Tek ";" — çift ";;" yok, baş/son boşluk kırpıldı.
+    // Tek ";" — cift ";;" yok, bas/son bosluk trimildi.
     expect(file.content).toContain("AS\nSELECT 1;\n");
     expect(file.content).not.toContain(";;");
   });
 
-  it("CRLF satır sonları LF'e indirgenir", () => {
+  it("CRLF satir sonlari LF'e indirgenir", () => {
     const node = viewNode(
       {
         ViewName: "MultiLine",
-        Description: "çok satır",
+        Description: "multiline",
         Definition: "SELECT a\r\nFROM t\r\nWHERE a > 0",
         SourceTables: ["users"],
         Materialized: false,
@@ -178,18 +178,18 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     expect(file.content).toContain("SELECT a\nFROM t\nWHERE a > 0;");
   });
 
-  it("migration sırası: View kaynak Table'larından SONRA gelir (NNN)", () => {
-    // users + orders Table'ları + ActiveUsersView (SourceTables: ["users"]).
+  it("migration sirasi: View kaynak Table'larindan AFTER gelir (NNN)", () => {
+    // users + orders Table'lari + ActiveUsersView (SourceTables: ["users"]).
     const view = viewNode(ACTIVE_USERS_VIEW, VIEW_ID);
     const users = tableNode(USERS_TABLE, USERS_ID);
     const orders = tableNode(ORDERS_TABLE, ORDERS_ID);
     const { ctx } = ctxFor(view, users, orders);
     const [file] = emitView(ctx.graph.byId(VIEW_ID)!, ctx);
-    // 2 Table önce (001, 002), View sonra (003) — kaynak Table'lardan sonra.
+    // 2 Table once (001, 002), View sonra (003) — kaynak Table'lardan sonra.
     expect(file.path).toBe("migrations/003_create_active_users_view.sql");
   });
 
-  it("dil 'sql', yol migrations/ altında, içerik tek satır sonu ile biter", () => {
+  it("dil 'sql', yol migrations/ altinda, content ends with single newline", () => {
     const node = viewNode(ACTIVE_USERS_VIEW, VIEW_ID);
     const { ctx } = ctxFor(node);
     const [file] = emitView(ctx.graph.byId(node.id)!, ctx);
@@ -206,7 +206,7 @@ describe("emitView (View -> Postgres CREATE VIEW migration SQL)", () => {
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("throw yok + DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("throw yok + DETERMINISM: same node twice -> byte-identical", () => {
     const node = viewNode(ACTIVE_USERS_VIEW, VIEW_ID);
     const { ctx } = ctxFor(node);
     expect(() => emitView(ctx.graph.byId(node.id)!, ctx)).not.toThrow();

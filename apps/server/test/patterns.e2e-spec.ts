@@ -17,7 +17,7 @@ import { ConflictFilter } from "../src/common/filters/conflict.filter";
 import { InternalFilter } from "../src/common/filters/internal.filter";
 import { bypassAuth } from "./test-auth";
 
-// Deterministik fake embedder — gerçek model indirmeden vektör index'i test eder.
+// Deterministic fake embedder — tests the vector index without downloading the real model.
 function fakeVec(text: string): number[] {
   const dim = env.EMBED_DIM;
   const v = new Array(dim).fill(0);
@@ -31,11 +31,11 @@ const fakeEmbeddings = {
   embedBatch: async (ts: string[]) => ts.map(fakeVec),
 };
 
-/* Patterns kütüphanesi YALNIZ-OKUMA + seed-scoped (BOLA fix). Yazma uçları
- * (create/delete/promote) kaldırıldı; seed'leme service ile yapılır. Bu e2e:
- * (1) seed pattern okuma round-trip, (2) GÜVENLİK: 'promoted' kaynaklı pattern
- * hiçbir okuma yolundan (list/search) dönmez. */
-describe("Patterns E2E (yalnız-okuma, seed-scoped)", () => {
+/* Patterns library READ-ALONE + seed-scoped (BOLA fix). writing nibs
+* (create/delete/promote) removed; Seeding is done with the service. This is e2e:
+* (1) seed pattern reading round-trip, (2) SECURITY: 'promoted' source pattern
+* does not return from any reading path (list/search). */
+describe("Patterns E2E (read-only, seed-scoped)", () => {
   let container: StartedNeo4jContainer;
   let app: INestApplication;
   let neo4j: Neo4jService;
@@ -81,28 +81,28 @@ describe("Patterns E2E (yalnız-okuma, seed-scoped)", () => {
   });
 
   it("seed pattern → list + getById + search round-trip", async () => {
-    const seeded = await service.create({ name: "Auth akışı", description: "JWT login authentication", tags: ["auth"], graph } as any, "seed");
-    expect(seeded.name).toBe("Auth akışı");
+const seeded = await service.create({ name: "Auth flow", description: "JWT login authentication", tags: ["auth"], graph } as any, "seed");
+expect(seeded.name).toBe("Auth flow");
 
     const list = await request(app.getHttpServer()).get(`${base}/patterns`).expect(200);
-    expect(list.body.data.some((p: { name: string }) => p.name === "Auth akışı")).toBe(true);
+expect(list.body.data.some((p: { name: string }) => p.name === "Auth flow")).toBe(true);
 
     const one = await request(app.getHttpServer()).get(`${base}/patterns/${seeded.id}`).expect(200);
-    expect(one.body.data.name).toBe("Auth akışı");
+expect(one.body.data.name).toBe("Auth flow");
 
-    await new Promise((r) => setTimeout(r, 1500)); // vektör index eventual
+await new Promise((r) => setTimeout(r, 1500)); // vector index eventual
     const search = await request(app.getHttpServer())
       .post(`${base}/patterns/search`).send({ query: "JWT login authentication", k: 5, minScore: 0 }).expect(200);
     expect(search.body.data.length).toBeGreaterThanOrEqual(1);
-    expect(search.body.data[0].pattern.name).toBe("Auth akışı");
+expect(search.body.data[0].pattern.name).toBe("Auth flow");
   });
 
   it("getById olmayan → 404", async () => {
     await request(app.getHttpServer()).get(`${base}/patterns/00000000-0000-0000-0000-000000000000`).expect(404);
   });
 
-  it("GÜVENLİK: 'promoted' pattern okuma yollarından (list/getById/search) DÖNMEZ", async () => {
-    const desc = "GIZLI promoted kiracı mimarisi sensitive";
+it("SECURITY: 'promoted' pattern does NOT return from read paths (list/getById/search)", async () => {
+const desc = "CONFIDENTIAL promoted tenant architecture sensitive";
     const id = "11111111-2222-4333-8444-555555555555";
     await neo4j.run(
       `CREATE (p:Pattern { id:$id, name:'Gizli Promoted', description:$desc, tags:[], graphJson:'{"nodes":[],"edges":[]}', source:'promoted', createdAt: datetime(), embedding:$emb })`,

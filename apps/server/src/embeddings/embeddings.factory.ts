@@ -1,13 +1,13 @@
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { env } from "../config/env";
 
-/** local → her zaman hazır (offline ONNX). bedrock → key + base URL gerekir. */
+/** local → always ready (offline ONNX). bedrock → key + base URL required. */
 export function embeddingsConfigured(): boolean {
   if (env.EMBED_PROVIDER === "local") return true;
   return !!(env.BEDROCK_API_KEY && env.BEDROCK_BASE_URL);
 }
 
-/** bedrock-mantle OpenAI-uyumlu /embeddings. Şu an mantle embed modeli sunmuyor;
+/** bedrock-mantle OpenAI-compatible /embeddings. It does not currently offer a mantle embed model;
  *  ileride sunarsa EMBED_PROVIDER=bedrock + EMBED_MODEL ile devreye girer. */
 export function makeBedrockEmbedder(): OpenAIEmbeddings {
   if (!env.BEDROCK_API_KEY || !env.BEDROCK_BASE_URL) {

@@ -6,13 +6,13 @@ import { SearchPatternDto } from "./dto/search-pattern.dto";
 import { ok } from "../common/envelope";
 import { env } from "../config/env";
 
-/* GÜVENLİK (lansman): Pattern kütüphanesi şu an YALNIZ OKUMA + kanonik 'seed'
- * pattern'leriyle sınırlı. create / delete / promote yazma uçları KALDIRILDI —
- * :Pattern node'unda kiracı (ownerId/orgId) damgası olmadığından bu uçlar
- * kiracılar-arası okuma/silme/prompt-zehirleme açığıydı (BOLA). Yazma + kiracı
- * sahipliği post-launch eklenecek. Seed'leme `pnpm seed:patterns` ile yapılır
- * (PatternsService'i doğrudan çağırır, bu controller'dan geçmez). Okuma yolları
- * repository'de source:'seed' ile kapsamlanır. */
+/* SECURITY (launch): Pattern library is currently READ ONLY + canonical 'seed'
+* Limited to patterns. REMOVED create/delete/promote write bits —
+* :Pattern node has no tenant (ownerId/orgId) stamp so these ends
+* was a cross-tenant read/delete/prompt-poison vulnerability (BOLA). writing + tenant
+* Ownership will be added post-launch. Seeding is done with `pnpm seed:patterns`
+* (Calls PatternsService directly, not through this controller). Reading ways
+* Scoped in the repository with source:'seed'. */
 @ApiTags("Patterns (GraphRAG)")
 @UseGuards(ProjectAccessGuard)
 @Controller()

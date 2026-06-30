@@ -3,16 +3,16 @@ import { createZodDto } from "nestjs-zod";
 import { EdgeKindSchema } from "../../edges/schemas/edge.schema";
 
 // mutations.nodes[]: tempId + type + properties (kind-specific validation
-// GraphService'te NodeSchema ile yapılır). edges[]: tempId referansları.
+// done in GraphService via NodeSchema). edges[]: tempId references.
 const MutationNodeSchema = z.object({
   tempId: z.string().min(1),
   type: z.string().min(1),
   properties: z.record(z.unknown()),
 }).strict();
 
-// Edge uçları iki biçimden biri: tempId (batch içi yeni node) VEYA id (mevcut
-// cloud node UUID'si). Her uç için tam olarak biri verilmeli — CLI push bu
-// köprüyle yeni node'ları mevcut grafa bağlar.
+// Edge endpoints in one of two forms: tempId (new node in batch) OR id (existing
+// cloud node UUID). Exactly one per endpoint must be given — CLI push uses this
+// bridge to connect new nodes to existing graph.
 const MutationEdgeSchema = z.object({
   sourceTempId: z.string().min(1).optional(),
   sourceId: z.string().uuid().optional(),
@@ -31,9 +31,9 @@ const MutationEdgeSchema = z.object({
   });
 
 export const ApplyGraphSchema = z.object({
-  tabId: z.string().uuid().optional(), // üretilen node'ların ev sekmesi (verilmezse default)
-  /** Çatışma koruması: istemcinin delta hesapladığı graf revizyonu. Verilirse
-   *  ve sunucudaki graphRevision farklıysa hiçbir şey yazılmadan 409 dönülür. */
+  tabId: z.string().uuid().optional(), // home tab for generated nodes (default when omitted)
+  /** Conflict protection: graph revision client used to compute delta. When set
+   *  and server graphRevision differs, returns 409 without writing anything. */
   baseRevision: z.number().int().nonnegative().optional(),
   mutations: z.object({
     nodes: z.array(MutationNodeSchema),

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-/** Mevcut bir node'u değiştirir — yeniden adlandırma, açıklama/flag, ya da bir
- *  diziyi değiştirme. Verilen properties mevcut properties üzerine shallow-merge
- *  edilir; sonuç katı şema doğrulamasından geçer. Node tipi DEĞİŞTİRİLEMEZ. */
+/** Modifies an existing node — rename, description/flag, or replace an array.
+ *  Given properties shallow-merge over current properties; result passes strict
+ *  schema validation. Node type CANNOT be changed. */
 
 export const UPDATE_NODE_TOOL_NAME = "update_node";
 

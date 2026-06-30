@@ -1,9 +1,9 @@
 import { CLIENT_KINDS, type AllowRule } from "../types";
 
-/* Plans/Kurallar Matrisi — Bölüm 1 (Whitelist), 6 katman birebir.
- * Belirtilmeyen her bağlantı varsayılan olarak YASAKTIR (default deny). */
+/* Plans/Rules Matrix — Section 1 (Whitelist), 6 layers verbatim.
+ * Any connection not listed is FORBIDDEN by default (default deny). */
 export const WHITELIST: AllowRule[] = [
-  // 1. İstemci ve Dış Erişim Katmanı (Client & Ingress)
+  // 1. Client and External Access Layer (Client & Ingress)
   { source: CLIENT_KINDS, edge: "REQUESTS", target: ["APIGateway", "Controller"], layer: "client",
     note: "Request to the main entry gateway / directly to the API." },
   { source: CLIENT_KINDS, edge: "USES", target: "DTO", layer: "client",
@@ -11,7 +11,7 @@ export const WHITELIST: AllowRule[] = [
   { source: "APIGateway", edge: "ROUTES_TO", target: "Controller", layer: "client",
     note: "Routes requests to the relevant microservice." },
 
-  // 2. İşlem ve Sunum Katmanı (Presentation & Handling)
+  // 2. Processing and Presentation Layer (Presentation & Handling)
   { source: "Controller", edge: "CALLS", target: ["Service", "Orchestrator"], layer: "presentation",
     note: "Starts the Core Business Logic or Saga flow." },
   { source: "Controller", edge: "USES", target: "DTO", layer: "presentation",
@@ -23,7 +23,7 @@ export const WHITELIST: AllowRule[] = [
   { source: "Middleware", edge: "ROUTES_TO", target: "Controller", layer: "presentation",
     note: "Continues the pipeline." },
 
-  // 3. İş Mantığı Katmanı (Business Logic)
+  // 3. Business Logic Layer (Business Logic)
   { source: "Service", edge: "CALLS", target: ["Repository", "Service"], layer: "business",
     note: "DB operations go through the Repository; service-to-service calls are allowed (must not be circular — ERR_COND_001)." },
   { source: "Service", edge: "REQUESTS", target: "ExternalService", layer: "business",
@@ -51,7 +51,7 @@ export const WHITELIST: AllowRule[] = [
   { source: "Orchestrator", edge: "CALLS", target: "Service", layer: "background",
     note: "Coordinates multiple services in the Saga pattern." },
 
-  // 5. Veri Erişim Katmanı (Data Access)
+  // 5. Data Access Layer (Data Access)
   { source: "Repository", edge: "QUERIES", target: ["Table", "View"], layer: "data",
     note: "SELECT operation (empty-table warning: WARN_COND_001)." },
   { source: "Repository", edge: "WRITES", target: "Table", layer: "data",
@@ -63,7 +63,7 @@ export const WHITELIST: AllowRule[] = [
   { source: "Repository", edge: "THROWS", target: "Exception", layer: "data",
     note: "UniqueConstraint and other DB errors." },
 
-  // 6. Veri, Şema ve Kalıtım (Schema & Inheritance)
+  // 6. Data, Schema and Inheritance (Schema & Inheritance)
   { source: "Model", edge: "HAS", target: "Model", layer: "schema",
     note: "Composition: Order HAS OrderItem." },
   { source: "Model", edge: "EXTENDS", target: "Model", layer: "schema",
@@ -95,7 +95,7 @@ export const WHITELIST: AllowRule[] = [
   { source: "Module", edge: "USES", target: "Service", layer: "structure",
     note: "Services exposed by the Module (public API surface)." },
 
-  // 9. Schema (parametre/format) referansları
+  // 9. Schema (parameter/format) references
   { source: "Service", edge: "USES", target: "DTO", layer: "business",
     note: "Method parameter or nested DTO reference." },
   { source: "MessageQueue", edge: "USES", target: "DTO", layer: "background",

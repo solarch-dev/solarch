@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları (service.emitter.spec ile aynı desen) ──────────── */
+/* ── Fixture helpers (service.emitter.spec ile ayni desen) ──────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -49,10 +49,10 @@ const INVENTORY_SVC = "10000000-0000-4000-8000-0000000000a3";
 const SHIPPING_SVC = "10000000-0000-4000-8000-0000000000a4";
 const CHECKOUT_CTRL = "10000000-0000-4000-8000-0000000000a5";
 
-/* ── Node fixture'ları ──────────────────────────────────────────────────── */
+/* ── Node fixtures ──────────────────────────────────────────────────── */
 const paymentService = node("Service", PAYMENT_SVC, {
   ServiceName: "PaymentService",
-  Description: "Ödeme",
+  Description: "Odeme",
   IsTransactionScoped: false,
   Dependencies: [],
   Methods: [],
@@ -74,8 +74,8 @@ const shippingService = node("Service", SHIPPING_SVC, {
   Methods: [],
 });
 
-// Bir Controller'ın CALLS ettiği service'ler "checkout" feature'ını tohumlar;
-// böylece orchestrator + service'ler aynı feature'a düşer (göreli import kısa).
+// Bir Controller'in CALLS ettigi service'ler "checkout" feature'ini tohumlar;
+// boylece orchestrator + service'ler ayni feature'a duser (goreli import kisa).
 const checkoutController = node("Controller", CHECKOUT_CTRL, {
   ControllerName: "CheckoutController",
   Description: "Checkout API",
@@ -85,33 +85,33 @@ const checkoutController = node("Controller", CHECKOUT_CTRL, {
 
 const checkoutOrchestrator = node("Orchestrator", ORCH, {
   OrchestratorName: "CheckoutOrchestrator",
-  Description: "Sipariş onay saga'sı",
+  Description: "Order approval saga",
   Pattern: "Saga",
   Steps: [
     {
       StepName: "ReserveInventory",
       ServiceRef: "InventoryService",
-      Action: "Stok rezerve et",
-      CompensationAction: "Rezervasyonu geri al",
+      Action: "Reserve stock",
+      CompensationAction: "Release reservation",
       OnFailure: "compensate",
     },
     {
       StepName: "ChargePayment",
       ServiceRef: "PaymentService",
-      Action: "Ödemeyi tahsil et",
-      CompensationAction: "Ödemeyi iade et",
+      Action: "Collect payment",
+      CompensationAction: "Refund payment",
       OnFailure: "compensate",
     },
     {
       StepName: "ScheduleShipment",
       ServiceRef: "ShippingService",
-      Action: "Kargoyu planla",
+      Action: "Schedule shipment",
       OnFailure: "retry",
     },
   ],
 });
 
-/* Controller'ın service'leri CALLS etmesi feature ataması için: checkout feature.
+/* Controller'in service'leri CALLS etmesi feature atamasi icin: checkout feature.
  * Orchestrator da bu service'leri CALLS eder (DI). */
 function fullGraphEdges(): StoredEdge[] {
   return [
@@ -125,7 +125,7 @@ function fullGraphEdges(): StoredEdge[] {
 }
 
 describe("emitOrchestrator", () => {
-  it("tam orchestrator — snapshot (DI, dekoratör, execute + adım metotları, surgical marker)", () => {
+  it("tam orchestrator — snapshot (DI, dekorator, execute + adim metotlari, surgical marker)", () => {
     const ctx = ctxFrom(
       [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController],
       fullGraphEdges(),
@@ -138,7 +138,7 @@ describe("emitOrchestrator", () => {
       import { PaymentService } from "./payment.service";
       import { ShippingService } from "./shipping.service";
 
-      /** Sipariş onay saga'sı */
+      /** Order approval saga */
       @Injectable()
       export class CheckoutOrchestrator {
         constructor(
@@ -157,25 +157,25 @@ describe("emitOrchestrator", () => {
 
         async reserveInventory(): Promise<void> {
           // @solarch:surgical id=10000000-0000-4000-8000-0000000000a1#reserveInventory
-          // Stok rezerve et
+          // Reserve stock
           // onFailure: compensate
-          // compensation: Rezervasyonu geri al
+          // compensation: Release reservation
           // deps: this.inventoryService
           throw new Error("NOT_IMPLEMENTED: CheckoutOrchestrator.reserveInventory");
         }
 
         async chargePayment(): Promise<void> {
           // @solarch:surgical id=10000000-0000-4000-8000-0000000000a1#chargePayment
-          // Ödemeyi tahsil et
+          // Collect payment
           // onFailure: compensate
-          // compensation: Ödemeyi iade et
+          // compensation: Refund payment
           // deps: this.paymentService
           throw new Error("NOT_IMPLEMENTED: CheckoutOrchestrator.chargePayment");
         }
 
         async scheduleShipment(): Promise<void> {
           // @solarch:surgical id=10000000-0000-4000-8000-0000000000a1#scheduleShipment
-          // Kargoyu planla
+          // Schedule shipment
           // onFailure: retry
           // deps: this.shippingService
           throw new Error("NOT_IMPLEMENTED: CheckoutOrchestrator.scheduleShipment");
@@ -189,18 +189,18 @@ describe("emitOrchestrator", () => {
     `);
   });
 
-  it("dosya yolu feature klasörü + rol-tekrarsız .orchestrator.ts", () => {
+  it("dosya yolu feature klasoru + rol-tekrarsiz .orchestrator.ts", () => {
     const ctx = ctxFrom(
       [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController],
       fullGraphEdges(),
     );
     const [file] = emitOrchestrator(ctx.graph.byId(ORCH)!, ctx);
-    // base "Checkout" (Orchestrator eki düşer) -> checkout.orchestrator.ts.
+    // base "Checkout" (Orchestrator eki duser) -> checkout.orchestrator.ts.
     expect(file.path).toBe("checkout/checkout.orchestrator.ts");
   });
 
-  it("DI = Steps[].ServiceRef ∪ CALLS hedefleri, DEDUP + isme göre sıralı", () => {
-    // Steps'te 3 service ref + aynı service'lere CALLS edge -> her biri TEK alan.
+  it("DI = Steps[].ServiceRef ∪ CALLS hedefleri, DEDUP + isme gore sirali", () => {
+    // Steps'te 3 service ref + ayni service'lere CALLS edge -> her biri TEK alan.
     const ctx = ctxFrom(
       [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController],
       fullGraphEdges(),
@@ -210,7 +210,7 @@ describe("emitOrchestrator", () => {
     expect(file.content.split("private readonly inventoryService").length - 1).toBe(1);
     expect(file.content.split("private readonly paymentService").length - 1).toBe(1);
     expect(file.content.split("private readonly shippingService").length - 1).toBe(1);
-    // İsme göre sıralı: inventory < payment < shipping.
+    // Isme gore sirali: inventory < payment < shipping.
     const iInv = file.content.indexOf("inventoryService:");
     const iPay = file.content.indexOf("paymentService:");
     const iShp = file.content.indexOf("shippingService:");
@@ -218,13 +218,13 @@ describe("emitOrchestrator", () => {
     expect(iPay).toBeLessThan(iShp);
   });
 
-  it("her adım için + execute için surgical marker + NOT_IMPLEMENTED", () => {
+  it("her adim icin + execute icin surgical marker + NOT_IMPLEMENTED", () => {
     const ctx = ctxFrom(
       [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController],
       fullGraphEdges(),
     );
     const [file] = emitOrchestrator(ctx.graph.byId(ORCH)!, ctx);
-    // 1 execute + 3 adım = 4 marker.
+    // 1 execute + 3 adim = 4 marker.
     expect(file.surgicalMarkers).toBe(4);
     expect(file.content).toContain('throw new Error("NOT_IMPLEMENTED: CheckoutOrchestrator.execute");');
     expect(file.content).toContain('throw new Error("NOT_IMPLEMENTED: CheckoutOrchestrator.reserveInventory");');
@@ -232,8 +232,8 @@ describe("emitOrchestrator", () => {
     expect(file.content).toContain('throw new Error("NOT_IMPLEMENTED: CheckoutOrchestrator.scheduleShipment");');
   });
 
-  it("CALLS edge'i olmadan da Steps[].ServiceRef'ten DI çözer + import üretir", () => {
-    // Hiç CALLS edge yok; DI yalnız Steps[].ServiceRef'ten gelmeli.
+  it("CALLS edge'i olmadan da Steps[].ServiceRef'ten DI cozer + import uretir", () => {
+    // Hic CALLS edge yok; DI yalniz Steps[].ServiceRef'ten gelmeli.
     const ctx = ctxFrom(
       [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController],
       [
@@ -247,16 +247,16 @@ describe("emitOrchestrator", () => {
     expect(file.content).toMatch(/import \{ PaymentService \} from ".*payment\.service"/);
   });
 
-  it("edge-case: kayıp ServiceRef — throw etmez, ham isimden sınıf adı + import atlanır", () => {
+  it("edge-case: kayip ServiceRef — throw etmez, ham isimden sinif adi + import atlanir", () => {
     const lonelyOrch = node("Orchestrator", ORCH, {
       OrchestratorName: "GhostOrchestrator",
-      Description: "Kayıp ref'li akış",
+      Description: "Kayip ref'li akis",
       Pattern: "StateMachine",
       Steps: [
         {
           StepName: "DoThing",
           ServiceRef: "MissingService",
-          Action: "bir şey yap",
+          Action: "do something",
           OnFailure: "abort",
         },
       ],
@@ -266,19 +266,19 @@ describe("emitOrchestrator", () => {
     expect(() => {
       file = emitOrchestrator(ctx.graph.byId(ORCH)!, ctx)[0];
     }).not.toThrow();
-    // Ham ref'ten sınıf adı türetilir.
+    // Ham ref'ten sinif adi turetilir.
     expect(file!.content).toContain("private readonly missingService: MissingService,");
-    // Çözülemeyen service import EDİLMEZ.
+    // Cozulemeyen service import EDILMEZ.
     expect(file!.content).not.toMatch(/import \{ MissingService \}/);
-    // execute + 1 adım = 2 marker.
+    // execute + 1 adim = 2 marker.
     expect(file!.surgicalMarkers).toBe(2);
     expect(file!.content).toContain('throw new Error("NOT_IMPLEMENTED: GhostOrchestrator.doThing");');
   });
 
-  it("edge-case: boş Steps — yine de execute üretir, constructor yok", () => {
+  it("edge-case: bos Steps — yine de execute uretir, constructor yok", () => {
     const emptyOrch = node("Orchestrator", ORCH, {
       OrchestratorName: "EmptyOrchestrator",
-      Description: "Adımsız akış",
+      Description: "Adimsiz akis",
       Pattern: "ProcessManager",
       Steps: [],
     });
@@ -286,12 +286,12 @@ describe("emitOrchestrator", () => {
     const [file] = emitOrchestrator(ctx.graph.byId(ORCH)!, ctx);
     // DI yok -> constructor yok.
     expect(file.content).not.toContain("constructor(");
-    // Yalnız execute() üretilir.
+    // Yalniz execute() uretilir.
     expect(file.content).toContain("async execute(): Promise<void> {");
     expect(file.surgicalMarkers).toBe(1);
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFrom(
       [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController],
       fullGraphEdges(),
@@ -301,7 +301,7 @@ describe("emitOrchestrator", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: iki bağımsız graph kuruluşu -> byte-identical", () => {
+  it("DETERMINISM: two independent graph builds -> byte-identical", () => {
     const nodes = [checkoutOrchestrator, paymentService, inventoryService, shippingService, checkoutController];
     const ctxA = ctxFrom(nodes, fullGraphEdges());
     const a = emitOrchestrator(ctxA.graph.byId(ORCH)!, ctxA)[0].content;

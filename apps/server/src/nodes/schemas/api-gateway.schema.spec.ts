@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   GatewayName: "MainGateway",
-  Description: "Ana giriş kapısı",
+  Description: "Main entry gateway",
   Provider: "Kong" as const,
 };
 
@@ -19,13 +19,13 @@ const parse = (properties: unknown) =>
   APIGatewayNodeSchema.parse({ ...validBase, type: "APIGateway", properties });
 
 describe("APIGatewayNodeSchema (enriched)", () => {
-  it("geçerli APIGateway'i parse eder (Routes default boş)", () => {
+  it("parses valid APIGateway (Routes default empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.Provider).toBe("Kong");
     expect(node.properties.Routes).toEqual([]);
   });
 
-  it("AuthMode + CorsEnabled + Routes kabul eder", () => {
+  it("accepts AuthMode + CorsEnabled + Routes", () => {
     const node = parse({
       ...validProperties,
       AuthMode: "JWT",
@@ -37,11 +37,11 @@ describe("APIGatewayNodeSchema (enriched)", () => {
     expect(node.properties.Routes[0].AuthRequired).toBe(true);
   });
 
-  it("geçersiz AuthMode reddeder", () => {
+  it("rejects invalid AuthMode", () => {
     expect(() => parse({ ...validProperties, AuthMode: "Basic" })).toThrow();
   });
 
-  it("Route Methods boşsa fırlatır", () => {
+  it("throws when Route Methods is empty", () => {
     expect(() => parse({ ...validProperties, Routes: [{ Path: "/x", TargetRef: "C", Methods: [] }] })).toThrow();
   });
 
@@ -50,7 +50,7 @@ describe("APIGatewayNodeSchema (enriched)", () => {
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Bilinmeyen Provider reddeder", () => {
+  it("rejects unknown Provider", () => {
     expect(() => parse({ ...validProperties, Provider: "Apigee" })).toThrow();
   });
 });

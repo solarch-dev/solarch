@@ -1,84 +1,108 @@
 # Self-hosting Solarch
 
-The whole stack — a vector-native Neo4j, the NestJS server, and the canvas web app behind a
-single-origin reverse proxy — runs with one command.
+Configuration and security for running Solarch OSS on your own infrastructure.
 
-## Requirements
+For install steps and a first-run tour, see [Getting started](getting-started.md).
 
-- Docker + Docker Compose
-- A [Clerk](https://clerk.com) application (free) for authentication
-- An API key for an OpenAI-compatible LLM provider (the AI Architect / chat)
+## Required configuration
 
-## Quick start
+| Variable | Purpose |
+|---|---|
+| `NEO4J_PASSWORD` | Neo4j database password (set on first volume init) |
+| `LLM_GENERATION_PROVIDER` | AI Architect provider (`openai`, `anthropic`, `ollama`, …) |
+| `LLM_CHAT_PROVIDER` | Usually same as generation |
+| Provider API key | e.g. `OPENAI_API_KEY` for OpenAI |
 
-The fastest path is the **setup wizard** — it asks for your AI provider + key, Clerk keys, and
-a database password, writes `.env`, and starts the stack:
+Both LLM provider variables are **required** — there is no silent default in code. The install
+wizard pre-fills OpenAI; copy [`.env.example`](../.env.example) uses the same.
 
-```bash
-git clone https://github.com/solarch-dev/solarch.git
-cd solarch
-./install.sh          # Windows: ./install.ps1
-# → http://localhost:3000
-```
-
-Prefer to configure by hand:
+## Quick start (reference)
 
 ```bash
-cp .env.example .env
-# edit .env — set NEO4J_PASSWORD, the Clerk keys, and an AI provider key
+git clone https://github.com/solarch-dev/solarch.git && cd solarch
+./install.sh
 docker compose up --build
 ```
 
-On first boot the server initializes the graph database (schema, the GraphRAG vector index,
-and the canonical pattern seed). This is idempotent, so restarts are safe.
+Open **http://localhost:3000** — fixed local owner identity, no login screen.
 
-## What goes in `.env`
+## Security / exposure
 
-The minimum for a working instance:
+Solarch OSS has **no in-app login**. Security is network-boundary + optional edge auth.
 
-| Variable | Why |
-|---|---|
-| `NEO4J_PASSWORD` | Database password (written on first run; reset the volume to change it later) |
-| `CLERK_SECRET_KEY` + `CLERK_PUBLISHABLE_KEY` | Server-side auth |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Same publishable key, baked into the web build |
-| `LLM_GENERATION_PROVIDER` + that provider's key | AI Architect / chat (OpenAI, Anthropic, DeepSeek, Ollama, …) |
+| Profile | `BIND_ADDRESS` | Basic auth | Who can reach it |
+|---|---|---|---|
+| **Local (default)** | `127.0.0.1` | off | This machine only |
+| **LAN / VPS** | `0.0.0.0` | **required** | Your network / internet (with password) |
 
-Solarch supports many AI providers — see **[ai-providers.md](./ai-providers.md)**. Self-host
-runs with `BILLING_ENABLED=false`, so AI and code generation are **unlimited** with your own
-key. Everything else (Polar billing, PostHog analytics, guest mode) is optional and degrades
-gracefully when left blank. See `.env.example` for the full annotated list.
+### Local (recommended default)
 
-> **Note on the web build:** Vite inlines `VITE_*` variables at build time, so the web image
-> is built locally with your keys via `docker compose up --build`. Change a `VITE_*` value →
-> rebuild (`docker compose up --build`).
-
-## How it fits together
-
-- **neo4j** — graph + vector store (APOC enabled). Internal network only.
-- **server** — NestJS API on `:4000` (internal). Binds `0.0.0.0` inside its container.
-- **web** — Caddy serving the built SPA and reverse-proxying `/api/*` to the server. This is
-  the only service published to the host (`:3000`). Single origin keeps the Clerk
-  `__session` cookie valid for both the app and the API.
-
-## Local development (without Docker)
-
-```bash
-pnpm install
-pnpm db:up                 # start just Neo4j in Docker
-cp apps/server/.env.example apps/server/.env   # fill in keys
-cp apps/web/.env.example apps/web/.env
-pnpm dev                   # web (Vite) + server (Nest) together via Turborepo
+```env
+BIND_ADDRESS=127.0.0.1
+# SOLARCH_BASIC_AUTH_* unset
 ```
 
-The Vite dev server proxies `/api` to the server on `:4000`, mirroring the production
-single-origin setup.
+Docker binds port 3000 to loopback only — other devices cannot connect.
 
-## Optional: data enrichment migrations
+### LAN / remote
 
-Beyond the automatic first-boot setup, a few optional data-enrichment migrations exist for
-richer node-type metadata. Run them against a running stack if needed:
+Use `./install.sh` option **2**, or set manually:
+
+```env
+BIND_ADDRESS=0.0.0.0
+SOLARCH_BASIC_AUTH_USER=solarch
+SOLARCH_BASIC_AUTH_HASH=<bcrypt hash from: caddy hash-password --plaintext 'your-password'>
+```
+
+The browser shows a native HTTP Basic Auth prompt. SSE (AI streaming) works through the same session.
+
+**Before exposing to the internet:** enable basic auth, use a strong Neo4j password, and restrict port 3000 in your firewall (e.g. `ufw allow from 192.168.1.0/24 to any port 3000`).
+
+Alternatives: Tailscale, Cloudflare Access, or SSH tunnel to `127.0.0.1:3000`.
+
+### CLI behind Basic Auth
+
+Caddy uses `Authorization: Basic …`; the CLI uses `Authorization: Bearer slk_…` — one header cannot carry both. Pass the API key separately:
 
 ```bash
-docker compose exec server sh -lc 'node_modules/.bin/tsx src/neo4j/migrations/data/001-enrich-faz-a.ts'
-# ...002, 003, 005-tabs.ts as desired
+curl -u "$SOLARCH_BASIC_AUTH_USER:$PASSWORD" \
+  -H "X-Solarch-Api-Key: slk_your_key" \
+  http://your-host:3000/api/v1/projects
 ```
+
+Details: [CLI & API keys](cli-and-api-keys.md).
+
+## Optional variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LOCAL_USER_ID` | `local_owner` | Identity for browser sessions |
+| `PUBLIC_URL` | `http://localhost:3000` | Public URL (CORS) |
+| `LLM_MODEL` | provider default | Model override |
+| `THROTTLE_BY` | `ip` | Rate limit key: `ip` or `user` |
+| `THROTTLE_LIMIT` | `60` | Global requests per minute |
+| `THROTTLE_TTL_MS` | `60000` | Rate limit window |
+| `AI_THROTTLE_LIMIT` | `20` | AI endpoint requests per minute |
+| `CODEGEN_FILL_THROTTLE_LIMIT` | `10` | Surgical fill requests per minute |
+
+Embeddings (GraphRAG) default to local ONNX — see [AI Architect](ai-architect.md).
+
+## API keys (CLI)
+
+Create keys in the app under **Settings** → use with `solarch login` and MCP/CLI tools.
+See [CLI & API keys](cli-and-api-keys.md).
+
+## AI providers
+
+See [ai-providers.md](ai-providers.md) for the full provider list and Ollama local setup.
+Agent vs Instruct behavior: [AI Architect](ai-architect.md).
+
+## Production deployment
+
+Caddy, systemd, backups: [Deployment](deployment.md).
+
+## See also
+
+- [Getting started](getting-started.md)
+- [Architecture](architecture.md)
+- [Development](development.md)

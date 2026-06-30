@@ -6,53 +6,52 @@ import { countSurgicalMarkers } from "../../surgical";
 import type { NodeKind } from "../../../nodes/schemas";
 
 /* ────────────────────────────────────────────────────────────────────────
- * stub.emitter.ts — kapsam-dışı node'lar için MİNİMAL stub emitter.
+ * stub.emitter.ts — MINIMAL stub emitter for out-of-scope nodes.
  *
- * @deprecated GERÇEK ÜRETİMDE TETİKLENMEZ. EMITTER_REGISTRY'de (index.ts)
- *   bu emitter HİÇ yer almaz; bir node'u stub'a hiçbir kayıt yönlendirmez.
- *   Bu yalnız doğrudan/test çağrısı ile (stub.emitter.spec.ts) çalışan, geçmişe
- *   dönük korunan bir fallback'tır.
+ * @deprecated NOT TRIGGERED IN REAL PRODUCTION. EMITTER_REGISTRY (index.ts)
+ *   does not include this emitter at all; no registry entry routes a node to stub.
+ *   This is a legacy fallback only invoked via direct/test calls (stub.emitter.spec.ts).
  *
- * NEDEN ARTIK ÖLÜ YOL: bir zamanlar v1 backend zinciri DIŞINDA kalan tipler
+ * WHY THIS IS NOW A DEAD PATH: types once outside the v1 backend chain
  *   (Cache, MessageQueue, Worker, APIGateway, EventHandler, Orchestrator,
- *   ExternalService, Middleware, View) bu emitter'a düşerdi. Artık HEPSİNİN
- *   tam emitter'ı var (registry supported: true) -> stub'a düşmezler.
- *   Geriye yalnız kapsam-DIŞI üç tip kalır ve onlar da stub ÜRETMEZ:
- *     - FrontendApp / UIComponent -> EXCLUDED_KINDS (registry'de yok);
- *       codegen.service isExcluded ile hiç DOSYA üretmeden skippedKinds'e sayar.
- *     - EnvironmentVariable -> registry'de yok; scaffold config'i temsil eder,
- *       kod modülü değil; yine hiç dosya üretilmez.
- *   Net: bugün canlı codegen'de bu emitter'a 0 node akar.
+ *   ExternalService, Middleware, View) used to fall through to this emitter. Now ALL
+ *   have full emitters (registry supported: true) -> they never hit stub.
+ *   Only three out-of-scope types remain and they also do NOT produce stubs:
+ *     - FrontendApp / UIComponent -> EXCLUDED_KINDS (not in registry);
+ *       codegen.service isExcluded counts them in skippedKinds without generating FILES.
+ *     - EnvironmentVariable -> not in registry; represents scaffold config,
+ *       not a code module; again no file is generated.
+ *   Net: zero nodes flow to this emitter in live codegen today.
  *
- * Davranış (doğrudan çağrıldığında) hâlâ doğru ve test'lidir; minimal bir
- * iskelet dosya bırakır: node SESSİZCE DÜŞMESİN; graph'taki yeri (in/out edge
- * özeti) kayıt altına alınsın, Surgical AI'ye işaretli bir nokta kalsın.
+ * Behavior (when called directly) is still correct and tested; leaves a minimal
+ * skeleton file so the node is NOT SILENTLY DROPPED; records its place in the graph
+ * (in/out edge summary) and leaves a Surgical AI marker point.
  *
- * Sözleşme:
- *   - default export YOK; named `export const emitStub: NodeEmitter`.
- *   - SAF fonksiyon: (node, ctx) -> GeneratedFile[]. I/O yok, throw yok.
- *   - Yol her zaman filePathFor(node, ctx.graph) ile (hardcode YASAK).
- *   - İçerik DETERMİNİSTİK: edge özeti isme göre sıralı, timestamp/random yok.
- *   - import'lar ImportCollector ile; içerik tek "\n" ile biter.
+ * Contract:
+ *   - no default export; named `export const emitStub: NodeEmitter`.
+ *   - PURE function: (node, ctx) -> GeneratedFile[]. No I/O, no throw.
+ *   - Path always via filePathFor(node, ctx.graph) (hardcode FORBIDDEN).
+ *   - Content DETERMINISTIC: edge summary sorted by name, no timestamp/random.
+ *   - imports via ImportCollector; content ends with single "\n".
  *
- * NOT: stub'lanan tipler PropsByKind içinde DEĞİL — propsOf<...> KULLANILAMAZ.
- * Tek güvenli alan node.name (ir tarafından çözülmüş) + generic Description.
+ * NOTE: stubbed types are NOT in PropsByKind — propsOf<...> CANNOT be used.
+ * Only safe fields: node.name (resolved by ir) + generic Description.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Service'e DI ile enjekte edilebilen stub kind'ları.
- *  @deprecated EFEKTİF OLARAK BOŞ: Cache + ExternalService artık tam emitter'lı
- *  (registry supported: true) -> emitStub'a hiç düşmezler. Bu set yalnız doğrudan
- *  test çağrısında (geçmişe-dönük) @Injectable() davranışını korur; canlı
- *  üretimde hiçbir node bu kümeye eşleşmez. */
+/** Stub kinds injectable into Service via DI.
+ *  @deprecated EFFECTIVELY EMPTY: Cache + ExternalService now have full emitters
+ *  (registry supported: true) -> never fall through to emitStub. This set only
+ *  preserves @Injectable() behavior on direct test calls (legacy); no live
+ *  production node matches this set. */
 const INJECTABLE_STUB_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>(["Cache", "ExternalService"]);
 
-/** Bir stub node'unun export ettiği sınıf adı (TEK KAYNAK). "ImageResultCache"
- *  -> "ImageResultCacheStub". module.emitter bunu provider import'u için kullanır. */
+/** Class name exported by a stub node (SINGLE SOURCE). "ImageResultCache"
+ *  -> "ImageResultCacheStub". module.emitter uses this for provider imports. */
 export function stubClassName(node: CodeNode): string {
   return `${pascalCase(node.name) || pascalCase(node.kindOf())}Stub`;
 }
 
-/** Bir stub node'unun dosya yolu (TEK KAYNAK = filePathFor default kolu). */
+/** File path for a stub node (SINGLE SOURCE = filePathFor default branch). */
 export function stubFilePath(node: CodeNode, graph: CodeGraph): string {
   return filePathFor(node, graph);
 }
@@ -61,17 +60,17 @@ export const emitStub: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   const kind = node.kindOf();
   const className = stubClassName(node);
   const description = readDescription(node);
-  // Enjekte edilebilen stub'lar (Cache/ExternalService) @Injectable() olmalı —
-  // module providers'ına eklenir, NestJS DI bootta çözer.
+  // Injectable stubs (Cache/ExternalService) must be @Injectable() —
+  // added to module providers, resolved by NestJS DI at boot.
   const isInjectable = INJECTABLE_STUB_KINDS.has(kind);
 
-  // Stub yer tutucu import gerektirmez; deseni göstermek için collector kurulur.
+  // Stub placeholder needs no imports; collector set up to show the pattern.
   const imports = new ImportCollector();
   if (isInjectable) imports.add("Injectable", "@nestjs/common");
 
   const lines: string[] = [];
 
-  // Üst banner — bu node'un neden kod üretmediğini ve ne olduğunu açıklar.
+  // Top banner — explains why this node did not generate code and what it is.
   lines.push("/**");
   lines.push(` * ${kind} — out-of-scope node (the v1 backend chain does not generate it).`);
   lines.push(" *");
@@ -79,12 +78,12 @@ export const emitStub: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   lines.push(" * Surgical AI fills in the target behavior at the marked point below.");
   lines.push(" */");
 
-  // Kapsam-dışı surgical marker (member YOK -> id=<nodeId>#stub).
+  // Out-of-scope surgical marker (no member -> id=<nodeId>#stub).
   lines.push(`// @solarch:surgical id=${node.id}#stub`);
   lines.push(`// out-of-scope: ${kind} "${node.name}" is not deterministically generated in v1`);
   if (description) lines.push(`// ${description}`);
 
-  // Edge özeti — node'un graph'taki bağlantıları (deterministik, isme göre sıralı).
+  // Edge summary — node's graph connections (deterministic, sorted by name).
   const edgeLines = buildEdgeSummary(node, ctx);
   if (edgeLines.length > 0) {
     lines.push("//");
@@ -95,8 +94,8 @@ export const emitStub: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
     lines.push("// edges: (none)");
   }
 
-  // Boş placeholder sınıf — sessizce düşmesin; export edilir. Enjekte edilen
-  // stub'lar @Injectable() taşır (module providers'ına eklenir -> boot DI).
+  // Empty placeholder class — not silently dropped; exported. Injectable
+  // stubs carry @Injectable() (added to module providers -> boot DI).
   if (isInjectable) lines.push("@Injectable()");
   lines.push(`export class ${className} {}`);
 
@@ -112,17 +111,17 @@ export const emitStub: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   return [file];
 };
 
-/** node.properties.Description'ı güvenle okur (12 tipte de var ama tip-dışı). */
+/** Safely reads node.properties.Description (present on all 12 types but untyped). */
 function readDescription(node: CodeNode): string {
   const desc = (node.properties as Record<string, unknown>).Description;
   return typeof desc === "string" ? desc.trim() : "";
 }
 
-/* ── Edge özeti ─────────────────────────────────────────────────────────────
- * Çıkan ("-> KIND Name") ve gelen ("<- KIND Name") edge'leri tek satırlık
- * özetlere çevirir. CodeGraph zaten edge'leri kind,source,target,id'ye göre
- * sıralı tuttuğundan outEdges/inEdges sıralı gelir; çıktı deterministiktir.
- * Çözülemeyen uç (kayıp ref) -> "(?)" ile gösterilir, ASLA throw edilmez. */
+/* ── Edge summary ─────────────────────────────────────────────────────────────
+ * Converts outgoing ("-> KIND Name") and incoming ("<- KIND Name") edges to
+ * one-line summaries. CodeGraph already keeps edges sorted by kind,source,target,id
+ * so outEdges/inEdges arrive sorted; output is deterministic.
+ * Unresolved endpoint (missing ref) -> shown as "(?)", NEVER throws. */
 function buildEdgeSummary(node: CodeNode, ctx: EmitterContext): string[] {
   const out: string[] = [];
 
@@ -137,7 +136,7 @@ function buildEdgeSummary(node: CodeNode, ctx: EmitterContext): string[] {
   return out;
 }
 
-/** Bir edge ucunu "KIND Name" biçiminde betimler; uç çözülemezse "(?)". */
+/** Describes an edge endpoint as "KIND Name"; "(?)" when endpoint cannot be resolved. */
 function describeRef(ref: CodeNode | null): string {
   if (!ref) return "(?)";
   const name = ref.name || "(unnamed)";

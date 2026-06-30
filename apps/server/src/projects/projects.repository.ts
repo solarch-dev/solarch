@@ -53,8 +53,8 @@ export class ProjectsRepository {
     return toStoredProject(result.records[0].get("p"));
   }
 
-  /** Çağıranın kapsamındaki projeler: org aktifse o org'unkiler, değilse
-   *  kişisel (ownerId eşleşen ve org'a ait olmayan) projeler. */
+  /** Projects in caller scope: org's projects when org active, otherwise
+   *  personal (ownerId match and not org-owned) projects. */
   async list(scope: { userId: string; orgId: string | null }): Promise<StoredProject[]> {
     const cypher = scope.orgId
       ? `MATCH (p:Project) WHERE p.orgId = $orgId RETURN p ORDER BY p.createdAt DESC`
@@ -79,7 +79,7 @@ export class ProjectsRepository {
     return toStoredProject(result.records[0].get("p"));
   }
 
-  /** Cascade delete: project + tüm node'lar + (DETACH ile) edge'ler. */
+  /** Cascade delete: project + all nodes + edges (DETACH). */
   async delete(id: string): Promise<boolean> {
     const result = await this.neo4j.run(
       `MATCH (p:Project {id: $id})
@@ -102,7 +102,7 @@ export class ProjectsRepository {
     return result.records.length > 0;
   }
 
-  /** Sahipliği devret (misafir → kayıtlı kullanıcı claim akışı). */
+  /** Reassign ownership (e.g. admin transfer). */
   async reassignOwner(id: string, ownerId: string, orgId: string | null): Promise<void> {
     await this.neo4j.run(
       `MATCH (p:Project {id: $id})
@@ -111,23 +111,23 @@ export class ProjectsRepository {
     );
   }
 
-  /** Projeye damgalanmış Constructor sürümünü oku.
-   *  Proje yok -> undefined; proje var ama hiç codegen yapılmamış -> null
-   *  ("henüz üretilmedi"); aksi halde damgalı tam sayı. */
+  /** Read Constructor version stamped on project.
+   *  No project -> undefined; project exists but never codegen'd -> null
+   *  ("not yet generated"); otherwise stamped integer. */
   async getCodegenVersion(id: string): Promise<number | null | undefined> {
     const result = await this.neo4j.run(
       `MATCH (p:Project {id: $id}) RETURN p.codegenVersion AS v`,
       { id },
     );
-    if (result.records.length === 0) return undefined; // proje yok
+    if (result.records.length === 0) return undefined; // no project
     const v = result.records[0].get("v");
     return v == null ? null : Number(v); // Neo4j Integer -> number
   }
 
-  /** Başarılı codegen sonrası proje node'una Constructor sürümünü + ÜRETİM ANINDAKİ
-   *  graphRevision'ı damgalar. İkincisi "diyagram üretimden sonra değişti mi" (drift)
-   *  hesabı için: status, codegenGraphRevision < graphRevision ise drift bildirir.
-   *  toInteger() ile int olarak saklanır (float değil). */
+  /** After successful codegen, stamp Constructor version + graphRevision AT GENERATION TIME
+   *  on project node. Second is for drift ("did diagram change after generation"):
+   *  status reports drift when codegenGraphRevision < graphRevision.
+   *  Stored as int via toInteger() (not float). */
   async setCodegenVersion(id: string, version: number): Promise<void> {
     await this.neo4j.run(
       `MATCH (p:Project {id: $id})
@@ -137,7 +137,7 @@ export class ProjectsRepository {
     );
   }
 
-  /** Üretim anında damgalanan graphRevision — drift hesabı için. Hiç üretilmemişse null. */
+  /** graphRevision stamped at generation time — for drift calculation. null if never generated. */
   async getCodegenGraphRevision(id: string): Promise<number | null> {
     const result = await this.neo4j.run(
       `MATCH (p:Project {id: $id}) RETURN p.codegenGraphRevision AS rev`,
@@ -202,9 +202,9 @@ export class ProjectsRepository {
     );
   }
 
-  /** Graf revizyon sayacını +1'ler ve yeni değeri döner. Yapısal mutasyonlarda
-   *  (node/edge create-update-delete, graph/apply) çağrılır; pozisyon/tab layout
-   *  kaydetme çağırMAZ (drift'e girmez, gereksiz çatışma üretir). */
+  /** Increments graph revision counter by +1 and returns new value. Called on structural
+   *  mutations (node/edge create-update-delete, graph/apply); position/tab layout save
+   *  does NOT call (avoids drift, unnecessary conflicts). */
   async bumpRevision(id: string): Promise<number> {
     const result = await this.neo4j.run(
       `MATCH (p:Project {id: $id})
@@ -225,9 +225,9 @@ export class ProjectsRepository {
     return Number(result.records[0].get("rev"));
   }
 
-  /** İmplementasyon sayaçlarını node'lara yaz (CLI/eklenti raporu).
-   *  Yapısal mutasyon DEĞİL: graphRevision bump edilmez, version artmaz.
-   *  Bilinmeyen nodeId'ler sessizce atlanır (MATCH eşleşmez). */
+  /** Write implementation counters to nodes (CLI/extension report).
+   *  NOT structural mutation: graphRevision not bumped, version not incremented.
+   *  Unknown nodeIds silently skipped (MATCH misses). */
   async setImplementation(
     projectId: string,
     entries: { nodeId: string; total: number; filled: number; filledAi: number }[],
@@ -259,7 +259,7 @@ export class ProjectsRepository {
     };
   }
 
-  /** Projenin tüm node + edge'lerini domain formatında döndürür. */
+  /** Returns all project nodes + edges in domain format. */
   async getGraph(id: string): Promise<{ nodes: Node[]; edges: Edge[] }> {
     const nodesResult = await this.neo4j.run(
       `MATCH (n:Node {projectId: $id}) RETURN n, labels(n) AS labels`,
@@ -306,7 +306,7 @@ function nodeFromRecord(n: any, labels: string[]): Node {
     createdAt: new Date(props.createdAt).toISOString(),
     updatedAt: new Date(props.updatedAt).toISOString(),
     version: Number(props.version ?? 1),
-    // İmplementasyon sayaçları — hiç rapor edilmediyse alan hiç görünmez.
+    // Implementation counters — fields omitted when never reported.
     ...(props.implTotal != null
       ? {
           implTotal: Number(props.implTotal),

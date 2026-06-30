@@ -4,7 +4,7 @@
   "private": true,
   "description": "Solarch — diagram → verified code via a strict rules engine. Monorepo: web (canvas) + server (NestJS + Neo4j).",
   "license": "SEE LICENSE IN ./LICENSE",
-  "homepage": "https://solarch.dev",
+  "homepage": "https://github.com/solarch-dev/solarch",
   "repository": {
     "type": "git",
     "url": "https://github.com/solarch-dev/solarch.git"
@@ -22,6 +22,7 @@
     "build:web": "pnpm --filter @solarch/web build",
     "build:server": "pnpm --filter @solarch/server build",
     "test:server": "pnpm --filter @solarch/server test:unit",
+    "test:e2e": "pnpm --filter @solarch/server test:e2e",
     "db:up": "docker compose up neo4j -d",
     "db:down": "docker compose stop neo4j",
     "compose:up": "docker compose up --build",

@@ -1,7 +1,7 @@
 import { ACTIVE_KINDS, CLIENT_KINDS, PASSIVE_KINDS, type DenyRule } from "../types";
 
-/* Plans/Kurallar Matrisi — Bölüm 2 (Blacklist), 7 ERR kodu.
- * Whitelist'te match olsa bile bu kurallar öncelikle uygulanır. */
+/* Plans/Rules Matrix — Section 2 (Blacklist), 7 ERR codes.
+ * These rules apply first even when whitelist matches. */
 export const BLACKLIST: DenyRule[] = [
   {
     code: "ERR_001",

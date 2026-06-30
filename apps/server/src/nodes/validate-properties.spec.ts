@@ -3,22 +3,22 @@ import { BadRequestException } from "@nestjs/common";
 import { validateNodeProperties } from "./validate-properties";
 
 describe("validateNodeProperties", () => {
-  it("geçerli properties parse edilir + default'lar uygulanır", () => {
+  it("parses valid properties and applies defaults", () => {
     const out = validateNodeProperties("EnvironmentVariable", {
       Key: "PORT",
-      Description: "uygulama portu",
+      Description: "application port",
       DataType: "Number",
       IsSecret: false,
       Environment: ["Dev"],
     });
     expect(out.Key).toBe("PORT");
-    expect(out.IsRequired).toBe(true); // şema default'u
+    expect(out.IsRequired).toBe(true); // schema default
   });
 
-  it("geçersiz properties → ERR_SCHEMA_INVALID + alan detayı", () => {
+  it("invalid properties → ERR_SCHEMA_INVALID + field details", () => {
     let caught: BadRequestException | null = null;
     try {
-      validateNodeProperties("EnvironmentVariable", { Description: "eksik Key", DataType: "Number" });
+      validateNodeProperties("EnvironmentVariable", { Description: "missing Key", DataType: "Number" });
     } catch (e) {
       caught = e as BadRequestException;
     }
@@ -29,7 +29,7 @@ describe("validateNodeProperties", () => {
     expect(body.details.length).toBeGreaterThan(0);
   });
 
-  it("fazla alan reddedilir (strict)", () => {
+  it("rejects extra fields (strict)", () => {
     expect(() =>
       validateNodeProperties("EnvironmentVariable", {
         Key: "X",
@@ -37,12 +37,12 @@ describe("validateNodeProperties", () => {
         DataType: "String",
         IsSecret: false,
         Environment: ["Dev"],
-        Beklenmeyen: "alan",
+        Unexpected: "field",
       }),
     ).toThrow(BadRequestException);
   });
 
-  it("bilinmeyen kind → ERR_UNKNOWN_KIND", () => {
+  it("unknown kind → ERR_UNKNOWN_KIND", () => {
     let caught: BadRequestException | null = null;
     try {
       validateNodeProperties("Nope", {});

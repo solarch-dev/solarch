@@ -3,7 +3,7 @@ import { env } from "../config/env";
 import { embeddingsConfigured, makeBedrockEmbedder } from "./embeddings.factory";
 import type { IEmbeddings } from "./embeddings.types";
 
-/** @xenova/transformers feature-extraction pipeline'ı çağrılabilir bir fonksiyon. */
+/** @xenova/transformers feature-extraction pipeline a callable function. */
 type Extractor = (text: string, opts: { pooling: "mean"; normalize: boolean }) => Promise<{ data: Float32Array }>;
 
 @Injectable()
@@ -16,11 +16,11 @@ export class EmbeddingsService implements IEmbeddings {
     return embeddingsConfigured();
   }
 
-  /** Lokal ONNX modelini tembel yükle (ilk çağrıda ~1sn, sonra cache). */
+/** Lazy load the local ONNX model (~1sec on first call, then cache). */
   private localExtractor(): Promise<Extractor> {
     if (!this.extractorPromise) {
       this.extractorPromise = (async () => {
-        // dynamic import: @xenova/transformers ESM/CJS interop'u CJS build'de güvenli.
+// dynamic import: @xenova/transformers ESM/CJS interop is safe in CJS build.
         const { pipeline } = await import("@xenova/transformers");
         this.logger.log(`Loading local embedder: ${env.EMBED_MODEL}`);
         return (await pipeline("feature-extraction", env.EMBED_MODEL)) as unknown as Extractor;

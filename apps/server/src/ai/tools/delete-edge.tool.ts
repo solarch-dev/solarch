@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-/** Bir edge'i (bağlantıyı) siler. Bir bağlantıyı YENİDEN YÖNLENDİRMEK için:
- *  delete_edge(eskiId) + create_edge(yeni uçlar) — kurallar yeniden çalışır. */
+/** Deletes an edge (connection). To REWIRE a connection:
+ *  delete_edge(oldId) + create_edge(new endpoints) — rules re-run. */
 
 export const DELETE_EDGE_TOOL_NAME = "delete_edge";
 

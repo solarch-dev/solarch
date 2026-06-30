@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ExceptionName: "InvalidPasswordException",
-  Description: "Şifre kural ihlali",
+  Description: "Password rule violation",
   HttpStatusCode: 400,
   LogSeverity: "Warning" as const,
 };
@@ -20,21 +20,21 @@ const parse = (properties: unknown) =>
   ExceptionNodeSchema.parse({ ...validBase, type: "Exception", properties });
 
 describe("ExceptionNodeSchema (enriched)", () => {
-  it("geçerli Exception'ı parse eder", () => {
+  it("parses valid Exception", () => {
     expect(parse(validProperties).properties.HttpStatusCode).toBe(400);
   });
 
-  it("ErrorCode + ParentExceptionRef kabul eder", () => {
+  it("accepts ErrorCode + ParentExceptionRef", () => {
     const node = parse({ ...validProperties, ErrorCode: "ERR_INVALID_PASSWORD", ParentExceptionRef: "ValidationException" });
     expect(node.properties.ErrorCode).toBe("ERR_INVALID_PASSWORD");
     expect(node.properties.ParentExceptionRef).toBe("ValidationException");
   });
 
-  it("HttpStatusCode 100-599 aralığı dışı reddeder", () => {
+  it("rejects HttpStatusCode outside 100-599 range", () => {
     expect(() => parse({ ...validProperties, HttpStatusCode: 600 })).toThrow();
   });
 
-  it("Bilinmeyen LogSeverity reddeder", () => {
+  it("rejects unknown LogSeverity", () => {
     expect(() => parse({ ...validProperties, LogSeverity: "Trace" })).toThrow();
   });
 });

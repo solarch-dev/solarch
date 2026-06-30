@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createZodDto } from "nestjs-zod";
 import { ProjectStatusSchema } from "../schemas/project.schema";
 
-// Sadece anlamlı alanlar — id/createdAt/updatedAt server tarafından üretilir.
+// Meaningful fields only — id/createdAt/updatedAt generated server-side.
 export const CreateProjectSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(""),

@@ -45,26 +45,26 @@ describe("NodesRepository", () => {
     await neo4j.run("MATCH (n:Node) DETACH DELETE n");
   });
 
-  it("create + getById ile node'u geri okur", async () => {
+  it("create + getById reads node back", async () => {
     await repo.create(nodeFixture());
     const got = await repo.getById(projectId, "550e8400-e29b-41d4-a716-446655440000");
     expect(got?.type).toBe("Table");
     expect(got?.properties).toEqual({ TableName: "users", Description: "u", Columns: [], Indexes: [] });
   });
 
-  it("getById yoksa null döner", async () => {
+it("getById otherwise returns null", async () => {
     const got = await repo.getById(projectId, "00000000-0000-0000-0000-000000000000");
     expect(got).toBeNull();
   });
 
-  it("list project'in tüm node'larını döner", async () => {
+  it("list returns all nodes in project", async () => {
     await repo.create(nodeFixture({ id: "550e8400-e29b-41d4-a716-446655440002" }));
     await repo.create(nodeFixture({ id: "550e8400-e29b-41d4-a716-446655440003", type: "DTO", properties: { Name: "X", Description: "d", Fields: [] } }));
     const list = await repo.list(projectId);
     expect(list).toHaveLength(2);
   });
 
-  it("list type filter çalışıyor", async () => {
+  it("list type filter works", async () => {
     await repo.create(nodeFixture({ id: "550e8400-e29b-41d4-a716-446655440002" }));
     await repo.create(nodeFixture({ id: "550e8400-e29b-41d4-a716-446655440003", type: "DTO", properties: { Name: "X", Description: "d", Fields: [] } }));
     const list = await repo.list(projectId, "Table");
@@ -72,7 +72,7 @@ describe("NodesRepository", () => {
     expect(list[0].type).toBe("Table");
   });
 
-  it("update position ve properties replace eder", async () => {
+  it("update replaces position and properties", async () => {
     await repo.create(nodeFixture());
     await repo.update(projectId, "550e8400-e29b-41d4-a716-446655440000", {
       positionX: 999,
@@ -86,13 +86,13 @@ describe("NodesRepository", () => {
     expect(got?.updatedAt).toBe("2026-05-21T11:00:00.000Z");
   });
 
-  it("create version=1 ile başlar", async () => {
+  it("create starts with version=1", async () => {
     await repo.create(nodeFixture());
     const got = await repo.getById(projectId, "550e8400-e29b-41d4-a716-446655440000");
     expect(got?.version).toBe(1);
   });
 
-  it("update version'u +1 yapar (expectedVersion'suz — geriye uyum)", async () => {
+  it("update increments version by +1 (no expectedVersion — backward compat)", async () => {
     await repo.create(nodeFixture());
     const updated = await repo.update(projectId, "550e8400-e29b-41d4-a716-446655440000", {
       positionX: 5, updatedAt: "2026-05-21T11:00:00.000Z",
@@ -100,7 +100,7 @@ describe("NodesRepository", () => {
     expect(updated?.version).toBe(2);
   });
 
-  it("doğru expectedVersion ile update geçer + version artar", async () => {
+  it("update with correct expectedVersion succeeds and increments version", async () => {
     await repo.create(nodeFixture());
     const updated = await repo.update(projectId, "550e8400-e29b-41d4-a716-446655440000", {
       positionX: 5, updatedAt: "2026-05-21T11:00:00.000Z", expectedVersion: 1,
@@ -108,31 +108,31 @@ describe("NodesRepository", () => {
     expect(updated?.version).toBe(2);
   });
 
-  it("stale expectedVersion → null (atomik guard, lost-update engellenir)", async () => {
+  it("stale expectedVersion -> null (atomic guard prevents lost update)", async () => {
     await repo.create(nodeFixture());
-    // ilk update version'u 2'ye çıkarır
+    // first update bumps version to 2
     await repo.update(projectId, "550e8400-e29b-41d4-a716-446655440000", {
       positionX: 5, updatedAt: "2026-05-21T11:00:00.000Z", expectedVersion: 1,
     });
-    // ikinci update hâlâ eski version=1 bekliyor → reddedilir (0 kayıt)
+    // second update still expects version=1 -> rejected (0 rows)
     const stale = await repo.update(projectId, "550e8400-e29b-41d4-a716-446655440000", {
       positionX: 9, updatedAt: "2026-05-21T12:00:00.000Z", expectedVersion: 1,
     });
     expect(stale).toBeNull();
-    // veri ilk update'te kaldı (ikinci ezmedi)
+    // data stays at first update (second did not overwrite)
     const got = await repo.getById(projectId, "550e8400-e29b-41d4-a716-446655440000");
     expect(got?.positionX).toBe(5);
     expect(got?.version).toBe(2);
   });
 
-  it("delete silinen node'u getById null döndürür", async () => {
+  it("delete causes getById to return null for removed node", async () => {
     await repo.create(nodeFixture());
     await repo.delete(projectId, "550e8400-e29b-41d4-a716-446655440000");
     const got = await repo.getById(projectId, "550e8400-e29b-41d4-a716-446655440000");
     expect(got).toBeNull();
   });
 
-  it("findByName proje içi unique check için kullanılır", async () => {
+  it("findByName used for in-project unique check", async () => {
     await repo.create(nodeFixture());
     const found = await repo.findByName(projectId, "users");
     expect(found?.id).toBe("550e8400-e29b-41d4-a716-446655440000");

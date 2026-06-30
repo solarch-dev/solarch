@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ControllerName: "UserController",
-  Description: "Kullanıcı API",
+  Description: "User API",
   BaseRoute: "/api/v1/users",
   Version: "v1",
   Endpoints: [
@@ -29,14 +29,14 @@ const parse = (properties: unknown) =>
   ControllerNodeSchema.parse({ ...validBase, type: "Controller", properties });
 
 describe("ControllerNodeSchema (enriched)", () => {
-  it("geçerli Controller'ı parse eder", () => {
+  it("parses valid Controller", () => {
     const node = parse(validProperties);
     expect(node.properties.Endpoints[0].HttpMethod).toBe("POST");
     expect(node.properties.Endpoints[0].RequestDTORef).toBe("RegisterUserRequestDTO");
     expect(node.properties.Version).toBe("v1");
   });
 
-  it("endpoint default dizileri (RequiredRoles/PathParams/QueryParams/...)", () => {
+  it("endpoint default arrays (RequiredRoles/PathParams/QueryParams/...)", () => {
     const ep = parse(validProperties).properties.Endpoints[0];
     expect(ep.RequiredRoles).toEqual([]);
     expect(ep.PathParams).toEqual([]);
@@ -45,7 +45,7 @@ describe("ControllerNodeSchema (enriched)", () => {
     expect(ep.MiddlewareRefs).toEqual([]);
   });
 
-  it("zengin endpoint (path/query params + status + rate limit + middleware) kabul eder", () => {
+  it("accepts rich endpoint (path/query params + status + rate limit + middleware)", () => {
     const node = parse({
       ...validProperties,
       Endpoints: [{
@@ -66,23 +66,23 @@ describe("ControllerNodeSchema (enriched)", () => {
     expect(ep.MiddlewareRefs).toEqual(["AuthMiddleware"]);
   });
 
-  it("eski RequestDTO/ResponseDTO alanını reddeder (strict)", () => {
+  it("rejects legacy RequestDTO/ResponseDTO field (strict)", () => {
     expect(() => parse({
       ...validProperties,
       Endpoints: [{ HttpMethod: "GET", Route: "/", RequiresAuth: false, RequestDTO: "X" }],
     })).toThrow();
   });
 
-  it("Description zorunlu", () => {
+  it("Description is required", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Endpoints boşsa fırlatır", () => {
+  it("throws when Endpoints is empty", () => {
     expect(() => parse({ ...validProperties, Endpoints: [] })).toThrow();
   });
 
-  it("Bilinmeyen HttpMethod reddeder", () => {
+  it("rejects unknown HttpMethod", () => {
     expect(() => parse({ ...validProperties, Endpoints: [{ HttpMethod: "FETCH", Route: "/", RequiresAuth: false }] })).toThrow();
   });
 });

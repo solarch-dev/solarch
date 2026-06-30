@@ -23,11 +23,11 @@ import { ModuleNodeSchema } from "../schemas/module.schema";
 import { APIGatewayNodeSchema } from "../schemas/api-gateway.schema";
 import { OrchestratorNodeSchema } from "../schemas/orchestrator.schema";
 
-// id/createdAt/updatedAt server tarafından üretilir — client göndermez.
+// id/createdAt/updatedAt generated server-side — client does not send.
 const CreatableBaseFields = {
   projectId: z.string().uuid(),
   position: PositionSchema,
-  homeTabId: z.string().uuid().optional(), // verilmezse projenin default sekmesi
+  homeTabId: z.string().uuid().optional(), // project default tab when omitted
 };
 
 const make = <K extends string>(kind: K, propertiesSchema: z.ZodTypeAny) =>
@@ -63,5 +63,5 @@ export const CreateNodeSchema = z.discriminatedUnion("type", [
 
 export type CreateNodeInput = z.infer<typeof CreateNodeSchema>;
 
-// discriminated union createZodDto type signature ile uyuşmuyor — runtime'da çalışıyor
+// discriminated union does not match createZodDto type signature — works at runtime
 export class CreateNodeDto extends createZodDto(CreateNodeSchema as any) {}

@@ -3,14 +3,14 @@ import { BadRequestException } from "@nestjs/common";
 import { assertNoPlaintextSecret, redactNodeSecrets } from "./secret-redaction";
 
 describe("secret-redaction", () => {
-  describe("assertNoPlaintextSecret (yazım)", () => {
-    it("secret + düz-metin DefaultValue reddedilir (ERR_SECRET_PLAINTEXT)", () => {
+  describe("assertNoPlaintextSecret (write)", () => {
+    it("rejects secret + plain-text DefaultValue (ERR_SECRET_PLAINTEXT)", () => {
       let caught: BadRequestException | null = null;
       try {
         assertNoPlaintextSecret("EnvironmentVariable", {
           Key: "AWS_SECRET",
           IsSecret: true,
-          DefaultValue: "AKIA-cok-gizli",
+          DefaultValue: "AKIA-very-secret",
         });
       } catch (e) {
         caught = e as BadRequestException;
@@ -19,30 +19,30 @@ describe("secret-redaction", () => {
       expect((caught!.getResponse() as { code: string }).code).toBe("ERR_SECRET_PLAINTEXT");
     });
 
-    it("secret ama DefaultValue boş/yoksa geçer", () => {
+    it("passes when secret but DefaultValue empty/missing", () => {
       expect(() => assertNoPlaintextSecret("EnvironmentVariable", { IsSecret: true, DefaultValue: "" })).not.toThrow();
       expect(() => assertNoPlaintextSecret("EnvironmentVariable", { IsSecret: true })).not.toThrow();
       expect(() => assertNoPlaintextSecret("EnvironmentVariable", { IsSecret: true, DefaultValue: "   " })).not.toThrow();
     });
 
-    it("secret değilse DefaultValue serbest", () => {
+    it("allows DefaultValue when not secret", () => {
       expect(() => assertNoPlaintextSecret("EnvironmentVariable", { IsSecret: false, DefaultValue: "3000" })).not.toThrow();
     });
 
-    it("EnvironmentVariable dışındaki tipler kapsam dışı", () => {
+    it("out of scope for non-EnvironmentVariable types", () => {
       expect(() => assertNoPlaintextSecret("Service", { IsSecret: true, DefaultValue: "x" })).not.toThrow();
     });
   });
 
-  describe("redactNodeSecrets (okuma)", () => {
-    it("secret DefaultValue okumada boşlanır, girdi mutate edilmez", () => {
-      const props = { Key: "AWS_SECRET", IsSecret: true, DefaultValue: "AKIA-cok-gizli" };
+  describe("redactNodeSecrets (read)", () => {
+    it("clears secret DefaultValue on read without mutating input", () => {
+      const props = { Key: "AWS_SECRET", IsSecret: true, DefaultValue: "AKIA-very-secret" };
       const out = redactNodeSecrets("EnvironmentVariable", props);
       expect(out.DefaultValue).toBe("");
-      expect(props.DefaultValue).toBe("AKIA-cok-gizli"); // orijinal değişmedi
+      expect(props.DefaultValue).toBe("AKIA-very-secret"); // original unchanged
     });
 
-    it("secret olmayan/diğer tipler aynen döner", () => {
+    it("returns non-secret/other types unchanged", () => {
       const a = { IsSecret: false, DefaultValue: "3000" };
       expect(redactNodeSecrets("EnvironmentVariable", a)).toBe(a);
       const b = { Foo: "bar" };

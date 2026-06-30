@@ -15,7 +15,7 @@ const validTablePayload = {
 };
 
 describe("NodesController.create", () => {
-  it("service.create'i URL projectId ile çağırır ve envelope döner", async () => {
+  it("calls service.create with URL projectId and returns envelope", async () => {
     const service = { create: vi.fn(async (_p, input) => ({ ...input, id: "x", createdAt: "t", updatedAt: "t" })) };
     const controller = new NodesController(service as unknown as NodesService);
     const result = await controller.create(projectId, validTablePayload as any);
@@ -26,7 +26,7 @@ describe("NodesController.create", () => {
 });
 
 describe("NodesController.getById", () => {
-  it("service.getById'i çağırır ve envelope döner", async () => {
+  it("calls service.getById and returns envelope", async () => {
     const service = { getById: vi.fn(async () => ({ id: "x", type: "Table" })) };
     const controller = new NodesController(service as unknown as NodesService);
     const result = await controller.getById("p", "x");
@@ -36,7 +36,7 @@ describe("NodesController.getById", () => {
 });
 
 describe("NodesController.list", () => {
-  it("type filter ile çağırır", async () => {
+  it("calls with type filter", async () => {
     const service = { list: vi.fn(async () => [{ id: "x", type: "Table" }]) };
     const controller = new NodesController(service as unknown as NodesService);
     const result = await controller.list("p", "Table");
@@ -45,7 +45,7 @@ describe("NodesController.list", () => {
     expect(result.data.total).toBe(1);
   });
 
-  it("type filter olmadan çağırır", async () => {
+  it("calls without type filter", async () => {
     const service = { list: vi.fn(async () => []) };
     const controller = new NodesController(service as unknown as NodesService);
     const result = await controller.list("p", undefined);
@@ -65,7 +65,7 @@ describe("NodesController.update", () => {
 });
 
 describe("NodesController.delete", () => {
-  it("service.delete'i çağırır", async () => {
+  it("calls service.delete", async () => {
     const service = { delete: vi.fn(async () => undefined) };
     const controller = new NodesController(service as unknown as NodesService);
     await controller.delete("p", "x");

@@ -3,22 +3,22 @@ import type { CodeNode, CodeGraph } from "./ir";
 import type { ImportCollector } from "./imports";
 
 /* ────────────────────────────────────────────────────────────────────────
- * naming.ts — DETERMİNİSTİK isim ve yol üretimi.
+ * naming.ts — DETERMINISTIC isim ve yol uretimi.
  *
- * Tüm emitter'lar isim dönüşümü ve dosya yolu için YALNIZ bu modülü kullanır
- * (hardcode case dönüşümü YASAK). Aynı node -> aynı isim -> aynı yol.
+ * Tum emitter'lar isim donusumu ve dosya yolu icin YALNIZ bu modulu kullanir
+ * (hardcode case donusumu YASAK). Ayni node -> ayni isim -> ayni yol.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Bir tanımlayıcıyı kelimelere böler: camelCase, PascalCase, snake_case,
- *  kebab-case, "boşluklu metin" — hepsini normalize eder. */
+/** Bir tanimlayiciyi kelimelere boler: camelCase, PascalCase, snake_case,
+ *  kebab-case, "bosluklu metin" — hepsini normalize eder. */
 export function splitWords(input: string): string[] {
   return (
     input
-      // camelCase / PascalCase sınırı: "userId" -> "user Id"
+      // camelCase / PascalCase siniri: "userId" -> "user Id"
       .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-      // ardışık büyük harf + sözcük: "HTTPServer" -> "HTTP Server"
+      // ardisik buyuk harf + sozcuk: "HTTPServer" -> "HTTP Server"
       .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-      // ayraçlar
+      // ayraclar
       .split(/[\s\-_./]+/)
       .filter((w) => w.length > 0)
   );
@@ -38,11 +38,11 @@ export function camelCase(input: string): string {
   return p.length === 0 ? p : p[0].toLowerCase() + p.slice(1);
 }
 
-/** Bir property/field adını TS ÜYE TANIMLAYICISI olarak normalize eder (entity/model
- *  alanı + ilişki prop). Diyagram PascalCase yazsa da (Id, CustomerId, Title) idiomatik
- *  TS camelCase'e çevirir → Surgical AI grounding'i de bu yüzeyi okuyup uyumlu camelCase
- *  gövde üretir. DB kolon ADI DEĞİL — o ham `.Name`'den snakeCase ile ayrı türetilir
- *  (SnakeNamingStrategy member adını aynı snake_case'e indirir, drift olmaz). */
+/** Bir property/field adini TS UYE TANIMLAYICISI olarak normalize eder (entity/model
+ *  alani + iliski prop). Diyagram PascalCase yazsa da (Id, CustomerId, Title) idiomatik
+ *  TS camelCase'e cevirir → Surgical AI grounding'i de bu yuzeyi okuyup uyumlu camelCase
+ *  govde uretir. DB kolon ADI NOT — o ham `.Name`'den snakeCase ile ayri turetilir
+ *  (SnakeNamingStrategy member adini ayni snake_case'e indirir, drift olmaz). */
 export const tsPropName = camelCase;
 
 /** "UserProfile" -> "user-profile". */
@@ -55,24 +55,24 @@ export function snakeCase(input: string): string {
   return splitWords(input).map(lower).join("_");
 }
 
-/* ── Fiziksel tablo adı — TEK KAYNAK ───────────────────────────────────────
- * Bir Table node'unun TableName'i (ve TableRef ile ona bağlanan Model'in
- * @Entity adı) DAİMA bu fonksiyondan gelir; böylece migration'daki
- * `CREATE TABLE` ile entity'nin `@Entity(...)` adı ASLA ayrışmaz.
+/* ── Fiziksel tablo adi — TEK SOURCE ───────────────────────────────────────
+ * Bir Table node'unun TableName'i (ve TableRef ile ona baglanan Model'in
+ * @Entity adi) DAIMA bu fonksiyondan gelir; boylece migration'daki
+ * `CREATE TABLE` ile entity'nin `@Entity(...)` adi ASLA ayrismaz.
  *
- * KARAR: TableName author'ın seçtiği LİTERAL fiziksel tablo adıdır — tekrar
- * çoğullanmaz (yalnız snake_case'lenir). "users" -> "users", "User" -> "user",
- * "OrderItem" -> "order_item". (Açık ad yoksa class adından türetmek için ayrıca
- * pluralizeSnake kullanılır — bkz. model.emitter resolveTableName.) */
+ * KARAR: TableName author'in sectigi LITERAL fiziksel tablo adidir — tekrar
+ * cogullanmaz (yalniz snake_case'lenir). "users" -> "users", "User" -> "user",
+ * "OrderItem" -> "order_item". (Acik ad yoksa class adindan turetmek icin ayrica
+ * pluralizeSnake kullanilir — bkz. model.emitter resolveTableName.) */
 export function tableSqlName(rawTableName: string): string {
   return snakeCase(rawTableName);
 }
 
-/* ── Çok basit, deterministik İngilizce çoğullama ──────────────────────────
- * Kapsam: yaygın kurallar. AI/sözlük YOK — codegen deterministik kalsın.
+/* ── Cok basit, deterministik Ingilizce cogullama ──────────────────────────
+ * Kapsam: yaygin kurallar. AI/sozluk NONE — codegen deterministik kalsin.
  * "category" -> "categories", "box" -> "boxes", "user" -> "users".
- * YALNIZ açık TableName'i OLMAYAN bir tabloyu class adından türetmek için
- * kullanılır (Model.TableRef yoksa). Açık TableName'e ASLA uygulanmaz. */
+ * YALNIZ acik TableName'i WITHOUT bir tabloyu class adindan turetmek icin
+ * kullanilir (Model.TableRef yoksa). Acik TableName'e ASLA uygulanmaz. */
 export function pluralizeSnake(input: string): string {
   const base = snakeCase(input);
   if (base.length === 0) return base;
@@ -84,7 +84,7 @@ export function pluralizeSnake(input: string): string {
 function pluralizeWord(w: string): string {
   if (w.length === 0) return w;
   const endsWith = (s: string) => w.endsWith(s);
-  // -y -> -ies (ünsüzden sonra)
+  // -y -> -ies (unsuzden sonra)
   if (endsWith("y") && w.length > 1 && !"aeiou".includes(w[w.length - 2])) {
     return w.slice(0, -1) + "ies";
   }
@@ -95,12 +95,12 @@ function pluralizeWord(w: string): string {
   return w + "s";
 }
 
-/* ── Şema tip stringi -> TypeScript skaler tipi ────────────────────────────
- * Şemadaki serbest tip string'leri (Param/QueryParam.Type, Model.Property.Type,
- * DTO.Field.DataType) yaygın eş anlamlıları TS tiplerine normalize eder. Bilinmeyen
- * tip OLDUĞU GİBİ döner (özel sınıf/DTO adı geçişi için). Üç emitter da (controller/
- * model/dto) aynı eşlemeyi paylaşsın diye buradadır — aksi halde controller
- * `id: uuid` gibi GEÇERSİZ TS üretirdi (uuid bir TS tipi değil). */
+/* ── Sema tip stringi -> TypeScript skaler tipi ────────────────────────────
+ * Semadaki serbest tip string'leri (Param/QueryParam.Type, Model.Property.Type,
+ * DTO.Field.DataType) yaygin es anlamlilari TS tiplerine normalize eder. Bilinmeyen
+ * tip OLDUGU GIBI doner (ozel sinif/DTO adi gecisi icin). Uc emitter da (controller/
+ * model/dto) ayni eslemeyi paylassin diye buradadir — aksi halde controller
+ * `id: uuid` gibi GECERSIZ TS uretirdi (uuid bir TS tipi degil). */
 export function scalarTsType(raw: string): string {
   switch ((raw ?? "").trim().toLowerCase()) {
     case "":
@@ -143,12 +143,12 @@ export function scalarTsType(raw: string): string {
     case "time":
       return "Date";
     // JSON/JSONB: serbest tip string'i olarak verilen JSON -> Record<string, unknown>
-    //   (sql-type-map ile tutarlı; bare `JSON` GEÇERSİZ TS üretmesin).
+    //   (sql-type-map ile tutarli; bare `JSON` GECERSIZ TS uretmesin).
     case "json":
     case "jsonb":
       return "Record<string, unknown>";
     // Parametresiz koleksiyon-ism'i (DataType="Array"/"List", eleman tipi yok) → bare
-    // `Array` GEÇERSİZ TS (TS2314: tip argümanı ister). Güvenli degradasyon: `unknown`
+    // `Array` GECERSIZ TS (TS2314: tip argumani ister). Guvenli degradasyon: `unknown`
     // (IsCollection ekiyle `unknown[]`). Parametreli `List<X>`/`X[]` resolveTypeRef yolunda.
     case "array":
     case "list":
@@ -158,22 +158,22 @@ export function scalarTsType(raw: string): string {
   }
 }
 
-/* ── Serbest tip stringi -> GEÇERLİ TS tipi (scalar + ref çözümü + import) ──
- * Repository CustomQuery ve Service metot param/return tipleri şemada SERBEST
- * string'tir (ör. "User", "UUID", "User[]", "Promise<User>"). Ham bırakılırsa
- * "User"/"UUID" gibi tanımsız semboller `nest build`'i TS2304 ile kırar.
+/* ── Serbest tip stringi -> GECERLI TS tipi (scalar + ref cozumu + import) ──
+ * Repository CustomQuery ve Service metot param/return tipleri semada SERBEST
+ * string'tir (or. "User", "UUID", "User[]", "Promise<User>"). Ham birakilirsa
+ * "User"/"UUID" gibi tanimsiz semboller `nest build`'i TS2304 ile kirar.
  *
- * resolveTypeRef tek bir tip token'ını:
+ * resolveTypeRef tek bir tip token'ini:
  *   1) scalarTsType ile normalize eder (uuid->string, int->number, date->Date...),
- *   2) skaler değilse Model/DTO/Enum node'u olarak çözmeye çalışır -> çözülürse
- *      sınıf adını import eder (fromFile'a göreli) ve döndürür,
- *   3) hiçbiri değilse token'ı OLDUĞU GİBİ bırakır (serbest tip; derlemeyi
- *      kırabilir ama bu zaten kullanıcının verdiği tiptir — controller.emitter
- *      ile aynı tolerans).
+ *   2) skaler degilse Model/DTO/Enum node'u olarak cozmeye calisir -> cozulurse
+ *      sinif adini import eder (fromFile'a goreli) ve dondurur,
+ *   3) hicbiri degilse token'i OLDUGU GIBI birakir (serbest tip; derlemeyi
+ *      kirabilir ama bu zaten kullanicinin verdigi tiptir — controller.emitter
+ *      ile ayni tolerans).
  *
- * Kompozit tipleri (Array<X>, X[], Promise<X>, X | null, X | undefined) parçalar:
- * sarmalayıcıyı korur, İÇERDEKİ tanımlayıcıları tek tek çözer. Determinizm:
- * yalnız ham string üzerinde regex; node sırası graph'tan gelir.
+ * Kompozit tipleri (Array<X>, X[], Promise<X>, X | null, X | undefined) parcalar:
+ * sarmalayiciyi korur, ICERDEKI tanimlayicilari tek tek cozer. Determinizm:
+ * yalniz ham string uzerinde regex; node sirasi graph'tan gelir.
  * ──────────────────────────────────────────────────────────────────────── */
 export function resolveTypeRef(
   rawType: string,
@@ -183,16 +183,16 @@ export function resolveTypeRef(
 ): string {
   const raw = (rawType ?? "").trim();
   if (raw.length === 0) return "void";
-  // LLM-yazımı koleksiyon-ism'i: `List<X>` (Java/Kotlin) geçerli TS değil →
-  // TS-native `Array<X>` (sözcük-sınırlı, büyük/küçük harf duyarsız; `UserList`
-  // dokunulmaz). Aşağıdaki döngü `Array`'i zaten passthrough geçer, içteki X'i çözer.
+  // LLM-yazimi koleksiyon-ism'i: `List<X>` (Java/Kotlin) gecerli TS degil →
+  // TS-native `Array<X>` (sozcuk-sinirli, buyuk/kucuk harf duyarsiz; `UserList`
+  // dokunulmaz). Asagidaki dongu `Array`'i zaten passthrough gecer, icteki X'i cozer.
   const t = raw.replace(/\bList\s*</gi, "Array<");
-  // Her tanımlayıcı parçasını çöz; tanımlayıcı-olmayan kısımları (<>[]|, boşluk)
-  // olduğu gibi koru. Bu, Promise<User>, User[], User | null gibi tipleri kapsar.
+  // Her tanimlayici parcasini coz; tanimlayici-olmayan kisimlari (<>[]|, bosluk)
+  // oldugu gibi koru. Bu, Promise<User>, User[], User | null gibi tipleri kapsar.
   return t.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (token) => resolveTypeToken(token, graph, fromFile, imports));
 }
 
-/** Bilinen tip-anahtar kelimeleri (çözülmez; olduğu gibi geçer). */
+/** Bilinen tip-anahtar kelimeleri (cozulmez; oldugu gibi gecer). */
 const TS_TYPE_KEYWORDS = new Set([
   "Promise", "Array", "Record", "Map", "Set", "Partial", "Readonly", "Pick", "Omit",
   "string", "number", "boolean", "Date", "void", "any", "unknown", "null", "undefined",
@@ -206,54 +206,54 @@ function resolveTypeToken(
   imports: ImportCollector,
 ): string {
   if (TS_TYPE_KEYWORDS.has(token)) return token;
-  // Skaler eş anlamlı mı? (uuid/int/date ...) -> TS skaleri.
+  // Skaler es anlamli mi? (uuid/int/date ...) -> TS skaleri.
   const scalar = scalarTsType(token);
   if (scalar !== token) return scalar;
-  // Skaler değil -> bir Model/DTO/Enum node'u olabilir; çöz + import et.
+  // Skaler degil -> bir Model/DTO/Enum node'u olabilir; coz + import et.
   const node = graph.resolveRef(["Model", "DTO", "Enum"], token);
   if (node) {
     const cls = pascalCase(node.name);
     const path = importPathOf(relativeImportPath(fromFile, filePathFor(node, graph)));
-    // Enum tip-pozisyonunda görünse de gövdede DEĞER olarak kullanılır (Status.SUBMITTED,
-    // Object.values(Enum)) → VALUE import. `import type` olsa TS1361 verir. Model/DTO tip-only kalır.
+    // Enum tip-pozisyonunda gorunse de govdede DEGER olarak kullanilir (Status.SUBMITTED,
+    // Object.values(Enum)) → VALUE import. `import type` olsa TS1361 verir. Model/DTO tip-only kalir.
     if (node.kindOf() === "Enum") imports.add(cls, path);
     else imports.addType(cls, path);
     return cls;
   }
-  // Bir DB View mi? (repository View döndürür). View migration + TS @ViewEntity üretir;
-  // tip olarak @ViewEntity sınıfını import et (filePathFor(View) migration'dır → viewEntityFilePath).
+  // Bir DB View mi? (repository View dondurur). View migration + TS @ViewEntity uretir;
+  // tip olarak @ViewEntity sinifini import et (filePathFor(View) migration'dir → viewEntityFilePath).
   const view = graph.resolveRef("View", token);
   if (view) {
     const cls = pascalCase(view.name);
-    // @ViewEntity bir SINIF — gövdede değer olarak da kullanılabilir (repository token,
-    // new) → VALUE import (Enum ile aynı; `import type` TS1361 verir).
+    // @ViewEntity bir SINIF — govdede deger olarak da kullanilabilir (repository token,
+    // new) → VALUE import (Enum ile ayni; `import type` TS1361 verir).
     imports.add(cls, importPathOf(relativeImportPath(fromFile, viewEntityFilePath(view, graph))));
     return cls;
   }
-  // Bir Table'dan SENTEZLENEN entity adı mı? (Model yokken servis/repo "User"
-  //   döndürür; sentetik entity sınıf adı entityClassNameForTable ile eşleşir.)
-  //   Hem ham tablo adı ("Users") hem sentetik sınıf adı ("User") eşlenir.
+  // Bir Table'dan SENTEZLENEN entity adi mi? (Model yokken servis/repo "User"
+  //   dondurur; sentetik entity sinif adi entityClassNameForTable ile eslesir.)
+  //   Hem ham tablo adi ("Users") hem sentetik sinif adi ("User") eslenir.
   const synthTable = resolveSyntheticEntityType(token, graph);
   if (synthTable) {
     const cls = entityClassNameForTable(synthTable);
     imports.addType(cls, importPathOf(relativeImportPath(fromFile, synthEntityFilePath(synthTable, graph))));
     return cls;
   }
-  // Çözülemeyen serbest ad (hiçbir Model/DTO/Enum/View/sentetik-Table node'una
-  // çözülmedi): bu, graf'ın bir KONTRAT BOŞLUĞUDUR — referans edilen tipin tanımı
-  // yok. Token'ı OLDUĞU GİBİ bırakmak `Promise<TokenPair>` gibi TS2304 ile derlemeyi
-  // KIRARDI. Bunun yerine açık-uçlu `Record<string, unknown>`'a GÜVENLİ degrade et:
-  //   · dönüş pozisyonu: `{ accessToken, ... }` obje literali atanabilir,
-  //   · tüketim: `result.accessToken` -> unknown (index signature) — ikisi de derlenir.
-  // Boşluk yine de YÜKSEK SESLE bildirilir (contract-lint unresolvedTypeRefs uyarısı).
+  // Cozulemeyen serbest ad (hicbir Model/DTO/Enum/View/sentetik-Table node'una
+  // cozulmedi): bu, graf'in bir KONTRAT BOSLUGUDUR — referans edilen tipin tanimi
+  // yok. Token'i OLDUGU GIBI birakmak `Promise<TokenPair>` gibi TS2304 ile derlemeyi
+  // KIRARDI. Bunun yerine acik-uclu `Record<string, unknown>`'a GUVENLI degrade et:
+  //   · donus pozisyonu: `{ accessToken, ... }` obje literali atanabilir,
+  //   · tuketim: `result.accessToken` -> unknown (index signature) — ikisi de derlenir.
+  // Bosluk yine de YUKSEK SESLE bildirilir (contract-lint unresolvedTypeRefs uyarisi).
   return "Record<string, unknown>";
 }
 
-/** Bir tip token'ı (ör. "User" veya "Users") bir Table'dan SENTEZLENECEK
- *  entity'ye karşılık geliyor mu? Yalnız (a) bir Repository tarafından referans
- *  edilen ve (b) Model'i OLMAYAN Table'lar aday — bunlar için sentetik entity
- *  dosyası gerçekten üretilir (aksi halde import TS2307 verirdi). Token, tablonun
- *  ham adı VEYA sentetik sınıf adı (singular-pascal) olabilir. */
+/** Bir tip token'i (or. "User" veya "Users") bir Table'dan SENTEZLENECEK
+ *  entity'ye karsilik geliyor mu? Yalniz (a) bir Repository tarafindan referans
+ *  edilen ve (b) Model'i WITHOUT Table'lar aday — bunlar icin sentetik entity
+ *  dosyasi gercekten uretilir (aksi halde import TS2307 verirdi). Token, tablonun
+ *  ham adi VEYA sentetik sinif adi (singular-pascal) olabilir. */
 function resolveSyntheticEntityType(token: string, graph: CodeGraph): CodeNode | null {
   const want = pascalCase(token);
   for (const table of graph.allOf("Table")) {
@@ -277,8 +277,8 @@ function isRepositoryReferenced(table: CodeNode, graph: CodeGraph): boolean {
   return false;
 }
 
-/** Bu Table'ı TableRef ile temsil eden bir Model var mı? (varsa Model entity'si
- *  üretilir; sentez gereksiz — resolveTypeRef Model'i ayrı çözer.) */
+/** Bu Table'i TableRef ile temsil eden bir Model var mi? (varsa Model entity'si
+ *  uretilir; sentez gereksiz — resolveTypeRef Model'i ayri cozer.) */
 function hasBackingModel(table: CodeNode, graph: CodeGraph): boolean {
   for (const m of graph.allOf("Model")) {
     const tableRef = (m.properties as Record<string, unknown>).TableRef;
@@ -290,33 +290,33 @@ function hasBackingModel(table: CodeNode, graph: CodeGraph): boolean {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
- * Feature klasörü + dosya yolu — MİMARİ-FARKINDA.
+ * Feature klasoru + dosya yolu — ARCHITECTURE-FARKINDA.
  *
  * Her node bir FEATURE slug'a ("auth", "image", ...) veya "common"a aittir;
- * bu atama ir.ts feature-inference tarafından yapılır ve graph.featureOf(node)
- * ile okunur. Dosya yolunun KLASÖRÜ feature'dır; DOSYA ADI ise rol son-ekini
- * TEKRARLAMAYAN idiomatik isimden (baseNameOf -> kebab) türetilir.
+ * bu atama ir.ts feature-inference tarafindan yapilir ve graph.featureOf(node)
+ * ile okunur. Dosya yolunun KLASORU feature'dir; DOSYA ADI ise rol son-ekini
+ * TEKRARLAMAYAN idiomatik isimden (baseNameOf -> kebab) turetilir.
  *
  *   AuthController     -> src/auth/auth.controller.ts
- *   UserRepository     -> src/user/user.repository.ts (feature'ına göre)
+ *   UserRepository     -> src/user/user.repository.ts (feature'ina gore)
  *   AuthResponseDTO    -> src/auth/dto/auth-response.dto.ts
  *   ImageGenerationSvc -> src/image/image-generation.service.ts
  *
- * Table migrations/ altındadır — feature'a bağlı değildir (değişmez).
+ * Table migrations/ altindadir — feature'a bagli degildir (degismez).
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Bir kind için idiomatik rol son-eki (dosya adında TEKRARLANMAZ). NestJS
- *  dosya adı zaten ".controller.ts"/".service.ts" eki taşıdığından sınıf
- *  adındaki "Controller"/"Service"/... son-eki dosya kök adından düşürülür. */
+/** Bir kind icin idiomatik rol son-eki (dosya adinda TEKRARLANMAZ). NestJS
+ *  dosya adi zaten ".controller.ts"/".service.ts" eki tasidigindan sinif
+ *  adindaki "Controller"/"Service"/... son-eki dosya kok adindan dusurulur. */
 const ROLE_SUFFIX_BY_KIND: Partial<Record<NodeKind, string[]>> = {
   Controller: ["Controller"],
   Service: ["Service"],
   Repository: ["Repository"],
   Module: ["Module"],
   Exception: ["Exception", "Error"],
-  // DTO adları "...DTO"/"...Dto" eki taşır -> dosya adı bunu tekrarlamaz.
+  // DTO adlari "...DTO"/"...Dto" eki tasir -> dosya adi bunu tekrarlamaz.
   DTO: ["DTO", "Dto"],
-  // ── Mimari altyapı kind'ları (rol eki dosya adında TEKRARLANMAZ) ──────────
+  // ── Mimari altyapi kind'lari (rol eki dosya adinda TEKRARLANMAZ) ──────────
   // "ImageResultCache" -> base "ImageResult" -> image-result.cache.ts.
   Cache: ["Cache"],
   // "ImageJobsQueue"/"ImageMessageQueue" -> "ImageJobs"/"Image" -> *.queue.ts.
@@ -328,7 +328,7 @@ const ROLE_SUFFIX_BY_KIND: Partial<Record<NodeKind, string[]>> = {
   // "CheckoutOrchestrator" -> "Checkout" -> checkout.orchestrator.ts.
   Orchestrator: ["Orchestrator"],
   // "StableDiffusionApi"/"StripeClient"/"MailService" -> "StableDiffusion"/
-  //   "Stripe"/"Mail" -> *.client.ts (idiomatik dış servis istemcisi).
+  //   "Stripe"/"Mail" -> *.client.ts (idiomatik dis servis istemcisi).
   ExternalService: ["Client", "Api", "Service"],
   // "AuthMiddleware" -> "Auth" -> auth.middleware.ts.
   Middleware: ["Middleware"],
@@ -336,11 +336,11 @@ const ROLE_SUFFIX_BY_KIND: Partial<Record<NodeKind, string[]>> = {
   APIGateway: ["APIGateway", "Gateway"],
 };
 
-/** Bir node'un IDIOMATIK temel adı — rol son-eki ayıklanmış (dosya/feature adı
- *  türetmek için). "AuthController"->"Auth", "UserRepository"->"User",
+/** Bir node'un IDIOMATIK temel adi — rol son-eki ayiklanmis (dosya/feature adi
+ *  turetmek icin). "AuthController"->"Auth", "UserRepository"->"User",
  *  "AuthResponseDTO"->"AuthResponse", "ImageGenerationService"->"ImageGeneration".
- *  Bilinen rol son-eki yoksa ad olduğu gibi döner. Boş ada düşmez (rol son-eki
- *  adın TAMAMIYSA orijinal ad korunur — "Service" -> "Service"). */
+ *  Bilinen rol son-eki yoksa ad oldugu gibi doner. Bos ada dusmez (rol son-eki
+ *  adin TAMAMIYSA orijinal ad korunur — "Service" -> "Service"). */
 export function baseNameOf(node: CodeNode): string {
   const name = node.name;
   const suffixes = ROLE_SUFFIX_BY_KIND[node.kindOf()] ?? [];
@@ -352,22 +352,22 @@ export function baseNameOf(node: CodeNode): string {
   return name;
 }
 
-/** Node'un feature klasörü (kebab-case). graph.featureOf -> feature slug veya
- *  "common"; ir.ts feature-inference TEK KAYNAĞIDIR. Yol üretiminin yalnız
- *  okuduğu bir değerdir (heuristik burada DEĞİL). */
+/** Node'un feature klasoru (kebab-case). graph.featureOf -> feature slug veya
+ *  "common"; ir.ts feature-inference TEK KAYNAGIDIR. Yol uretiminin yalniz
+ *  okudugu bir degerdir (heuristik burada NOT). */
 export function featureFolderOf(node: CodeNode, graph: CodeGraph): string {
   return graph.featureOf(node) || "common";
 }
 
-/** Migration sıra numarasını 3 haneli sıfır-dolgulu döndürür: 1 -> "001". */
+/** Migration sira numarasini 3 haneli sifir-dolgulu dondurur: 1 -> "001". */
 export function migrationSeq(index: number): string {
   return String(index + 1).padStart(3, "0");
 }
 
-/* ── filePathFor: node -> proje köküne göreli POSIX yolu (baş "/" yok) ──────
- * KLASÖR = feature (graph.featureOf); DOSYA ADI = baseNameOf (rol son-eki
- * TEKRARSIZ). Idiomatik NestJS düzeni:
- *   Module     -> <feature>/<feature>.module.ts       (feature başına TEK module)
+/* ── filePathFor: node -> proje kokune goreli POSIX yolu (bas "/" yok) ──────
+ * KLASOR = feature (graph.featureOf); DOSYA ADI = baseNameOf (rol son-eki
+ * TEKRARSIZ). Idiomatik NestJS duzeni:
+ *   Module     -> <feature>/<feature>.module.ts       (feature basina TEK module)
  *   Controller -> <feature>/<base>.controller.ts       (auth.controller.ts)
  *   Service    -> <feature>/<base>.service.ts
  *   Repository -> <feature>/<base>.repository.ts       (user.repository.ts)
@@ -375,8 +375,8 @@ export function migrationSeq(index: number): string {
  *   DTO        -> <feature>/dto/<base>.dto.ts           (auth-response.dto.ts)
  *   Enum       -> <feature>/enums/<base>.enum.ts  (feature)   |  common/enums/... (common)
  *   Exception  -> <feature>/exceptions/<base>.exception.ts    |  common/exceptions/... (common)
- *   Table      -> migrations/NNN_create_<snake>.sql   (NNN ir tarafından verilir)
- *   View       -> migrations/NNN_create_<snake>.sql   (DB view -> SQL; Table gibi kökte)
+ *   Table      -> migrations/NNN_create_<snake>.sql   (NNN ir tarafindan verilir)
+ *   View       -> migrations/NNN_create_<snake>.sql   (DB view -> SQL; Table gibi kokte)
  *   Cache           -> <feature>/<base>.cache.ts
  *   MessageQueue    -> <feature>/<base>.queue.ts
  *   Worker          -> <feature>/<base>.worker.ts
@@ -385,17 +385,17 @@ export function migrationSeq(index: number): string {
  *   ExternalService -> <feature>/<base>.client.ts
  *   Middleware      -> <feature>/<base>.middleware.ts  | common/<base>.middleware.ts
  *   APIGateway      -> <feature>/<base>.gateway.ts     | common/<base>.gateway.ts
- *   diğer stub -> <feature>/stubs/<base>.<role>.stub.ts  (feature kökü temiz)
+ *   diger stub -> <feature>/stubs/<base>.<role>.stub.ts  (feature koku temiz)
  *
- * Tüm dosyalar src/ KÖKÜNE göredir; src/ önekini scaffold/montaj ekler.
- * Table/View için sıra numarası graph.migrationIndexOf(node) ile çözülür.
+ * Tum dosyalar src/ KOKUNE goredir; src/ onekini scaffold/montaj ekler.
+ * Table/View icin sira numarasi graph.migrationIndexOf(node) ile cozulur.
  * ──────────────────────────────────────────────────────────────────────── */
 export function filePathFor(node: CodeNode, graph: CodeGraph): string {
   const feature = featureFolderOf(node, graph);
   const base = kebabCase(baseNameOf(node)) || kebabCase(node.name) || feature;
   switch (node.kindOf()) {
     case "Module":
-      // Feature başına tek module -> dosya adı feature'ın kendisidir.
+      // Feature basina tek module -> dosya adi feature'in kendisidir.
       return `${feature}/${feature}.module.ts`;
     case "Controller":
       return `${feature}/${base}.controller.ts`;
@@ -408,7 +408,7 @@ export function filePathFor(node: CodeNode, graph: CodeGraph): string {
     case "DTO":
       return `${feature}/dto/${base}.dto.ts`;
     case "Enum":
-      // Paylaşımlı enum'lar common/; feature'a özel olanlar feature altında.
+      // Paylasimli enum'lar common/; feature'a ozel olanlar feature altinda.
       return feature === "common"
         ? `common/enums/${base}.enum.ts`
         : `${feature}/enums/${base}.enum.ts`;
@@ -416,10 +416,10 @@ export function filePathFor(node: CodeNode, graph: CodeGraph): string {
       return feature === "common"
         ? `common/exceptions/${base}.exception.ts`
         : `${feature}/exceptions/${base}.exception.ts`;
-    // Table VE View ikisi de bir SQL migration'dır (CREATE TABLE / CREATE VIEW),
-    // migrations/ kökünde ve AYNI sıra düzeninde (migrationIndexOf View'ı kaynak
-    // Table'larından sonra yerleştirir). Fiziksel ad tek kaynaktan (tableSqlName;
-    // tekrar çoğullanmaz) — table.emitter / model.emitter ile tutarlı.
+    // Table VE View ikisi de bir SQL migration'dir (CREATE TABLE / CREATE VIEW),
+    // migrations/ kokunde ve AYNI sira duzeninde (migrationIndexOf View'i kaynak
+    // Table'larindan sonra yerlestirir). Fiziksel ad tek kaynaktan (tableSqlName;
+    // tekrar cogullanmaz) — table.emitter / model.emitter ile tutarli.
     case "Table":
     case "View": {
       const seq = migrationSeq(graph.migrationIndexOf(node));
@@ -438,25 +438,25 @@ export function filePathFor(node: CodeNode, graph: CodeGraph): string {
     case "ExternalService":
       return `${feature}/${base}.client.ts`;
     case "Middleware":
-      // Middleware feature'a düşmüyorsa (cross-cutting) common'a iner.
+      // Middleware feature'a dusmuyorsa (cross-cutting) common'a iner.
       return `${feature}/${base}.middleware.ts`;
     case "APIGateway":
-      // Gateway feature'a düşmüyorsa common'a iner (filePathFor feature='common').
+      // Gateway feature'a dusmuyorsa common'a iner (filePathFor feature='common').
       return `${feature}/${base}.gateway.ts`;
     default:
-      // Desteklenmeyen tip -> stub dosyası. Feature KÖKÜNE saçılmaz; ayrı bir
-      //   `stubs/` alt klasörüne toplanır (gerçek kod ile karışmasın).
+      // Desteklenmeyen tip -> stub dosyasi. Feature KOKUNE sacilmaz; ayri bir
+      //   `stubs/` alt klasorune toplanir (gercek kod ile karismasin).
       return `${feature}/stubs/${base}.${kebabCase(node.kindOf())}.stub.ts`;
   }
 }
 
-/** Bir TS dosyasından (import yolu için) uzantısız POSIX yolu. */
+/** Bir TS dosyasindan (import yolu icin) uzantisiz POSIX yolu. */
 export function importPathOf(filePath: string): string {
   return filePath.replace(/\.tsx?$/, "");
 }
 
-/** İki dosya yolu arasında göreli import yolu üretir (deterministik, POSIX).
- *  Örn from="users/users.service.ts" to="common/enums/role.enum.ts"
+/** Iki dosya yolu arasinda goreli import yolu uretir (deterministik, POSIX).
+ *  Orn from="users/users.service.ts" to="common/enums/role.enum.ts"
  *      -> "../common/enums/role.enum". */
 export function relativeImportPath(fromFile: string, toFile: string): string {
   const fromDir = fromFile.split("/").slice(0, -1);
@@ -470,8 +470,8 @@ export function relativeImportPath(fromFile: string, toFile: string): string {
   return joined.startsWith(".") ? joined : `./${joined}`;
 }
 
-/** Bir kind için "tek başına" sınıf adı son eki (Service/Controller vb. zaten
- *  isimde olabilir; emitter'lar gerekirse kullanır). */
+/** Bir kind icin "tek basina" sinif adi son eki (Service/Controller vb. zaten
+ *  isimde olabilir; emitter'lar gerekirse kullanir). */
 export const KIND_CLASS_SUFFIX: Partial<Record<NodeKind, string>> = {
   Controller: "Controller",
   Service: "Service",
@@ -480,14 +480,14 @@ export const KIND_CLASS_SUFFIX: Partial<Record<NodeKind, string>> = {
   Exception: "Exception",
 };
 
-/* ── Table'dan SENTEZLENEN entity isim/yolu — TEK KAYNAK ───────────────────
+/* ── Table'dan SENTEZLENEN entity isim/yolu — TEK SOURCE ───────────────────
  * entity-synthesis.ts, repository.emitter, module.emitter, naming.resolveTypeRef
- * hepsi BU iki fonksiyona dayanır (entity sınıf adı/dosya yolu tutarlı kalsın).
- * Burada (naming.ts) tutulur çünkü resolveTypeRef bunlara ihtiyaç duyar ve
- * naming.ts emitter'lardan import EDEMEZ (döngü). entity-synthesis bunları
+ * hepsi BU iki fonksiyona dayanir (entity sinif adi/dosya yolu tutarli kalsin).
+ * Burada (naming.ts) tutulur cunku resolveTypeRef bunlara ihtiyac duyar ve
+ * naming.ts emitter'lardan import EDEMEZ (dongu). entity-synthesis bunlari
  * re-export eder (geriye-uyum). ──────────────────────────────────────────── */
 
-/** Bir Table node'undan SENTEZLENEN entity sınıf adı (tekil-pascal). "Users"
+/** Bir Table node'undan SENTEZLENEN entity sinif adi (tekil-pascal). "Users"
  *  -> "User", "generated_images" -> "GeneratedImage". */
 export function entityClassNameForTable(table: CodeNode): string {
   return pascalCase(singularize(table.name));
@@ -502,7 +502,7 @@ export function synthEntityFilePath(table: CodeNode, graph: CodeGraph): string {
 }
 
 /** View node'unun TS @ViewEntity dosya yolu — migration'dan AYRI (filePathFor(View)
- *  SQL migration'ı verir). Repository bir View'ı tip olarak döndürdüğünde bu sınıf
+ *  SQL migration'i verir). Repository bir View'i tip olarak dondurdugunde bu sinif
  *  import edilir. */
 export function viewEntityFilePath(view: CodeNode, graph: CodeGraph): string {
   const feature = featureFolderOf(view, graph);
@@ -510,8 +510,8 @@ export function viewEntityFilePath(view: CodeNode, graph: CodeGraph): string {
   return `${feature}/entities/${base}.view.ts`;
 }
 
-/** Çok basit deterministik tekilleştirme (sözlük YOK). "users"->"user",
- *  "categories"->"category", "boxes"->"box". Yalnız son segment tekilleştirilir. */
+/** Cok basit deterministik tekillestirme (sozluk NONE). "users"->"user",
+ *  "categories"->"category", "boxes"->"box". Yalniz son segment tekillestirilir. */
 export function singularize(input: string): string {
   const segments = input.split(/[\s\-_./]+/).filter((w) => w.length > 0);
   const last = segments.length > 0 ? segments[segments.length - 1] : input;

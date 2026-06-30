@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   HandlerName: "UserCreatedEmailHandler",
-  Description: "Yeni kullanıcıya hoşgeldin maili",
+  Description: "Welcome email for new users",
   EventName: "USER_CREATED",
   IsAsync: true,
 };
@@ -20,13 +20,13 @@ const parse = (properties: unknown) =>
   EventHandlerNodeSchema.parse({ ...validBase, type: "EventHandler", properties });
 
 describe("EventHandlerNodeSchema (enriched)", () => {
-  it("geçerli EventHandler'ı parse eder (opsiyoneller boş)", () => {
+  it("parses valid EventHandler (optional fields empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.EventName).toBe("USER_CREATED");
     expect(node.properties.QueueRef).toBeUndefined();
   });
 
-  it("QueueRef + RetryPolicy + DeadLetterQueue kabul eder", () => {
+  it("accepts QueueRef + RetryPolicy + DeadLetterQueue", () => {
     const node = parse({
       ...validProperties,
       QueueRef: "user-events",
@@ -37,16 +37,16 @@ describe("EventHandlerNodeSchema (enriched)", () => {
     expect(node.properties.RetryPolicy?.MaxRetries).toBe(5);
   });
 
-  it("RetryPolicy.MaxRetries negatif olamaz", () => {
+  it("RetryPolicy.MaxRetries cannot be negative", () => {
     expect(() => parse({ ...validProperties, RetryPolicy: { MaxRetries: -1 } })).toThrow();
   });
 
-  it("Description zorunlu", () => {
+  it("Description is required", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("IsAsync boolean değilse fırlatır", () => {
+  it("throws when IsAsync is not boolean", () => {
     expect(() => parse({ ...validProperties, IsAsync: "yes" })).toThrow();
   });
 });

@@ -1,6 +1,6 @@
-/** simple-projection — CodeGraph → Basit Görünüm (non-dev) projeksiyonu.
- *  Sistem haritası (feature kutuları + dependsOn okları) TAMAMEN deterministik;
- *  capability'ler endpoint'lerden + RequiresAuth guard'ından dürüstçe türetilir. */
+/** simple-projection — CodeGraph -> Simple View (non-dev) projection.
+ *  System map (feature boxes + dependsOn arrows) is FULLY deterministic;
+ *  capabilities are honestly derived from endpoints + RequiresAuth guard. */
 
 import { describe, it, expect } from "vitest";
 import { buildCodeGraph } from "./ir";
@@ -28,8 +28,8 @@ function edge(kind: EdgeKind, s: StoredNode, t: StoredNode): StoredEdge {
   };
 }
 
-/** auth (kayıt, public) + messaging (mesaj gönder, auth'lu; UserRepository'yi
- *  cross-feature kullanır → messaging dependsOn auth). */
+/** auth (register, public) + messaging (send message, authed; uses UserRepository
+ *  cross-feature -> messaging dependsOn auth). */
 function fixture() {
   const authCtrl = node("Controller", {
     ControllerName: "AuthController", Description: "x", BaseRoute: "/auth",
@@ -67,7 +67,7 @@ describe("projectSimpleView — system map (deterministic)", () => {
     expect(auth).toBeTruthy();
     expect(auth.title).toBe("Auth");
     expect(auth.tier).toBe(0);
-    expect(msg.tier).toBe(1); // messaging, UserRepository'yi (auth) kullanır → tier+1
+    expect(msg.tier).toBe(1); // messaging uses UserRepository (auth) -> tier+1
   });
 
   it("arrow: messaging → auth 'uses' (dependsOn)", () => {

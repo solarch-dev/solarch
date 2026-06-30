@@ -16,23 +16,23 @@ import { tokensHaveCollectionSemantics } from "../../cardinality";
 /* ────────────────────────────────────────────────────────────────────────
  * controller.emitter.ts — ControllerNode -> <feature>/<c>.controller.ts.
  *
- * @Controller(BaseRoute (+ Version öneki)). DI = ctx.outEdges(id, "CALLS")
+ * @Controller(BaseRoute (+ Version oneki)). DI = ctx.outEdges(id, "CALLS")
  * -> Service(ler), constructor injection (private readonly). Her Endpoint ->
- * dekoratörlü metot:
+ * dekoratorlu metot:
  *   - HTTP fiili     -> @Get/@Post/@Put/@Delete/@Patch(Route)
  *   - ilk StatusCode -> @HttpCode(code)
  *   - RequiresAuth   -> @UseGuards(AuthGuard)   (shared/ stub guard importu)
  *   - RequiredRoles  -> @Roles(...)             (shared/ stub decorator importu)
  *   - PathParams     -> @Param("name") name: Type
  *   - QueryParams    -> @Query("name") name: Type
- *   - RequestDTORef  -> @Body() dto: <DTO>      (ref çözülürse import + tip)
- *   - ResponseDTORef -> Promise<DTO>            (ref çözülürse import + tip)
- * Metot adı HttpMethod + Route + path param'lardan DETERMİNİSTİK türetilir
- * (ör. GET /users/:id -> getUserById). Gövde: surgicalMarker + NOT_IMPLEMENTED;
- * delegasyon ipucu (this.<service>.<?>) marker açıklamasında verilir.
+ *   - RequestDTORef  -> @Body() dto: <DTO>      (ref cozulurse import + tip)
+ *   - ResponseDTORef -> Promise<DTO>            (ref cozulurse import + tip)
+ * Metot adi HttpMethod + Route + path param'lardan DETERMINISTIC turetilir
+ * (or. GET /users/:id -> getUserById). Govde: surgicalMarker + NOT_IMPLEMENTED;
+ * delegasyon ipucu (this.<service>.<?>) marker aciklamasinda verilir.
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar sıralı, kayıp ref tolere edilir (THROW yok),
- * import'lar ImportCollector ile, içerik tek "\n" ile biter.
+ * SAF + DETERMINISTIC: koleksiyonlar sirali, kayip ref tolere edilir (THROW yok),
+ * import'lar ImportCollector ile, icerik tek "\n" ile biter.
  * ──────────────────────────────────────────────────────────────────────── */
 
 type EndpointProps = ReturnType<typeof propsOf<"Controller">>["Endpoints"][number];
@@ -45,7 +45,7 @@ const HTTP_DECORATOR: Record<string, string> = {
   PATCH: "Patch",
 };
 
-/** İstek gövdesi (body) bekleyebilen HTTP fiilleri (GET/DELETE gövdesizdir). */
+/** Istek govdesi (body) bekleyebilen HTTP fiilleri (GET/DELETE govdesizdir). */
 const WRITE_METHODS: ReadonlySet<string> = new Set(["POST", "PUT", "PATCH"]);
 
 export const emitController: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
@@ -55,44 +55,44 @@ export const emitController: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
 
   const imports = new ImportCollector();
 
-  // ── @Controller route: Version önekini SADECE BaseRoute zaten içermiyorsa
-  //    ekle. BaseRoute tam yolu taşıyorsa (ör. "api/v1/auth") tekrar önekleme
-  //    -> "v1/api/v1/auth" gibi ÇİFT prefix OLUŞMAZ. ──
+  // ── @Controller route: Version onekini SADECE BaseRoute zaten icermiyorsa
+  //    ekle. BaseRoute tam yolu tasiyorsa (or. "api/v1/auth") tekrar onekleme
+  //    -> "v1/api/v1/auth" gibi DOUBLE prefix OLUSMAZ. ──
   const baseRoute = normalizeRoute(props.BaseRoute);
   const controllerRoute = computeControllerRoute(props.Version, baseRoute);
 
-  // @nestjs/common çekirdek dekoratörleri (kullanılanlar koşullu eklenir).
+  // @nestjs/common cekirdek dekoratorleri (kullanilanlar kosullu eklenir).
   imports.add("Controller", "@nestjs/common");
-  // @nestjs/swagger: sınıf @ApiTags ile bir OpenAPI grubu olarak etiketlenir
-  //  (üretilen uygulama kendini Scalar /docs altında belgeler).
+  // @nestjs/swagger: sinif @ApiTags ile bir OpenAPI grubu olarak etiketlenir
+  //  (uretilen uygulama kendini Scalar /docs altinda belgeler).
   imports.add("ApiTags", "@nestjs/swagger");
 
-  // ── DI: CALLS edge'lerinden Service'ler (edge'ler isme göre sıralı) ──
+  // ── DI: CALLS edge'lerinden Service'ler (edge'ler isme gore sirali) ──
   const services = collectInjectedServices(node, ctx);
   for (const svc of services) {
     imports.add(svc.className, relativeImportPath(thisFile, importPathOf(svc.file)));
   }
 
-  // ── Endpoint metotları ──
-  // ROUTE SIRASI (Finding #6): NestJS rota'ları DEKLARASYON SIRASIYLA eşleştirir.
-  //   Aynı HTTP fiilinde STATİK rota'lar ("categories") PARAM rota'lardan (":id")
-  //   ÖNCE gelmeli — yoksa "/categories" hiçbir zaman eşleşmez (":id" önce yakalar).
-  //   sortEndpointsForRouting: statik-segmentli endpoint'ler önce, ":param" içerenler
-  //   sonra; eşitlikte mevcut sıra KORUNUR (stable, deterministik).
+  // ── Endpoint metotlari ──
+  // ROUTE SIRASI (Finding #6): NestJS rota'lari DEKLARASYON SIRASIYLA eslestirir.
+  //   Ayni HTTP fiilinde STATIC rota'lar ("categories") PARAM rota'lardan (":id")
+  //   FIRST gelmeli — yoksa "/categories" hicbir zaman eslesmez (":id" once yakalar).
+  //   sortEndpointsForRouting: statik-segmentli endpoint'ler once, ":param" icerenler
+  //   sonra; esitlikte mevcut sira KORUNUR (stable, deterministik).
   const orderedEndpoints = sortEndpointsForRouting(props.Endpoints);
   const methodBlocks: string[] = [];
   for (const ep of orderedEndpoints) {
     methodBlocks.push(buildEndpoint(node, ep, services, imports, thisFile, ctx, className));
   }
 
-  // ── Sınıf gövdesi ──
+  // ── Sinif govdesi ──
   const lines: string[] = [];
   if (props.Description) lines.push(`/** ${props.Description} */`);
   lines.push(`@ApiTags(${JSON.stringify(node.name)})`);
   lines.push(`@Controller(${JSON.stringify(controllerRoute)})`);
   lines.push(`export class ${className} {`);
 
-  // constructor (yalnız servis varsa)
+  // constructor (yalniz servis varsa)
   if (services.length > 0) {
     lines.push("  constructor(");
     services.forEach((svc, i) => {
@@ -122,7 +122,7 @@ export const emitController: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   return [file];
 };
 
-/* ── DI: CALLS -> Service çözümleme ──────────────────────────────────────── */
+/* ── DI: CALLS -> Service cozumleme ──────────────────────────────────────── */
 interface InjectedService {
   name: string;
   className: string;
@@ -133,10 +133,10 @@ interface InjectedService {
 function collectInjectedServices(node: CodeNode, ctx: EmitterContext): InjectedService[] {
   const seen = new Set<string>();
   const out: InjectedService[] = [];
-  // outEdges zaten kind,source.name,target.name,id'ye göre sıralı (deterministik).
+  // outEdges zaten kind,source.name,target.name,id'ye gore sirali (deterministik).
   for (const e of ctx.graph.outEdges(node.id, "CALLS")) {
     const tgt = ctx.graph.byId(e.targetNodeId);
-    if (!tgt || tgt.kindOf() !== "Service") continue; // kayıp/yanlış ref -> atla
+    if (!tgt || tgt.kindOf() !== "Service") continue; // kayip/yanlis ref -> atla
     if (seen.has(tgt.id)) continue;
     seen.add(tgt.id);
     const cls = pascalCase(tgt.name);
@@ -162,13 +162,13 @@ function buildEndpoint(
 ): string {
   const decoratorLines: string[] = [];
 
-  // HTTP fiili dekoratörü
+  // HTTP fiili dekoratoru
   const httpDecorator = HTTP_DECORATOR[ep.HttpMethod] ?? "Get";
   imports.add(httpDecorator, "@nestjs/common");
   const routeArg = methodRouteArg(ep.Route);
   decoratorLines.push(`  @${httpDecorator}(${routeArg})`);
 
-  // İlk StatusCode -> @HttpCode
+  // Ilk StatusCode -> @HttpCode
   const firstCode = ep.StatusCodes.length > 0 ? ep.StatusCodes[0].Code : undefined;
   if (firstCode !== undefined) {
     imports.add("HttpCode", "@nestjs/common");
@@ -176,10 +176,10 @@ function buildEndpoint(
   }
 
   // RequiresAuth/RequiredRoles -> @UseGuards(AuthGuard[, RolesGuard]). AuthGuard
-  // (authentication) request.user'ı yerleştirir; RolesGuard (authorization, #39)
-  // @Roles metadata'sını Reflector ile okuyup enforce eder. SIRA önemli: AuthGuard
-  // ÖNCE (user'ı set eder), RolesGuard SONRA (role'ü okur). Eskiden RolesGuard hiç
-  // bağlanmıyordu -> @Roles ölüydü.
+  // (authentication) request.user'i yerlestirir; RolesGuard (authorization, #39)
+  // @Roles metadata'sini Reflector ile okuyup enforce eder. SIRA onemli: AuthGuard
+  // FIRST (user'i set eder), RolesGuard AFTER (role'u okur). Eskiden RolesGuard hic
+  // baglanmiyordu -> @Roles oluydu.
   const guards: string[] = [];
   if (ep.RequiresAuth) {
     imports.add("AuthGuard", relativeImportPath(thisFile, "shared/guards/auth.guard"));
@@ -194,7 +194,7 @@ function buildEndpoint(
     decoratorLines.push(`  @UseGuards(${guards.join(", ")})`);
   }
 
-  // RequiredRoles -> @Roles(...) (RolesGuard bu ROLES_KEY metadata'sını okur)
+  // RequiredRoles -> @Roles(...) (RolesGuard bu ROLES_KEY metadata'sini okur)
   if (ep.RequiredRoles.length > 0) {
     imports.add("Roles", relativeImportPath(thisFile, "shared/decorators/roles.decorator"));
     const roleArgs = ep.RequiredRoles.map((r) => JSON.stringify(r)).join(", ");
@@ -204,14 +204,14 @@ function buildEndpoint(
   // ── Parametreler ──
   const params: string[] = [];
 
-  // PathParams -> @Param("name") name: Type. (Paramsız endpoint'lerde alan hiç
-  //  gelmeyebilir — graf verisi eksik olsa da emitter patlamamalı: boş diziye düş.)
+  // PathParams -> @Param("name") name: Type. (Paramsiz endpoint'lerde alan hic
+  //  gelmeyebilir — graf verisi eksik olsa da emitter patlamamali: bos diziye dus.)
   for (const p of ep.PathParams ?? []) {
     imports.add("Param", "@nestjs/common");
     params.push(`@Param(${JSON.stringify(p.Name)}) ${safeIdent(p.Name)}: ${tsType(p.Type)}`);
   }
 
-  // QueryParams -> @Query("name") name: Type. (Aynı savunma: alan eksikse boş dizi.)
+  // QueryParams -> @Query("name") name: Type. (Ayni savunma: alan eksikse bos dizi.)
   for (const q of ep.QueryParams ?? []) {
     imports.add("Query", "@nestjs/common");
     const optional = q.Required ? "" : "?";
@@ -229,28 +229,28 @@ function buildEndpoint(
       imports.add(bodyDtoClass, relativeImportPath(thisFile, importPathOf(filePathFor(dto, ctx.graph))));
       params.push(`@Body() dto: ${bodyDtoClass}`);
     } else {
-      // Kayıp ref: tipsiz body (THROW yok), TODO bırak.
+      // Kayip ref: tipsiz body (THROW yok), TODO birak.
       params.push(`@Body() dto: unknown /* TODO: DTO '${ep.RequestDTORef}' not found */`);
     }
   } else if (WRITE_METHODS.has(ep.HttpMethod)) {
-    // Gövde-alan write endpoint'i (POST/PUT/PATCH) RequestDTORef OLMADAN: tipli DTO yok.
-    // Eskiden hiç body param bağlanmazdı -> surgical fill body alanlarını (ör. productId,
-    // quantity) SERBEST DEĞİŞKEN sanıp `this.svc.x(productId, quantity)` üretip TS2304
-    // veriyordu. Genel `@Body() body: Record<string, unknown>` bağla: fill gerçek (tipsiz)
-    // body'den okur (`body.productId` -> unknown, derlenir) — uydurma değişken üretmez.
-    // (Kontrat boşluğu contract-lint Rule 1 ile ayrıca uyarılır.)
+    // Govde-alan write endpoint'i (POST/PUT/PATCH) RequestDTORef WITHOUT: tipli DTO yok.
+    // Eskiden hic body param baglanmazdi -> surgical fill body alanlarini (or. productId,
+    // quantity) SERBEST VARIABLE sanip `this.svc.x(productId, quantity)` uretip TS2304
+    // veriyordu. Genel `@Body() body: Record<string, unknown>` bagla: fill gercek (tipsiz)
+    // body'den okur (`body.productId` -> unknown, derlenir) — uydurma degisken uretmez.
+    // (Kontrat boslugu contract-lint Rule 1 ile ayrica uyarilir.)
     imports.add("Body", "@nestjs/common");
     params.push(`@Body() body: Record<string, unknown>`);
     injectsRawBody = true;
   }
 
-  // ── İSTEK BAĞLAMI / userId (Finding #8): RequiresAuth olan endpoint'lere
-  //    @CurrentUser() user: AuthUser parametresi ekle. Böylece kimliği doğrulanmış
-  //    kullanıcının id'si (user.id) surgical gövdede ERİŞİLEBİLİR olur — imzada
-  //    geçtiği için body içinden okunabilir. @CurrentUser, paylaşımlı bir param
-  //    decorator'dur (shared/decorators/current-user.decorator); request.user'ı
-  //    çözer (AuthGuard onu yerleştirir). Param SON sırada gelir (decorator'lu
-  //    @Param/@Query/@Body'den sonra) — okunaklı + deterministik. ──
+  // ── REQUEST BAGLAMI / userId (Finding #8): RequiresAuth olan endpoint'lere
+  //    @CurrentUser() user: AuthUser parametresi ekle. Boylece kimligi dogrulanmis
+  //    kullanicinin id'si (user.id) surgical govdede ERISILEBILIR olur — imzada
+  //    gectigi icin body icinden okunabilir. @CurrentUser, paylasimli bir param
+  //    decorator'dur (shared/decorators/current-user.decorator); request.user'i
+  //    cozer (AuthGuard onu yerlestirir). Param SON sirada gelir (decorator'lu
+  //    @Param/@Query/@Body'den sonra) — okunakli + deterministik. ──
   let injectsCurrentUser = false;
   if (ep.RequiresAuth) {
     injectsCurrentUser = true;
@@ -259,15 +259,15 @@ function buildEndpoint(
     params.push(`@CurrentUser() user: AuthUser`);
   }
 
-  // ── Dönüş tipi ──
-  //  ResponseDTORef -> Promise<DTO>. LİSTE DÖNÜŞ (Finding #7): koleksiyon
-  //  döndüren endpoint (GET + path-param YOK, ya da list/findAll/search/all
-  //  semantiği) tekil DTO değil DTO[] döner.
-  //  AUTH/LOGIN (Finding #8): ResponseDTORef OLMAYAN bir login endpoint'i tutarlı
-  //  bir token zarfı (AuthResponse) döner — void değil.
+  // ── Donus tipi ──
+  //  ResponseDTORef -> Promise<DTO>. LIST RETURN (Finding #7): koleksiyon
+  //  donduren endpoint (GET + path-param NONE, ya da list/findAll/search/all
+  //  semantigi) tekil DTO degil DTO[] doner.
+  //  AUTH/LOGIN (Finding #8): ResponseDTORef WITHOUT bir login endpoint'i tutarli
+  //  bir token zarfi (AuthResponse) doner — void degil.
   let returnInner = "void";
-  // Çözülen yanıt DTO'su: @ApiResponse({ type: ... }) çalışma-zamanı (value) referansı
-  //  için sınıf adı + import yolu burada yakalanır.
+  // Cozulen yanit DTO'su: @ApiResponse({ type: ... }) calisma-zamani (value) referansi
+  //  icin sinif adi + import yolu burada yakalanir.
   let responseDtoClass: string | null = null;
   let responseDtoImport: string | null = null;
   const collection = isCollectionEndpoint(ep);
@@ -284,17 +284,17 @@ function buildEndpoint(
       returnInner = `unknown /* TODO: DTO '${ep.ResponseDTORef}' not found */`;
     }
   } else if (isLoginEndpoint(ep)) {
-    // Login -> token: tutarlı bir kimlik-doğrulama yanıtı (accessToken taşır).
+    // Login -> token: tutarli bir kimlik-dogrulama yaniti (accessToken tasir).
     imports.addType("AuthResponse", relativeImportPath(thisFile, "shared/decorators/current-user.decorator"));
     returnInner = "AuthResponse";
   }
   const returnType = `Promise<${returnInner}>`;
 
-  // ── @nestjs/swagger dekoratörleri (kendini-belgeleyen üretilmiş uygulama) ──
-  //  @ApiBearerAuth() RequiresAuth olduğunda; @ApiOperation({ summary }) her
-  //  endpoint'te; her StatusCode için bir @ApiResponse. Yanıt DTO'su <400 kodlarda
-  //  `type:` ile referanslanır (collection ise isArray:true). Açıklama/örnekler
-  //  varsa zenginleştirilmiş doc'tan gelir; burada DETERMİNİSTİK özet kullanılır.
+  // ── @nestjs/swagger dekoratorleri (kendini-belgeleyen uretilmis uygulama) ──
+  //  @ApiBearerAuth() RequiresAuth oldugunda; @ApiOperation({ summary }) her
+  //  endpoint'te; her StatusCode icin bir @ApiResponse. Yanit DTO'su <400 kodlarda
+  //  `type:` ile referanslanir (collection ise isArray:true). Aciklama/ornekler
+  //  varsa zenginlestirilmis doc'tan gelir; burada DETERMINISTIC ozet kullanilir.
   if (ep.RequiresAuth) {
     imports.add("ApiBearerAuth", "@nestjs/swagger");
     decoratorLines.push(`  @ApiBearerAuth()`);
@@ -310,8 +310,8 @@ function buildEndpoint(
     const parts: string[] = [`status: ${sc.Code}`];
     if (sc.Description) parts.push(`description: ${JSON.stringify(sc.Description)}`);
     if (responseDtoClass && responseDtoImport && sc.Code < 400) {
-      // @ApiResponse({ type: Dto }) DTO'yu çalışma-zamanı DEĞER'i olarak kullanır
-      //  -> type-only import yerine değer importuna yükselt (yoksa derlenmez).
+      // @ApiResponse({ type: Dto }) DTO'yu calisma-zamani DEGER'i olarak kullanir
+      //  -> type-only import yerine deger importuna yukselt (yoksa derlenmez).
       imports.add(responseDtoClass, responseDtoImport);
       parts.push(`type: ${responseDtoClass}`);
       if (collection) parts.push(`isArray: true`);
@@ -319,10 +319,10 @@ function buildEndpoint(
     decoratorLines.push(`  @ApiResponse({ ${parts.join(", ")} })`);
   }
 
-  // ── Metot adı: HTTP fiili + route + path param ──
+  // ── Metot adi: HTTP fiili + route + path param ──
   const methodName = deriveMethodName(ep);
 
-  // ── Gövde: surgical marker + NOT_IMPLEMENTED ──
+  // ── Govde: surgical marker + NOT_IMPLEMENTED ──
   const delegate = services.length > 0 ? services[0].field : undefined;
   const descParts: string[] = [];
   if (ep.Description) descParts.push(ep.Description);
@@ -341,10 +341,10 @@ function buildEndpoint(
     deps: services.length > 0 ? services.map((s) => s.field) : undefined,
   });
 
-  // TS: opsiyonel (`name?: T`) parametre, zorunlu parametreden ÖNCE gelemez (TS1016).
+  // TS: opsiyonel (`name?: T`) parametre, zorunlu parametreden FIRST gelemez (TS1016).
   // @Query opsiyonel olabilir ama @CurrentUser/@Param/@Body zorunlu — opsiyonelleri
-  // sona, göreli sırayı koruyarak taşı (decorator bağlamayı bozmaz: konum değil
-  // decorator değer atar; surgical gövde param'ları ada göre okur).
+  // sona, goreli sirayi koruyarak tasi (decorator baglamayi bozmaz: konum degil
+  // decorator deger atar; surgical govde param'lari ada gore okur).
   const orderedParams = [
     ...params.filter((p) => !/\?:/.test(p)),
     ...params.filter((p) => /\?:/.test(p)),
@@ -360,22 +360,22 @@ function buildEndpoint(
   return block.join("\n");
 }
 
-/* ── Route sırası / koleksiyon / login sezgileri (DETERMİNİSTİK) ──────────── */
+/* ── Route sirasi / koleksiyon / login sezgileri (DETERMINISTIC) ──────────── */
 
-/** ROUTE SIRASI (Finding #6): NestJS rota'ları @Controller içindeki DEKLARASYON
- *  sırasıyla eşleştirir. ":param" içeren bir rota, kendinden sonra gelen STATİK
- *  bir rota'yı (aynı fiilde) gölgeler — ör. @Get(":id") @Get("categories")'ten
- *  önce gelirse "/categories" hiçbir zaman çalışmaz.
+/** ROUTE SIRASI (Finding #6): NestJS rota'lari @Controller icindeki DEKLARASYON
+ *  sirasiyla eslestirir. ":param" iceren bir rota, kendinden sonra gelen STATIC
+ *  bir rota'yi (ayni fiilde) golgeler — or. @Get(":id") @Get("categories")'ten
+ *  once gelirse "/categories" hicbir zaman calismaz.
  *
- *  Bu yüzden endpoint'leri STABLE biçimde yeniden sıralarız: ":param"/"{param}"
- *  segmenti OLMAYAN (statik) endpoint'ler ÖNCE, param içerenler SONRA. Eşitlikte
- *  (ikisi de statik ya da ikisi de param) MEVCUT SIRA korunur (kullanıcı niyeti +
- *  determinizm). HTTP fiili karıştırılmaz: param-içeren GET, statik POST'tan
- *  sonraya kayabilir ama bu Nest eşleşmesini bozmaz (her fiil kendi içinde sıralı
- *  kalır ve statik-önce kuralı tüm fiiller için güvenlidir).
+ *  Bu yuzden endpoint'leri STABLE bicimde yeniden siralariz: ":param"/"{param}"
+ *  segmenti WITHOUT (statik) endpoint'ler FIRST, param icerenler AFTER. Esitlikte
+ *  (ikisi de statik ya da ikisi de param) MEVCUT SIRA korunur (kullanici niyeti +
+ *  determinizm). HTTP fiili karistirilmaz: param-iceren GET, statik POST'tan
+ *  sonraya kayabilir ama bu Nest eslesmesini bozmaz (her fiil kendi icinde sirali
+ *  kalir ve statik-once kurali tum fiiller icin guvenlidir).
  *
  *  Stable sort: her endpoint'i orijinal index'iyle etiketle, anahtar (statik=0,
- *  param=1) eşitse index'le kır. */
+ *  param=1) esitse index'le kir. */
 function sortEndpointsForRouting(endpoints: readonly EndpointProps[]): EndpointProps[] {
   return endpoints
     .map((ep, index) => ({ ep, index, paramRank: hasRouteParam(ep.Route) ? 1 : 0 }))
@@ -383,7 +383,7 @@ function sortEndpointsForRouting(endpoints: readonly EndpointProps[]): EndpointP
     .map((x) => x.ep);
 }
 
-/** Bir route en az bir ":param" veya "{param}" segmenti içeriyor mu? */
+/** Bir route en az bir ":param" veya "{param}" segmenti iceriyor mu? */
 function hasRouteParam(route: string): boolean {
   return route
     .split("/")
@@ -391,39 +391,39 @@ function hasRouteParam(route: string): boolean {
     .some((seg) => seg.startsWith(":") || (seg.startsWith("{") && seg.endsWith("}")));
 }
 
-/** LİSTE DÖNÜŞ (Finding #7): endpoint bir KOLEKSİYON mu döndürüyor?
- *  Kurallar (deterministik, endpoint ŞEKLİNDEN):
- *   - Route'un son literal segmenti list/findAll/all/search/findMany semantiği -> koleksiyon
- *     (path-param olsa bile, ör. /:userId/list).
- *   - GET + hiç path-param YOK (ne PathParams ne de route'ta ":param") -> koleksiyon
+/** LIST RETURN (Finding #7): endpoint bir COLLECTION mu donduruyor?
+ *  Kurallar (deterministik, endpoint SEKLINDEN):
+ *   - Route'un son literal segmenti list/findAll/all/search/findMany semantigi -> koleksiyon
+ *     (path-param olsa bile, or. /:userId/list).
+ *   - GET + hic path-param NONE (ne PathParams ne de route'ta ":param") -> koleksiyon
  *     (klasik REST liste: GET /products) — ANCAK son literal segment tekil/self
- *     semantiği (me/current/profile/...) ise TEKİL (GET /me bir kayıt döner).
- *  PathParams olan bir GET (ör. /:id) TEKİL kaydı döner -> koleksiyon DEĞİL. */
+ *     semantigi (me/current/profile/...) ise SINGLE (GET /me bir kayit doner).
+ *  PathParams olan bir GET (or. /:id) SINGLE kaydi doner -> koleksiyon NOT. */
 function isCollectionEndpoint(ep: EndpointProps): boolean {
-  // TEK-KAYNAK: bildirilmiş ReturnsCollection (true/false) route sezgisini EZER.
-  // service.emitter ile aynı alan -> controller ve service imzaları garantili hizalı.
+  // TEK-SOURCE: bildirilmis ReturnsCollection (true/false) route sezgisini OVERRIDES.
+  // service.emitter ile ayni alan -> controller ve service imzalari garantili hizali.
   if (typeof ep.ReturnsCollection === "boolean") return ep.ReturnsCollection;
   if (ep.HttpMethod !== "GET") return false;
-  // Açık liste-semantiği her zaman koleksiyon (path-param fark etmez).
+  // Acik liste-semantigi her zaman koleksiyon (path-param fark etmez).
   if (routeHasListSemantics(ep.Route)) return true;
   const hasPathParam = (ep.PathParams?.length ?? 0) > 0 || hasRouteParam(ep.Route);
   if (hasPathParam) return false;
-  // path-param yok: tekil/self semantiği taşımadıkça koleksiyon (REST liste).
+  // path-param yok: tekil/self semantigi tasimadikca koleksiyon (REST liste).
   return !routeHasSingularSemantics(ep.Route);
 }
 
-/** Route'un son STATİK segmenti list/findAll/all/search/findMany gibi bir
- *  koleksiyon-semantiği taşıyor mu? (camelCase/kebab/snake bölünür.) Kelime kümesi
- *  cardinality.ts'te TEK KAYNAK — service.emitter metot adı için aynısını kullanır. */
+/** Route'un son STATIC segmenti list/findAll/all/search/findMany gibi bir
+ *  koleksiyon-semantigi tasiyor mu? (camelCase/kebab/snake bolunur.) Kelime kumesi
+ *  cardinality.ts'te TEK SOURCE — service.emitter metot adi icin aynisini kullanir. */
 function routeHasListSemantics(route: string): boolean {
   const last = lastLiteralSegment(route);
   if (!last) return false;
   return tokensHaveCollectionSemantics(splitWords(last));
 }
 
-/** Route'un son STATİK segmenti TEKİL/self bir kaynak mı? (me/self/current/
+/** Route'un son STATIC segmenti SINGLE/self bir kaynak mi? (me/self/current/
  *  profile/account/health/status/info/ping...) Bunlar path-param olmasa da
- *  tek bir kayıt döner -> koleksiyon SAYILMAZ. */
+ *  tek bir kayit doner -> koleksiyon SAYILMAZ. */
 function routeHasSingularSemantics(route: string): boolean {
   const last = lastLiteralSegment(route);
   if (!last) return false;
@@ -434,7 +434,7 @@ function routeHasSingularSemantics(route: string): boolean {
   return SINGULAR_WORDS.has(joined);
 }
 
-/** Route'un son STATİK (param OLMAYAN) segmenti; yoksa undefined. */
+/** Route'un son STATIC (param WITHOUT) segmenti; yoksa undefined. */
 function lastLiteralSegment(route: string): string | undefined {
   const segments = route
     .split("/")
@@ -442,11 +442,11 @@ function lastLiteralSegment(route: string): string | undefined {
   return segments[segments.length - 1];
 }
 
-/** AUTH/LOGIN (Finding #8): ResponseDTORef OLMAYAN bir login endpoint'i mi?
- *  (POST + route literal'lerinden biri "login"/"signin"/"authenticate".) Böyle
- *  bir endpoint void değil tutarlı bir token zarfı (AuthResponse) döner.
- *  EXPORTED: scaffold.emitter aynı koşulu kullanarak current-user.decorator
- *  dosyasını (AuthResponse'u tutan) emit edip etmeyeceğine karar verir. */
+/** AUTH/LOGIN (Finding #8): ResponseDTORef WITHOUT bir login endpoint'i mi?
+ *  (POST + route literal'lerinden biri "login"/"signin"/"authenticate".) Boyle
+ *  bir endpoint void degil tutarli bir token zarfi (AuthResponse) doner.
+ *  EXPORTED: scaffold.emitter ayni kosulu kullanarak current-user.decorator
+ *  dosyasini (AuthResponse'u tutan) emit edip etmeyecegine karar verir. */
 export function isLoginEndpoint(ep: EndpointProps): boolean {
   if (ep.HttpMethod !== "POST") return false;
   const segments = ep.Route.split("/").filter((s) => s.length > 0 && !s.startsWith(":") && !s.startsWith("{"));
@@ -458,9 +458,9 @@ export function isLoginEndpoint(ep: EndpointProps): boolean {
   return false;
 }
 
-/* ── İsim/route yardımcıları (DETERMİNİSTİK) ─────────────────────────────── */
+/* ── Isim/route yardimcilari (DETERMINISTIC) ─────────────────────────────── */
 
-/** Metot adı: GET /users/:id -> getUserById; POST /users -> postUser.
+/** Metot adi: GET /users/:id -> getUserById; POST /users -> postUser.
  *  Fiil + route segmentleri (literal -> Pascal; ":param" -> "By Param"). */
 function deriveMethodName(ep: EndpointProps): string {
   const verb = ep.HttpMethod.toLowerCase();
@@ -482,8 +482,8 @@ function deriveMethodName(ep: EndpointProps): string {
   return name.length > 0 ? name : verb;
 }
 
-/** Route segmentindeki ":id" / "{id}" -> ":id" Nest biçimine normalize eder,
- *  baş/son "/" temizler. */
+/** Route segmentindeki ":id" / "{id}" -> ":id" Nest bicimine normalize eder,
+ *  bas/son "/" temizler. */
 function normalizeRoute(route: string): string {
   return route
     .split("/")
@@ -494,42 +494,42 @@ function normalizeRoute(route: string): string {
     .join("/");
 }
 
-/** İki route parçasını "/" ile birleştirir (boşları eler). */
+/** Iki route parcasini "/" ile birlestirir (boslari eler). */
 function joinRoutes(a: string, b: string): string {
   return [a, b].filter((s) => s.length > 0).join("/");
 }
 
-/** @Controller route hesabı (ÇİFT-PREFIX FIX).
- *  Version yoksa -> baseRoute. Version varsa ve baseRoute o version'ı bir PATH
- *  SEGMENTİ olarak zaten içeriyorsa (ör. base "api/v1/auth", version "v1") ->
- *  baseRoute olduğu gibi (tekrar önekleme). Aksi halde version önekle. */
+/** @Controller route hesabi (DOUBLE-PREFIX FIX).
+ *  Version yoksa -> baseRoute. Version varsa ve baseRoute o version'i bir PATH
+ *  SEGMENTI olarak zaten iceriyorsa (or. base "api/v1/auth", version "v1") ->
+ *  baseRoute oldugu gibi (tekrar onekleme). Aksi halde version onekle. */
 function computeControllerRoute(rawVersion: string | undefined, baseRoute: string): string {
   const version = rawVersion ? normalizeRoute(rawVersion) : "";
   if (version.length === 0) return baseRoute;
   const baseSegments = baseRoute.split("/").filter((s) => s.length > 0);
   const versionSegments = version.split("/").filter((s) => s.length > 0);
-  // version'ın TÜM segmentleri baseRoute'ta zaten varsa -> önekleme.
+  // version'in TUM segmentleri baseRoute'ta zaten varsa -> onekleme.
   const alreadyHasVersion = versionSegments.every((v) => baseSegments.includes(v));
   if (alreadyHasVersion) return baseRoute;
   return joinRoutes(version, baseRoute);
 }
 
-/** Metot dekoratörüne giden route argümanı. Kök ("/" veya boş) -> argümansız. */
+/** Metot dekoratorune giden route argumani. Kok ("/" veya bos) -> argumansiz. */
 function methodRouteArg(route: string): string {
   const norm = normalizeRoute(route);
   return norm.length > 0 ? JSON.stringify(norm) : "";
 }
 
-/** Param adını geçerli TS tanımlayıcısına çevirir (camelCase, deterministik). */
+/** Param adini gecerli TS tanimlayicisina cevirir (camelCase, deterministik). */
 function safeIdent(raw: string): string {
   const c = camelCase(raw);
   if (c.length === 0) return "_param";
   return /^[0-9]/.test(c) ? `_${c}` : c;
 }
 
-/** Path/Query param tipini GEÇERLİ TS'e normalize eder (uuid/int/long/datetime
- *  vb. -> string/number/Date), model.emitter/dto.emitter ile aynı eşleme
- *  (scalarTsType). Bilinmeyen tip olduğu gibi geçer; boş -> "string". */
+/** Path/Query param tipini GECERLI TS'e normalize eder (uuid/int/long/datetime
+ *  vb. -> string/number/Date), model.emitter/dto.emitter ile ayni esleme
+ *  (scalarTsType). Bilinmeyen tip oldugu gibi gecer; bos -> "string". */
 function tsType(raw: string): string {
   return scalarTsType(raw);
 }
@@ -538,5 +538,5 @@ function cap(w: string): string {
   return w.length === 0 ? w : w[0].toUpperCase() + w.slice(1).toLowerCase();
 }
 
-/* EmitterContext'i import etmeden tip yakalamak için yerel alias (types.ts'ten). */
+/* EmitterContext'i import etmeden tip yakalamak icin yerel alias (types.ts'ten). */
 type EmitterContext = Parameters<NodeEmitter>[1];

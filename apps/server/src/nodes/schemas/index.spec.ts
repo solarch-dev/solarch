@@ -10,7 +10,7 @@ const baseFields = {
 };
 
 describe("NodeSchema (union)", () => {
-  it("Table tipini parse eder", () => {
+  it("parses Table type", () => {
     const node = NodeSchema.parse({
       ...baseFields, type: "Table",
       properties: {
@@ -21,11 +21,11 @@ describe("NodeSchema (union)", () => {
     expect(node.type).toBe("Table");
   });
 
-  it("Bilinmeyen type'ı reddeder", () => {
+  it("rejects unknown type", () => {
     expect(() => NodeSchema.parse({ ...baseFields, type: "Foo", properties: {} })).toThrow();
   });
 
-  it("KIND_LABELS 5 tipi içerir", () => {
+  it("KIND_LABELS includes 5 kinds", () => {
     const labels: NodeKind[] = ["Table", "DTO", "Model", "Enum", "View"];
     for (const k of labels) {
       expect(KIND_LABELS[k]).toBe(k);

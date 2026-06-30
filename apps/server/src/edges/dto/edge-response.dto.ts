@@ -4,16 +4,16 @@ import type { SuccessEnvelope } from "../../common/envelope";
 export type EdgeResponse = SuccessEnvelope<Edge>;
 export type EdgeListResponse = SuccessEnvelope<{ edges: Edge[]; total: number }>;
 
-/** Bloklamayan kural uyarısı (örn. WARN_COND_001 boş-tablo). Edge yine yaratılır;
- *  uyarı yalnızca kullanıcıya gösterilmek üzere response'a iliştirilir. */
+/** Non-blocking rule warning (e.g. WARN_COND_001 empty-tab). Edge is still created;
+ *  warning attached to response for display to user only. */
 export interface EdgeWarning {
   code: string;
   message: string;
   suggestion?: string;
 }
 
-/** Edge oluşturma yanıtı. `data.warning` opsiyonel — tipli OpenAPI client'ı
- *  runtime davranışıyla senkron tutar (EdgesService.create `Edge & { warning? }` döner). */
+/** Edge creation response. `data.warning` optional — keeps typed OpenAPI client
+ *  in sync with runtime behavior (EdgesService.create returns `Edge & { warning? }`). */
 export type EdgeCreatedResponse = SuccessEnvelope<Edge & { warning?: EdgeWarning }>;
 
 export interface EdgeValidationResult {

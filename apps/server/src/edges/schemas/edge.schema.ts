@@ -1,22 +1,22 @@
 import { z } from "zod";
 
 export const EDGE_KINDS = [
-  // 1. Çağrı ve İletişim
+  // 1. Call and communication
   "CALLS",
   "REQUESTS",
   "PUBLISHES",
   "SUBSCRIBES",
-  // 2. Veri ve Şema
+  // 2. Data and schema
   "USES",
   "HAS",
   "EXTENDS",
   "IMPLEMENTS",
   "RETURNS",
-  // 3. DB ve Altyapı
+  // 3. DB and infrastructure
   "QUERIES",
   "WRITES",
   "CACHES_IN",
-  // 4. Mimari
+  // 4. Architecture
   "DEPENDS_ON",
   "READS_CONFIG",
   "THROWS",
@@ -27,8 +27,8 @@ export type EdgeKind = (typeof EDGE_KINDS)[number];
 
 export const EdgeKindSchema = z.enum(EDGE_KINDS);
 
-/* Plans/Edge Taxonomy: tüm edge kind'lar AYNI property shape'i taşır.
- * Per-kind ayrı schema gerekmez — discriminator + shared properties yeterli. */
+/* Plans/Edge Taxonomy: all edge kinds share the SAME property shape.
+ * No per-kind schema needed — discriminator + shared properties suffice. */
 export const EdgePropertiesSchema = z.object({
   Label: z.string().optional(),
   IsAsync: z.boolean(),

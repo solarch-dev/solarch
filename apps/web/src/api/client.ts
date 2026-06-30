@@ -1,45 +1,11 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./schema";
-import { getGuestToken } from "../lib/guest";
 import { API_URL } from "../lib/env";
 
-// Empty = relative (same-origin). In dev Vite proxy (/api → :4000), in prod reverse
-// proxy handles it; this way the Clerk httpOnly cookie (__session) flows to the backend.
 const BASE_URL = API_URL;
 
-/** Clerk session token (Bearer). Supplement/backup to cookie: after signup/signin
- *  the __session cookie may not be written yet → getToken() always provides a fresh
- *  token, avoiding a 401 race on initial requests. Returns null if not signed in. */
-export async function getClerkToken(): Promise<string | null> {
-  const clerk = (window as unknown as {
-    Clerk?: { session?: { getToken?: () => Promise<string | null> } };
-  }).Clerk;
-  try {
-    return (await clerk?.session?.getToken?.()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Typed openapi-fetch client. Path/param/body types come from schema.d.ts.
- *  credentials:"include" → cookie; additionally a Bearer token is attached to every request. */
+/** Typed openapi-fetch client. OSS local mode: no auth headers (backend injects owner identity). */
 export const api = createClient<paths>({ baseUrl: BASE_URL, credentials: "include" });
-
-// Backend clerkMiddleware accepts cookie OR Authorization Bearer. By attaching
-// Bearer to every request we ensure robust auth independent of cookie timing.
-// No Clerk session → guest ticket (X-Guest-Token) if present (login'siz deneme).
-api.use({
-  async onRequest({ request }) {
-    const token = await getClerkToken();
-    if (token) {
-      request.headers.set("Authorization", `Bearer ${token}`);
-    } else {
-      const guest = getGuestToken();
-      if (guest) request.headers.set("X-Guest-Token", guest);
-    }
-    return request;
-  },
-});
 
 /** Solarch envelope: { success, data } | { success:false, error }. */
 export interface ErrorEnvelope {
@@ -48,10 +14,10 @@ export interface ErrorEnvelope {
     code: string;
     message: string;
     details?: { field: string; issue: string }[];
-    suggestion?: string;       // Fix suggestion on Rules Engine rejection
+    suggestion?: string;
     ruleViolated?: string;
     docLink?: string;
-    currentVersion?: number;   // version conflict
+    currentVersion?: number;
   };
 }
 
@@ -68,7 +34,6 @@ export class ApiError extends Error {
   }
 }
 
-/** Unwraps the envelope from an openapi-fetch result; throws ApiError on failure. */
 export function unwrap<T>(res: { data?: unknown; error?: unknown }): T {
   if (res.error) {
     const e = res.error as ErrorEnvelope;
@@ -79,12 +44,10 @@ export function unwrap<T>(res: { data?: unknown; error?: unknown }): T {
   return body.data;
 }
 
-/** Shared error gate for raw fetch (raw.ts): if res.ok is false, throw ApiError
- *  from the envelope → no silent swallowing, error reaches global toast/caller. */
 export async function throwIfNotOk(res: Response): Promise<void> {
   if (res.ok) return;
   let env: ErrorEnvelope | undefined;
-  try { env = (await res.json()) as ErrorEnvelope; } catch { /* no body / not JSON */ }
+  try { env = (await res.json()) as ErrorEnvelope; } catch { /* no body */ }
   const e = env?.error;
   throw new ApiError(e?.code ?? "ERR_UNKNOWN", e?.message ?? `HTTP ${res.status}`, e?.details, e?.suggestion);
 }

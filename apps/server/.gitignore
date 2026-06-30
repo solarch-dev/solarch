@@ -39,9 +39,10 @@ coverage/
 # Neo4j local data
 neo4j_data/
 
-# DB yedekleri (PII içerir — repo'ya girmesin) + yedek ayar dosyası (RCLONE token vb.)
+# DB backups (contains PII — do not go into repo) + backup settings file (RCLONE token etc.)
 backups/
 scripts/neo4j-backup.env
+scripts/.tr-en-cache.json
 
 # Claude Code
 .claude/

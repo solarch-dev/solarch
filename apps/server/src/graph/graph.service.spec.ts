@@ -6,9 +6,9 @@ function makeDeps(opts: {
   projectExists?: boolean;
   evaluateResult?: any;
   graphRevision?: number;
-  /** id → stored node; nodesRepo.getById bu haritadan döner. */
+  /** id -> stored node; nodesRepo.getById returns from this map. */
   existingNodes?: Record<string, any>;
-  /** commit tx'indeki revizyon sorgusunun döneceği rev (undefined = kayıt yok). */
+  /** revision query in commit tx will return this rev (undefined = no record). */
   txRevision?: number;
 } = {}) {
   const txRun = vi.fn(async (cypher: string) => {
@@ -56,14 +56,14 @@ describe("GraphService.apply", () => {
     service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
   });
 
-  it("proje yoksa NotFoundException", async () => {
+  it("throws NotFoundException when project missing", async () => {
     deps = makeDeps({ projectExists: false });
     service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     await expect(service.apply(projectId, { mutations: { nodes: [], edges: [] } } as any))
       .rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("geçerli batch → success + idMap + commit", async () => {
+  it("valid batch -> success + idMap + commit", async () => {
     const result = await service.apply(projectId, {
       mutations: {
         nodes: [
@@ -82,7 +82,7 @@ describe("GraphService.apply", () => {
     expect(deps.neo4j.write).toHaveBeenCalledOnce();
   });
 
-  it("şema ihlali → ROLLED_BACK + commit yok", async () => {
+  it("schema violation -> ROLLED_BACK + no commit", async () => {
     const result = await service.apply(projectId, {
       mutations: { nodes: [{ tempId: "t1", type: "Table", properties: { TableName: "x" } }], edges: [] },
     } as any);
@@ -94,8 +94,8 @@ describe("GraphService.apply", () => {
     expect(deps.neo4j.write).not.toHaveBeenCalled();
   });
 
-  it("Rules ihlali (ERR_002) → ROLLED_BACK", async () => {
-    deps = makeDeps({ evaluateResult: { allowed: false, code: "ERR_002", message: "Controller DB'ye yazamaz", suggestion: "Repository ekle" } });
+  it("Rules violation (ERR_002) -> ROLLED_BACK", async () => {
+    deps = makeDeps({ evaluateResult: { allowed: false, code: "ERR_002", message: "Controller cannot write to DB", suggestion: "Add Repository" } });
     service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     const result = await service.apply(projectId, {
       mutations: {
@@ -114,7 +114,7 @@ describe("GraphService.apply", () => {
     expect(deps.neo4j.write).not.toHaveBeenCalled();
   });
 
-  it("batch-içi döngüsel CALLS → ERR_COND_001", async () => {
+  it("in-batch circular CALLS -> ERR_COND_001", async () => {
     const result = await service.apply(projectId, {
       mutations: {
         nodes: [
@@ -133,7 +133,7 @@ describe("GraphService.apply", () => {
     }
   });
 
-  it("duplicate tempId → ERR_DUPLICATE_TEMP_ID", async () => {
+  it("duplicate tempId -> ERR_DUPLICATE_TEMP_ID", async () => {
     const result = await service.apply(projectId, {
       mutations: {
         nodes: [
@@ -149,7 +149,7 @@ describe("GraphService.apply", () => {
     }
   });
 
-  it("geçersiz tempId referansı → ERR_EDGE_TEMP_NOT_FOUND", async () => {
+  it("invalid tempId reference -> ERR_EDGE_TEMP_NOT_FOUND", async () => {
     const result = await service.apply(projectId, {
       mutations: {
         nodes: [{ tempId: "a", type: "Service", properties: svcProps("A") }],
@@ -177,8 +177,8 @@ const cloudRepo = {
   properties: { RepositoryName: "OrderRepo", Description: "d", EntityReference: "Order", CustomQueries: [] },
 };
 
-describe("GraphService.apply — mevcut node'a edge (upsert köprüsü)", () => {
-  it("yeni node → mevcut cloud node edge'i: DB'den okunur, Rules Engine'e verilir, commit edilir", async () => {
+describe("GraphService.apply — edge to existing node (upsert bridge)", () => {
+  it("new node -> existing cloud node edge: loaded from DB, passed to Rules Engine, committed", async () => {
     const deps = makeDeps({ existingNodes: { [cloudNodeId]: cloudRepo }, txRevision: 1 });
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     const result = await service.apply(projectId, {
@@ -196,8 +196,8 @@ describe("GraphService.apply — mevcut node'a edge (upsert köprüsü)", () => 
     expect(deps.neo4j.write).toHaveBeenCalledOnce();
   });
 
-  it("mevcut node id bulunamazsa → ERR_EDGE_NODE_NOT_FOUND + rollback", async () => {
-    const deps = makeDeps(); // existingNodes boş
+  it("when existing node id not found -> ERR_EDGE_NODE_NOT_FOUND + rollback", async () => {
+    const deps = makeDeps(); // existingNodes empty
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     const result = await service.apply(projectId, {
       mutations: {
@@ -212,7 +212,7 @@ describe("GraphService.apply — mevcut node'a edge (upsert köprüsü)", () => 
     expect(deps.neo4j.write).not.toHaveBeenCalled();
   });
 
-  it("edge merge cypher'ı idempotent (apoc.merge.relationship)", async () => {
+  it("edge merge cypher is idempotent (apoc.merge.relationship)", async () => {
     const deps = makeDeps({ existingNodes: { [cloudNodeId]: cloudRepo }, txRevision: 1 });
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     await service.apply(projectId, {
@@ -226,8 +226,8 @@ describe("GraphService.apply — mevcut node'a edge (upsert köprüsü)", () => 
   });
 });
 
-describe("GraphService.apply — graf revizyon çatışması", () => {
-  it("baseRevision eskidiyse hiçbir şey yazılmadan 409 ERR_GRAPH_REVISION_CONFLICT", async () => {
+describe("GraphService.apply — graph revision conflict", () => {
+  it("stale baseRevision -> 409 ERR_GRAPH_REVISION_CONFLICT without writing", async () => {
     const deps = makeDeps({ graphRevision: 5 });
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     const err = await service
@@ -241,7 +241,7 @@ describe("GraphService.apply — graf revizyon çatışması", () => {
     expect(deps.neo4j.write).not.toHaveBeenCalled();
   });
 
-  it("baseRevision güncel ise commit + yeni graphRevision döner", async () => {
+  it("current baseRevision -> commit + new graphRevision", async () => {
     const deps = makeDeps({ graphRevision: 3, txRevision: 4 });
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     const result = await service.apply(projectId, {
@@ -252,8 +252,8 @@ describe("GraphService.apply — graf revizyon çatışması", () => {
     if (result.success) expect(result.graphRevision).toBe(4);
   });
 
-  it("commit transaction'ında revizyon araya yazma ile eskidiyse rollback + 409", async () => {
-    // Ön-kontrol geçer (graphRevision=3) ama tx içindeki atomik kontrol 0 kayıt döner.
+  it("revision stale inside commit transaction -> rollback + 409", async () => {
+    // Pre-check passes (graphRevision=3) but atomic check inside tx returns 0 rows.
     const deps = makeDeps({ graphRevision: 3, txRevision: undefined });
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     await expect(
@@ -264,7 +264,7 @@ describe("GraphService.apply — graf revizyon çatışması", () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it("boş mutation no-op: bump yok, mevcut revizyon döner", async () => {
+  it("empty mutation no-op: no bump, returns current revision", async () => {
     const deps = makeDeps({ graphRevision: 7 });
     const service = new GraphService(deps.neo4j as any, deps.projectsRepo as any, deps.nodesRepo as any, deps.rulesEngine as any, deps.tabs as any);
     const result = await service.apply(projectId, { mutations: { nodes: [], edges: [] } } as any);

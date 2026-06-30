@@ -1,7 +1,7 @@
 import type { ConditionalRuleDescriptor } from "../types";
 
-/* Plans/Kurallar Matrisi — Bölüm 3 (Conditional).
- * Whitelist match olsa bile çalışan derin (graph + cross-field) kontroller. */
+/* Plans/Rules Matrix — Section 3 (Conditional).
+ * Deep (graph + cross-field) checks that run even when whitelist matches. */
 export const CONDITIONAL_RULES: ConditionalRuleDescriptor[] = [
   {
     code: "ERR_COND_001",

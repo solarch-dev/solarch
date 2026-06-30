@@ -1,11 +1,10 @@
 import { z } from "zod";
 import { EDGE_KINDS } from "../../edges/schemas/edge.schema";
 
-/** Atomic create_edge tool — iki mevcut node arasında edge yaratır.
- *  sourceNodeId ve targetNodeId önceki create_node çağrılarında dönen
- *  gerçek backend ID'leri olmalı (tempId yok). Rules Engine her create'de
- *  inline çalışır — kural ihlali varsa { ok: false, suggestion } döner,
- *  LLM kendini düzeltir (ReAct). */
+/** Atomic create_edge tool — creates edge between two existing nodes.
+ *  sourceNodeId and targetNodeId must be real backend IDs from prior create_node
+ *  calls (no tempId). Rules Engine runs inline on each create — on violation
+ *  returns { ok: false, suggestion }; LLM self-corrects (ReAct). */
 
 export const CREATE_EDGE_TOOL_NAME = "create_edge";
 

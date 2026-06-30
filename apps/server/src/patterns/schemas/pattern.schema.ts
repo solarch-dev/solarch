@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { EdgeKindSchema } from "../../edges/schemas/edge.schema";
 
-// graphJson: GraphService.apply girdi formatıyla AYNI (tempId tabanlı) → pattern
-// ileride doğrudan apply edilebilir (Phase 5).
+// graphJson: SAME format as GraphService.apply input (tempId-based) -> pattern
+// can be applied directly later (Phase 5).
 export const PatternGraphSchema = z.object({
   nodes: z.array(z.object({
     tempId: z.string().min(1),
@@ -34,7 +34,7 @@ export type PatternGraph = z.infer<typeof PatternGraphSchema>;
 export type CreatePatternInput = z.infer<typeof CreatePatternSchema>;
 export type SearchPatternInput = z.infer<typeof SearchPatternSchema>;
 
-/** Saklanan + dönen tam Pattern (embedding API yanıtında yer almaz). */
+/** Full stored + returned Pattern (embedding not included in API response). */
 export interface StoredPattern {
   id: string;
   name: string;

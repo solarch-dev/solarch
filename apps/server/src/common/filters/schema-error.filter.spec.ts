@@ -17,7 +17,7 @@ function makeHostMock() {
 }
 
 describe("SchemaErrorFilter", () => {
-  it("ZodError'ı 400 + ERR_SCHEMA_INVALID envelope'una çevirir", () => {
+  it("converts ZodError to 400 + ERR_SCHEMA_INVALID envelope", () => {
     const filter = new SchemaErrorFilter();
     const { host, status, json } = makeHostMock();
 
@@ -45,7 +45,7 @@ describe("SchemaErrorFilter", () => {
     expect(arg.error.details[0].field).toBe("name");
   });
 
-  it("nested path'leri dotted string'e çevirir", () => {
+  it("converts nested paths to dotted strings", () => {
     const filter = new SchemaErrorFilter();
     const { host, json } = makeHostMock();
 

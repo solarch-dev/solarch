@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   CacheName: "UserSessionCache",
-  Description: "Aktif oturum cache'i",
+  Description: "Active session cache",
   KeyPattern: "user:session:{userId}",
   TTL_Seconds: 3600,
   Engine: "Redis" as const,
@@ -21,25 +21,25 @@ const parse = (properties: unknown) =>
   CacheNodeSchema.parse({ ...validBase, type: "Cache", properties });
 
 describe("CacheNodeSchema (enriched)", () => {
-  it("geçerli Cache'i parse eder", () => {
+  it("parses valid Cache", () => {
     expect(parse(validProperties).properties.Engine).toBe("Redis");
   });
 
-  it("EvictionPolicy + MaxSizeMB + Serialization kabul eder", () => {
+  it("accepts EvictionPolicy + MaxSizeMB + Serialization", () => {
     const node = parse({ ...validProperties, EvictionPolicy: "LRU", MaxSizeMB: 256, Serialization: "json" });
     expect(node.properties.EvictionPolicy).toBe("LRU");
     expect(node.properties.MaxSizeMB).toBe(256);
   });
 
-  it("geçersiz EvictionPolicy reddeder", () => {
+  it("rejects invalid EvictionPolicy", () => {
     expect(() => parse({ ...validProperties, EvictionPolicy: "Random" })).toThrow();
   });
 
-  it("Bilinmeyen Engine reddeder", () => {
+  it("rejects unknown Engine", () => {
     expect(() => parse({ ...validProperties, Engine: "Hazelcast" })).toThrow();
   });
 
-  it("TTL_Seconds pozitif olmalı", () => {
+  it("TTL_Seconds must be positive", () => {
     expect(() => parse({ ...validProperties, TTL_Seconds: 0 })).toThrow();
   });
 });

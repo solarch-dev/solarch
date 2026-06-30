@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   HttpCode,
   NotFoundException,
@@ -22,21 +21,11 @@ const CreateApiKeySchema = z.object({
 });
 class CreateApiKeyDto extends createZodDto(CreateApiKeySchema) {}
 
-/** CLI/MCP gibi terminal istemcilerinin kimlik anahtarı yönetimi.
- *  Yalnız Clerk kullanıcıları (misafir bilet sahipleri API anahtarı üretemez). */
+/** API key management for terminal clients such as CLI/MCP. */
 @ApiTags("API Keys")
 @Controller("api-keys")
 export class ApiKeysController {
   constructor(private readonly service: ApiKeysService) {}
-
-  private assertNotGuest(auth: AuthContext): void {
-    if (auth.isGuest) {
-      throw new ForbiddenException({
-        code: "ERR_GUEST_FORBIDDEN",
-        message: "API keys require a registered account.",
-      });
-    }
-  }
 
   @Post()
   @HttpCode(201)
@@ -48,7 +37,6 @@ export class ApiKeysController {
   })
   @ApiResponse({ status: 201, description: "`data: { key, id, name, prefix, createdAt }`." })
   async create(@Body() body: CreateApiKeyDto, @CurrentAuth() auth: AuthContext) {
-    this.assertNotGuest(auth);
     const { key, record } = await this.service.create(auth.userId, body.name);
     return ok({ key, id: record.id, name: record.name, prefix: record.prefix, createdAt: record.createdAt });
   }
@@ -57,7 +45,6 @@ export class ApiKeysController {
   @ApiOperation({ summary: "List my keys", description: "Plaintext key is not returned; prefix + metadata." })
   @ApiResponse({ status: 200, description: "`data: { keys: [...] }`." })
   async list(@CurrentAuth() auth: AuthContext) {
-    this.assertNotGuest(auth);
     const keys = await this.service.list(auth.userId);
     return ok({ keys });
   }
@@ -67,7 +54,6 @@ export class ApiKeysController {
   @ApiResponse({ status: 200, description: "`data: { deleted: true }`." })
   @ApiResponse({ status: 404, description: "`ERR_API_KEY_NOT_FOUND`." })
   async remove(@Param("keyId") keyId: string, @CurrentAuth() auth: AuthContext) {
-    this.assertNotGuest(auth);
     const deleted = await this.service.remove(auth.userId, keyId);
     if (!deleted) {
       throw new NotFoundException({ code: "ERR_API_KEY_NOT_FOUND", message: "API key not found." });

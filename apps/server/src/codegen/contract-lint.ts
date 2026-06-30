@@ -1,33 +1,33 @@
 import { propsOf, type CodeGraph } from "./ir";
 
 /* ────────────────────────────────────────────────────────────────────────
- * contract-lint.ts — DİYAGRAM-ANI KONTRAT DENETİMİ.
+ * contract-lint.ts — DIYAGRAM-ANI KONTRAT DENETIMI.
  *
- * Graf'ın YAPISAL eksiklerini codegen uyarısına çevirir: üretim BAŞARILI olur ama
- * kullanıcıya bildirilir (GeneratedProject.warnings -> canvas bunları işaretler).
- * Felsefe: emitter graf ne diyorsa onu üretir; eksik bir kontratı emitter'da
- * "uydurmak" yerine burada YÜKSEK SESLE yakala (L1 Contract-Compiler'ın çekirdeği).
+ * Graf'in YAPISAL eksiklerini codegen uyarisina cevirir: uretim BASARILI olur ama
+ * kullaniciya bildirilir (GeneratedProject.warnings -> canvas bunlari isaretler).
+ * Felsefe: emitter graf ne diyorsa onu uretir; eksik bir kontrati emitter'da
+ * "uydurmak" yerine burada YUKSEK SESLE yakala (L1 Contract-Compiler'in cekirdegi).
  *
- * Şimdiki kural:
- *   - Gövde-alan write endpoint'i (POST/PUT/PATCH) bir input DTO'su (RequestDTORef)
- *     OLMADAN -> @Body üretilemez, istek gövdesi sessizce yok sayılır. (surgical-output
- *     bug'ı: category POST / order PATCH'te @Body yoktu, AI placeholder uydurdu.)
+ * Simdiki kural:
+ *   - Govde-alan write endpoint'i (POST/PUT/PATCH) bir input DTO'su (RequestDTORef)
+ *     WITHOUT -> @Body uretilemez, istek govdesi sessizce yok sayilir. (surgical-output
+ *     bug'i: category POST / order PATCH'te @Body yoktu, AI placeholder uydurdu.)
  *
- * SAF + DETERMİNİSTİK: yalnız graf okuması, sıralı çıktı, yan etki yok.
+ * SAF + DETERMINISTIC: yalniz graf okumasi, sirali cikti, yan etki yok.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Bir istek gövdesi (body) bekleyebilen HTTP fiilleri. GET/DELETE gövdesizdir. */
+/** Bir istek govdesi (body) bekleyebilen HTTP fiilleri. GET/DELETE govdesizdir. */
 const WRITE_METHODS: ReadonlySet<string> = new Set(["POST", "PUT", "PATCH"]);
 
-/** Graf üzerinde kontrat denetimi koşar; bulunan ihlalleri sıralı uyarı listesi
- *  olarak döndürür (ihlal yoksa boş dizi). codegen.service.assemble bunu
- *  graph.warnings() ile birleştirir. */
+/** Graf uzerinde kontrat denetimi kosar; bulunan ihlalleri sirali uyari listesi
+ *  olarak dondurur (ihlal yoksa bos dizi). codegen.service.assemble bunu
+ *  graph.warnings() ile birlestirir. */
 export function lintContracts(graph: CodeGraph): string[] {
   const warnings: string[] = [];
   for (const ctrl of graph.allOf("Controller")) {
     const props = propsOf<"Controller">(ctrl);
     for (const ep of props.Endpoints ?? []) {
-      // Kural 1: gövde-alan write endpoint'i (POST/PUT/PATCH) input DTO'su olmadan.
+      // Kural 1: govde-alan write endpoint'i (POST/PUT/PATCH) input DTO'su olmadan.
       if (WRITE_METHODS.has(ep.HttpMethod) && !ep.RequestDTORef) {
         warnings.push(
           `${ctrl.name}: ${ep.HttpMethod} ${ep.Route} has no request body DTO ` +
@@ -36,7 +36,7 @@ export function lintContracts(graph: CodeGraph): string[] {
       }
       // Kural 2: rol gerektiren ama auth gerektirmeyen endpoint. RolesGuard
       // request.user.role'e bakar; AuthGuard (authentication) yoksa request.user
-      // set edilmez -> RolesGuard her isteği reddeder -> endpoint ERİŞİLEMEZ.
+      // set edilmez -> RolesGuard her istegi reddeder -> endpoint ERISILEMEZ.
       if ((ep.RequiredRoles?.length ?? 0) > 0 && !ep.RequiresAuth) {
         warnings.push(
           `${ctrl.name}: ${ep.HttpMethod} ${ep.Route} requires roles but not authentication ` +
@@ -45,8 +45,8 @@ export function lintContracts(graph: CodeGraph): string[] {
         );
       }
 
-      // Kural 3: route ":param"'ı eşleşen PathParam'sız. Emitter @Param("x")'i
-      // PathParams'tan üretir; route ":x" ama PathParam yoksa handler x'i OKUYAMAZ.
+      // Kural 3: route ":param"'i eslesen PathParam'siz. Emitter @Param("x")'i
+      // PathParams'tan uretir; route ":x" ama PathParam yoksa handler x'i OKUYAMAZ.
       const declaredParams = new Set((ep.PathParams ?? []).map((p) => p.Name));
       for (const rp of routeParamNames(ep.Route)) {
         if (!declaredParams.has(rp)) {
@@ -58,7 +58,7 @@ export function lintContracts(graph: CodeGraph): string[] {
       }
 
       // Kural 4: DANGLING DTO ref — RequestDTORef/ResponseDTORef bir DTO node'una
-      // çözülmüyor -> emitter `unknown /* TODO */` üretir; bağlantı eksik/yanlış.
+      // cozulmuyor -> emitter `unknown /* TODO */` uretir; baglanti eksik/yanlis.
       const dtoRefs: ReadonlyArray<readonly [string, string | undefined]> = [
         ["request", ep.RequestDTORef],
         ["response", ep.ResponseDTORef],
@@ -74,8 +74,8 @@ export function lintContracts(graph: CodeGraph): string[] {
     }
   }
 
-  // Kural 5: DANGLING entity/dependency ref'leri (kopuk bağlantılar). Emitter bunları
-  // tolere eder (Repository<any> / import'suz inject) ama graf bağlantısı eksik/yanlış.
+  // Kural 5: DANGLING entity/dependency ref'leri (kopuk baglantilar). Emitter bunlari
+  // tolere eder (Repository<any> / import'suz inject) ama graf baglantisi eksik/yanlis.
   for (const repo of graph.allOf("Repository")) {
     const ref = propsOf<"Repository">(repo).EntityReference;
     if (ref && !graph.resolveRef(["Model", "Table"], ref)) {
@@ -96,12 +96,12 @@ export function lintContracts(graph: CodeGraph): string[] {
     }
   }
 
-  // Kural 6: NULLABILITY uyumsuzluğu — bir DTO ZORUNLU alanı (IsRequired), aynı-isimli entity
-  // tablosunda NULLABLE bir kolondan (IsNotNull=false) besleniyor. Codegen ikisini de sadık
-  // üretir (entity `x?: T`, dto `x: T`); fill nullable kaynağı zorunlu hedefe KÖPRÜLEMEK zorunda
-  // (default/throw) yoksa TS2322. Surgical AI bunu artık köprüler, ama çelişkiyi KAYNAĞINDA
-  // (diyagramda) yakala. Eşleştirme isim-bazlı (VideoDTO → Videos tablosu) → yalnız aday tablo
-  // VE aynı-isimli kolon varken uyarır (dar, düşük false-positive). Uyarı bloklamaz.
+  // Kural 6: NULLABILITY uyumsuzlugu — bir DTO ZORUNLU alani (IsRequired), ayni-isimli entity
+  // tablosunda NULLABLE bir kolondan (IsNotNull=false) besleniyor. Codegen ikisini de sadik
+  // uretir (entity `x?: T`, dto `x: T`); fill nullable kaynagi zorunlu hedefe KOPRULEMEK zorunda
+  // (default/throw) yoksa TS2322. Surgical AI bunu artik kopruler, ama celiskiyi KAYNAGINDA
+  // (diyagramda) yakala. Eslestirme isim-bazli (VideoDTO → Videos tablosu) → yalniz aday tablo
+  // VE ayni-isimli kolon varken uyarir (dar, dusuk false-positive). Uyari bloklamaz.
   for (const dto of graph.allOf("DTO")) {
     const entityName = dto.name.replace(/(DTO|Dto)$/, "");
     if (entityName.length === 0) continue;
@@ -124,10 +124,10 @@ export function lintContracts(graph: CodeGraph): string[] {
   return warnings.sort();
 }
 
-/** Bir entity ADI için (VideoDTO'dan türetilmiş "Video") eşleşen Table node'unu bulur:
- *  doğrudan / tekil↔çoğul (Video↔Videos, -ies/-y) eşleşmesi, büyük-küçük harf duyarsız.
- *  Aday yoksa null → DTO entity-bağlı değil (request/aggregate DTO'su) → lint atlar.
- *  Dönüş tipi çıkarımla (CodeNode | null) — ir.ts CodeNode'u export etmez. */
+/** Bir entity ADI icin (VideoDTO'dan turetilmis "Video") eslesen Table node'unu bulur:
+ *  dogrudan / tekil↔cogul (Video↔Videos, -ies/-y) eslesmesi, buyuk-kucuk harf duyarsiz.
+ *  Aday yoksa null → DTO entity-bagli degil (request/aggregate DTO'su) → lint atlar.
+ *  Donus tipi cikarimla (CodeNode | null) — ir.ts CodeNode'u export etmez. */
 function findEntityTable(graph: CodeGraph, entityName: string) {
   const en = entityName.toLowerCase();
   const variants = new Set([en, en + "s", en + "es", en.replace(/y$/, "ies")]);
@@ -139,7 +139,7 @@ function findEntityTable(graph: CodeGraph, entityName: string) {
   return null;
 }
 
-/** Bir route'taki parametre adları: ":id" / "{id}" segmentlerinden ad'ları çıkarır. */
+/** Bir route'taki parametre adlari: ":id" / "{id}" segmentlerinden ad'lari cikarir. */
 function routeParamNames(route: string): string[] {
   return route
     .split("/")

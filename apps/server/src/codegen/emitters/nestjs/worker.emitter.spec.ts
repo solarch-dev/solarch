@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -49,10 +49,10 @@ const SVC2 = "30000000-0000-4000-8000-000000000003";
 const CACHE = "30000000-0000-4000-8000-000000000004";
 const CTRL = "30000000-0000-4000-8000-000000000005";
 
-/* ── Node fixture'ları ──────────────────────────────────────────────────── */
+/* ── Node fixtures ──────────────────────────────────────────────────── */
 const thumbnailService = node("Service", SVC, {
   ServiceName: "ThumbnailService",
-  Description: "Thumbnail iş mantığı",
+  Description: "Thumbnail business logic",
   IsTransactionScoped: false,
   Dependencies: [],
   Methods: [
@@ -67,20 +67,20 @@ const thumbnailService = node("Service", SVC, {
   ],
 });
 
-// Worker'ı bir feature'a düşürmek için onu CALLS eden bir Controller-Service
+// Worker'i bir feature'a dusurmek icin onu CALLS eden bir Controller-Service
 // zinciri kuruyoruz: ThumbnailController -> ThumbnailService -> (feature "thumbnail").
 const thumbnailController = node("Controller", CTRL, {
   ControllerName: "ThumbnailController",
-  Description: "Thumbnail uçları",
+  Description: "Thumbnail endpoints",
   BasePath: "/thumbnails",
   Endpoints: [],
 });
 
 const thumbnailWorker = node("Worker", WORKER, {
   WorkerName: "ThumbnailWorker",
-  Description: "Eski thumbnail'ları periyodik temizler",
+  Description: "Periodically cleans old thumbnails",
   Schedule: "0 3 * * *",
-  TaskToExecute: "Süresi dolmuş thumbnail kayıtlarını sil",
+  TaskToExecute: "Delete expired thumbnail records",
   TimeoutSeconds: 120,
   RetryPolicy: { MaxRetries: 3, BackoffStrategy: "exponential", DelaySeconds: 5 },
   IsEnabled: true,
@@ -102,7 +102,7 @@ describe("emitWorker", () => {
       import { Cron } from "@nestjs/schedule";
       import { ThumbnailService } from "./thumbnail.service";
 
-      /** Eski thumbnail'ları periyodik temizler */
+      /** Periodically cleans old thumbnails */
       @Injectable()
       export class ThumbnailWorker {
         constructor(
@@ -112,7 +112,7 @@ describe("emitWorker", () => {
         @Cron("0 3 * * *")
         async handleThumbnail(): Promise<void> {
           // @solarch:surgical id=30000000-0000-4000-8000-000000000001#handleThumbnail
-          // Süresi dolmuş thumbnail kayıtlarını sil
+          // Delete expired thumbnail records
           // deps: this.thumbnailService
           throw new Error("NOT_IMPLEMENTED: ThumbnailWorker.handleThumbnail");
         }
@@ -125,7 +125,7 @@ describe("emitWorker", () => {
     `);
   });
 
-  it("dosya yolu ctx.filePathFor ile feature-aware (.worker.ts, rol son-eki tekrarsız)", () => {
+  it("dosya yolu ctx.filePathFor ile feature-aware (.worker.ts, rol son-eki tekrarsiz)", () => {
     const ctx = ctxFrom(
       [thumbnailWorker, thumbnailService, thumbnailController],
       [edge("e-ctrl-svc", "CALLS", CTRL, SVC), edge("e-worker-svc", "CALLS", WORKER, SVC)],
@@ -141,13 +141,13 @@ describe("emitWorker", () => {
     expect(file.content).toContain('import { Cron } from "@nestjs/schedule";');
   });
 
-  it("@Cron(<Schedule>) cron ifadesini kullanır", () => {
+  it("@Cron(<Schedule>) cron ifadesini kullanir", () => {
     const ctx = ctxFrom([thumbnailWorker], []);
     const [file] = emitWorker(ctx.graph.byId(WORKER)!, ctx);
     expect(file.content).toContain('@Cron("0 3 * * *")');
   });
 
-  it("Schedule boşsa makul default'a düşer (her gece yarısı)", () => {
+  it("Schedule bossa makul default'a duser (her gece yarisi)", () => {
     const w = node("Worker", WORKER, {
       WorkerName: "CleanupWorker",
       Description: "Temizlik",
@@ -162,7 +162,7 @@ describe("emitWorker", () => {
     expect(file.content).toContain('@Cron("0 0 * * *")');
   });
 
-  it("CALLS ettiği Service'i DI eder + handler govdesinde erisilebilir (surgical deps)", () => {
+  it("CALLS ettigi Service'i DI eder + handler govdesinde erisilebilir (surgical deps)", () => {
     const ctx = ctxFrom(
       [thumbnailWorker, thumbnailService, thumbnailController],
       [edge("e-ctrl-svc", "CALLS", CTRL, SVC), edge("e-worker-svc", "CALLS", WORKER, SVC)],
@@ -173,7 +173,7 @@ describe("emitWorker", () => {
     expect(file.content).toContain("// deps: this.thumbnailService");
   });
 
-  it("birden çok Service CALLS -> DEDUP + isme göre sıralı DI", () => {
+  it("birden cok Service CALLS -> DEDUP + isme gore sirali DI", () => {
     const cleanupService = node("Service", SVC2, {
       ServiceName: "AuditService",
       Description: "Denetim",
@@ -196,7 +196,7 @@ describe("emitWorker", () => {
     // DEDUP: thumbnailService tek kez.
     const occurrences = file.content.split("private readonly thumbnailService").length - 1;
     expect(occurrences).toBe(1);
-    // İsme göre sıralı: auditService (a) thumbnailService'ten (t) ÖNCE.
+    // Isme gore sirali: auditService (a) thumbnailService'ten (t) FIRST.
     const auditIdx = file.content.indexOf("private readonly auditService");
     const thumbIdx = file.content.indexOf("private readonly thumbnailService");
     expect(auditIdx).toBeGreaterThan(-1);
@@ -214,7 +214,7 @@ describe("emitWorker", () => {
     expect(file.content).not.toContain("Cache");
   });
 
-  it("handler için surgical marker + NOT_IMPLEMENTED govdesi", () => {
+  it("handler icin surgical marker + NOT_IMPLEMENTED govdesi", () => {
     const ctx = ctxFrom([thumbnailWorker], []);
     const [file] = emitWorker(ctx.graph.byId(WORKER)!, ctx);
     expect(file.surgicalMarkers).toBe(1);
@@ -222,7 +222,7 @@ describe("emitWorker", () => {
     expect(file.content).toContain('throw new Error("NOT_IMPLEMENTED: ThumbnailWorker.handleThumbnail");');
   });
 
-  it("DI yoksa constructor üretilmez", () => {
+  it("DI yoksa constructor uretilmez", () => {
     const ctx = ctxFrom([thumbnailWorker], []);
     const [file] = emitWorker(ctx.graph.byId(WORKER)!, ctx);
     expect(file.content).not.toContain("constructor(");
@@ -230,14 +230,14 @@ describe("emitWorker", () => {
     expect(file.content).toContain("async handleThumbnail(): Promise<void> {");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFrom([thumbnailWorker], []);
     const [file] = emitWorker(ctx.graph.byId(WORKER)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: iki bağımsız graph kuruluşu -> byte-identical", () => {
+  it("DETERMINISM: two independent graph builds -> byte-identical", () => {
     const nodes = [thumbnailWorker, thumbnailService, thumbnailController];
     const edges = [edge("e-ctrl-svc", "CALLS", CTRL, SVC), edge("e-worker-svc", "CALLS", WORKER, SVC)];
     const ctxA = ctxFrom(nodes, edges);
@@ -247,10 +247,10 @@ describe("emitWorker", () => {
     expect(a).toBe(b);
   });
 
-  it("edge-case: kayıp/biçimsiz property + kopuk CALLS — throw etmez", () => {
+  it("edge-case: kayip/bicimsiz property + kopuk CALLS — throw etmez", () => {
     const bareWorker = node("Worker", WORKER, {
       WorkerName: "BareWorker",
-      // Description/Schedule/TaskToExecute YOK -> savunmacı okuma boş string.
+      // Description/Schedule/TaskToExecute NONE -> savunmaci okuma bos string.
       TimeoutSeconds: 30,
       RetryPolicy: { MaxRetries: 0 },
       IsEnabled: true,

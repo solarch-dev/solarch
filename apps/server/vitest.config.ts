@@ -7,14 +7,16 @@ export default defineConfig({
     environment: "node",
     globals: false,
     testTimeout: 10000,
-    // env.ts top-level `parseEnv(process.env)` çalıştırır; unit testlerde gerçek
-    // .env yok. Minimal default'lar ver ki modül import'u patlamasın (e2e script'i
-    // zaten aynısını npm env'leriyle yapıyor). parseEnv testleri explicit obje
-    // geçtiği için bundan etkilenmez.
+    // env.ts runs top-level `parseEnv(process.env)`; unit tests have no real
+    // .env file. Provide minimal defaults so module import does not crash (e2e script
+    // already does the same via npm env vars). parseEnv tests pass explicit object
+    // so they are unaffected by this.
     env: {
       NEO4J_URI: "bolt://localhost:7687",
       NEO4J_USER: "neo4j",
       NEO4J_PASSWORD: "test",
+      LLM_GENERATION_PROVIDER: "openai",
+      LLM_CHAT_PROVIDER: "openai",
     },
   },
   resolve: {

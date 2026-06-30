@@ -15,44 +15,44 @@ import type { NodeKind } from "../../../nodes/schemas";
 /* ────────────────────────────────────────────────────────────────────────
  * worker.emitter.ts — WorkerNode -> <feature>/<kebab>.worker.ts.
  *
- * @Injectable() bir NestJS zamanlanmış işçisi (scheduled worker) üretir:
- *   - @Cron(<Schedule>) ile dekore edilmiş TEK handler metodu. Schedule bir cron
- *     ifadesidir (WorkerNode.Schedule, "cron ifadesi"). Boş/eksikse makul bir
- *     default'a düşülür (her gece yarısı: "0 0 * * *").
- *   - DI alanları: graph.outEdges(id, "CALLS") hedefleri arasından Service'ler
- *     (deterministik: DEDUP + isme göre sıralı). Her biri constructor'a
- *     `private readonly <camelCaseRef>: <ServiceClass>` olarak enjekte edilir;
- *     çözülebilen ref'ler için göreli import eklenir.
- *   - Handler gövdesi = surgicalMarker (Description, TaskToExecute, erişilebilir
- *     bağımlılıklar this.<svc>) + notImplemented(). Cron handler "algoritma
- *     alanıdır" — Constructor yazmaz, Surgical AI doldurur.
+ * Emits an @Injectable() NestJS scheduled worker:
+ *   - ONE handler method decorated with @Cron(<Schedule>). Schedule is a cron
+ *     expression (WorkerNode.Schedule). Falls back to sensible default when
+ *     empty/missing (midnight daily: "0 0 * * *").
+ *   - DI fields: Services among graph.outEdges(id, "CALLS") targets
+ *     (deterministic: DEDUP + sorted by name). Each injected as
+ *     `private readonly <camelCaseRef>: <ServiceClass>` in constructor;
+ *     relative import added for resolvable refs.
+ *   - Handler body = surgicalMarker (Description, TaskToExecute, accessible
+ *     deps this.<svc>) + notImplemented(). Cron handler is the "algorithm
+ *     region" — Constructor does not write it; Surgical AI fills it.
  *
- * NOT: Worker PropsByKind içinde DEĞİL (propsOf<...> KULLANILAMAZ). Property'ler
- *   worker.schema.ts shape'iyle güvenle (tipli yardımcı) okunur; kayıp/biçimsiz
- *   alanlar tolere edilir (ASLA throw).
+ * NOTE: Worker NOT in PropsByKind (propsOf<...> CANNOT be used). Properties
+ *   read safely (typed helper) via worker.schema.ts shape; missing/malformed
+ *   fields tolerated (NEVER throw).
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar sıralı, import'lar ImportCollector ile,
- * timestamp/random yok, içerik tek "\n" ile biter.
+ * PURE + DETERMINISTIC: collections sorted, imports via ImportCollector,
+ * no timestamp/random, content ends with single "\n".
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Worker'ın CALLS ile enjekte ettiği provider kind'ları (tam emitter'lı). */
+/** Provider kinds Worker injects via CALLS (full emitters). */
 const INJECTABLE_CALL_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>(["Service"]);
 
-/** worker.schema.ts ile aynı shape'in güvenli (tip-dışı) görünümü. Worker
- *  PropsByKind'da olmadığından alanlar tek tek, savunmacı okunur. */
+/** Safe (untyped) view of same shape as worker.schema.ts. Worker is not in
+ *  PropsByKind so fields read defensively one by one. */
 interface WorkerPropsView {
   Description: string;
   Schedule: string;
   TaskToExecute: string;
 }
 
-/** Bir DI'lanmış servis bağımlılığı: alan adı + sınıf tipi + (varsa) import yolu. */
+/** One DI-injected service dependency: field name + class type + (optional) import path. */
 interface ResolvedServiceDep {
-  /** constructor'da `this.<field>` */
+  /** `this.<field>` in constructor */
   field: string;
-  /** enjekte edilen sınıf tipi (pascalCase(name)) */
+  /** injected class type (pascalCase(name)) */
   className: string;
-  /** çözülen node'un dosya yolu (import için); çözülemezse null. */
+  /** resolved node file path (for import); null when unresolvable. */
   filePath: string | null;
 }
 
@@ -66,7 +66,7 @@ export const emitWorker: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =>
   imports.add("Injectable", "@nestjs/common");
   imports.add("Cron", "@nestjs/schedule");
 
-  // ── DI bağımlılıkları: CALLS edge hedefleri arasından Service'ler ──────────
+  // ── DI deps: Services among CALLS edge targets ──────────
   const deps = collectServiceDeps(node, graph);
   for (const dep of deps) {
     if (dep.filePath) {
@@ -74,11 +74,11 @@ export const emitWorker: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =>
     }
   }
 
-  // ── @Cron schedule + handler adı ──────────────────────────────────────────
+  // ── @Cron schedule + handler name ──────────────────────────────────────────
   const schedule = resolveSchedule(props.Schedule);
   const handlerName = handlerNameOf(node);
 
-  // ── Handler gövdesi (surgical) ────────────────────────────────────────────
+  // ── Handler body (surgical) ────────────────────────────────────────────
   const depFields = deps.map((d) => `this.${d.field}`);
   const description = buildHandlerDescription(props);
   const marker = surgicalMarker({
@@ -88,9 +88,9 @@ export const emitWorker: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =>
     deps: depFields.length > 0 ? depFields : undefined,
   });
 
-  // ── Sınıf gövdesi ─────────────────────────────────────────────────────────
+  // ── Class body ─────────────────────────────────────────────────────────
   const lines: string[] = [];
-  // Anlamlı açıklama varsa (trim >=3 char) JSDoc bas; tek-harf/boş gürültüyü atla.
+  // Emit JSDoc when meaningful (trim >=3 char); skip single-letter/empty noise.
   if (props.Description.length >= 3) lines.push(`/** ${props.Description} */`);
   lines.push("@Injectable()");
   lines.push(`export class ${className} {`);
@@ -124,7 +124,7 @@ export const emitWorker: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =>
   return [file];
 };
 
-/** worker.schema.ts shape'ini güvenle okur (kayıp/biçimsiz -> boş string). */
+/** Read worker.schema.ts shape safely (missing/malformed -> empty string). */
 function readWorkerProps(node: CodeNode): WorkerPropsView {
   const p = node.properties as Record<string, unknown>;
   return {
@@ -134,8 +134,8 @@ function readWorkerProps(node: CodeNode): WorkerPropsView {
   };
 }
 
-/** CALLS edge hedefleri arasından Service'leri DEDUP edip isme göre sıralanmış
- *  ResolvedServiceDep listesi döndürür. Çözülemeyen uç atlanır; asla throw etmez. */
+/** DEDUP Services among CALLS edge targets, return sorted ResolvedServiceDep list.
+ *  Unresolved endpoints skipped; never throws. */
 function collectServiceDeps(node: CodeNode, graph: CodeGraph): ResolvedServiceDep[] {
   // refName (node.name) -> ResolvedServiceDep (DEDUP).
   const byKey = new Map<string, ResolvedServiceDep>();
@@ -152,28 +152,28 @@ function collectServiceDeps(node: CodeNode, graph: CodeGraph): ResolvedServiceDe
   return [...byKey.values()].sort((a, b) => cmp(a.field, b.field));
 }
 
-/** @Cron argümanı: Schedule cron ifadesi verilmişse onu, değilse makul bir
- *  default'u (her gece yarısı) kullanır. Determinizm: yalnız property + sabit. */
+/** @Cron argument: use Schedule cron expression when given, else sensible default
+ *  (midnight daily). Deterministic: property + constant only. */
 function resolveSchedule(schedule: string): string {
   return schedule.length > 0 ? schedule : "0 0 * * *";
 }
 
-/** Cron handler metot adı: baseNameOf (rol son-eki "Worker" düşmüş) -> camelCase
- *  + "Tick" yerine idiomatik "handle<Base>". "ThumbnailWorker" -> "handleThumbnail".
- *  Boş ada düşmez (base boşsa "handleTick"). */
+/** Cron handler method name: baseNameOf (role suffix "Worker" stripped) -> camelCase
+ *  + idiomatic "handle<Base>". "ThumbnailWorker" -> "handleThumbnail".
+ *  Never empty (falls back to "handleTick" when base empty). */
 function handlerNameOf(node: CodeNode): string {
   const base = pascalCase(baseNameOf(node));
   return base.length > 0 ? `handle${base}` : "handleTick";
 }
 
-/** Handler surgical açıklaması: TaskToExecute (ne yapması gerektiği) öncelikli;
- *  yoksa Description. Satıra bölme surgicalMarker tarafından yapılır. */
+/** Handler surgical description: TaskToExecute (what it should do) preferred;
+ *  else Description. Line breaks handled by surgicalMarker. */
 function buildHandlerDescription(props: WorkerPropsView): string {
   if (props.TaskToExecute.length > 0) return props.TaskToExecute;
   return props.Description;
 }
 
-/** Deterministik string karşılaştırması. */
+/** Deterministic string compare. */
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }

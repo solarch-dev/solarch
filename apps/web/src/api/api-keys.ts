@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getClerkToken } from "./client";
 
 /** API key metadata — the plaintext key is returned only once, in the create response. */
 export interface ApiKeyRecord {
@@ -11,13 +10,11 @@ export interface ApiKeyRecord {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await getClerkToken();
   const res = await fetch(`/api/v1${path}`, {
     credentials: "include",
     ...init,
     headers: {
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });

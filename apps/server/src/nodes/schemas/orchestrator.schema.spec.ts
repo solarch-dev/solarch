@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   OrchestratorName: "OrderSaga",
-  Description: "Sipariş Saga koordinasyonu",
+  Description: "Order saga coordination",
   Pattern: "Saga" as const,
 };
 
@@ -19,13 +19,13 @@ const parse = (properties: unknown) =>
   OrchestratorNodeSchema.parse({ ...validBase, type: "Orchestrator", properties });
 
 describe("OrchestratorNodeSchema (enriched)", () => {
-  it("geçerli Orchestrator'ı parse eder (Steps default boş)", () => {
+  it("parses valid Orchestrator (Steps default empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.Pattern).toBe("Saga");
     expect(node.properties.Steps).toEqual([]);
   });
 
-  it("Steps (ServiceRef + CompensationAction + OnFailure) kabul eder", () => {
+  it("accepts Steps (ServiceRef + CompensationAction + OnFailure)", () => {
     const node = parse({
       ...validProperties,
       Steps: [
@@ -38,19 +38,19 @@ describe("OrchestratorNodeSchema (enriched)", () => {
     expect(node.properties.Steps[1].OnFailure).toBe("abort"); // default
   });
 
-  it("geçersiz OnFailure reddeder", () => {
+  it("rejects invalid OnFailure", () => {
     expect(() => parse({
       ...validProperties,
       Steps: [{ StepName: "x", ServiceRef: "S", Action: "a", OnFailure: "ignore" }],
     })).toThrow();
   });
 
-  it("Description zorunlu", () => {
+  it("Description is required", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Bilinmeyen Pattern reddeder", () => {
+  it("rejects unknown Pattern", () => {
     expect(() => parse({ ...validProperties, Pattern: "Choreography" })).toThrow();
   });
 });

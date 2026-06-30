@@ -11,39 +11,39 @@ import { queueNameConst } from "./message-queue.emitter";
 import { countSurgicalMarkers } from "../../surgical";
 
 /* ────────────────────────────────────────────────────────────────────────
- * module.emitter.ts — FEATURE -> <feature>/<feature>.module.ts (SENTEZ).
+ * module.emitter.ts — FEATURE -> <feature>/<feature>.module.ts (SYNTHESIS).
  *
- * MİMARİ-FARKINDA: Module node OLMASA bile her çıkarılmış feature için bir
- * NestJS @Module SENTEZLENİR. Girdi ham Module node DEĞİL, ir.ts feature-
- * inference'ın ürettiği bir `Feature` tanımıdır:
+ * ARCHITECTURE-AWARE: even WITHOUT a Module node, one NestJS @Module is SYNTHESIZED
+ * per extracted feature. Input is NOT a raw Module node but a `Feature` definition
+ * produced by ir.ts feature inference:
  *
  *   @Module({
- *     imports:     [TypeOrmModule.forFeature([<entity'ler>]),
- *                   CacheModule.register(),                 (Cache varsa)
- *                   HttpModule, ConfigModule,               (ExternalService varsa)
- *                   BullModule.registerQueue({ name: Q }),  (MessageQueue/queue-handler varsa)
- *                   ...<cross-feature bağımlı feature modülleri>],
- *     controllers: [<controller'lar>],
- *     providers:   [<service + repository + mimari altyapı provider'ları + middleware>],
- *     exports:     [<başka feature'ların enjekte ettiği provider'lar>],
+ *     imports:     [TypeOrmModule.forFeature([<entities>]),
+ *                   CacheModule.register(),                 (if Cache)
+ *                   HttpModule, ConfigModule,               (if ExternalService)
+ *                   BullModule.registerQueue({ name: Q }),  (MessageQueue/queue-handler)
+ *                   ...<cross-feature dependent feature modules>],
+ *     controllers: [<controllers>],
+ *     providers:   [<service + repository + infra providers + middleware>],
+ *     exports:     [<providers other features inject>],
  *   })
  *   export class <Feature>Module [implements NestModule] {}
  *
- * Middleware varsa modül `implements NestModule` olur ve `configure(consumer)`
- * içinde her middleware ROUTES_TO ettiği controller'lara (yoksa Global -> '*')
- * apply(...).forRoutes(...) ile bağlanır (ExecutionOrder'a göre sıralı).
+ * When middleware exists the module `implements NestModule` and `configure(consumer)`
+ * binds each middleware to controllers it ROUTES_TO (or Global -> '*')
+ * via apply(...).forRoutes(...) (sorted by ExecutionOrder).
  *
- * SAF + DETERMİNİSTİK: tüm koleksiyonlar isme/slug'a göre sıralı (Feature zaten
- * sıralı gelir), import'lar ImportCollector ile, içerik tek "\n" ile biter.
- * @Module sınıfı (middleware yoksa) gövdesizdir -> surgical marker üretmez.
+ * PURE + DETERMINISTIC: all collections sorted by name/slug (Feature already
+ * arrives sorted), imports via ImportCollector, content ends with single "\n".
+ * @Module class is body-less when no middleware -> no surgical markers.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Bir Feature tanımından <feature>.module.ts üretir (Module node'dan bağımsız). */
+/** Emit <feature>.module.ts from a Feature definition (independent of Module node). */
 export function emitFeatureModule(feature: Feature, ctx: EmitterContext): GeneratedFile[] {
   const graph = ctx.graph;
   const className = `${pascalCase(feature.slug)}Module`;
-  // Module dosya yolu: feature'a sentetik bir Module node yokmuş gibi davranıp
-  // filePathFor ile değil, doğrudan feature düzeninden türetiriz (tek module/feature).
+  // Module file path: treat as if there is no synthetic Module node for the feature —
+  // derive directly from feature layout (one module/feature), not via filePathFor.
   const selfPath = `${feature.slug}/${feature.slug}.module.ts`;
 
   const imports = new ImportCollector();
@@ -64,11 +64,11 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
     forwardRefDeps,
   } = feature;
 
-  // APIGateway gerçek bir @Controller'dır -> @Module.controllers'a Controller'larla
-  //   BİRLİKTE girer (provider DEĞİL); NestJS routing'i otomatik bağlar (orphan yok).
+  // APIGateway is a real @Controller -> goes in @Module.controllers WITH
+  //   Controllers (NOT provider); NestJS routing wires it automatically (no orphan).
   const allControllers = [...controllers, ...gateways];
 
-  // ── Provider/controller sembollerini import et (aynı feature klasörü içi) ──
+  // ── Import provider/controller symbols (same feature folder) ──
   const realProviders = [...services, ...repositories];
   for (const n of [...allControllers, ...realProviders]) {
     const cls = pascalCase(n.name);
@@ -76,9 +76,9 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
     imports.add(cls, importPathOf(relativeImportPath(selfPath, filePathFor(n, graph))));
   }
 
-  // ── Mimari altyapı provider'ları (Cache/ExternalService/Worker/EventHandler/
-  //    Orchestrator/MessageQueue) — TAM @Injectable() sınıflar (Stub eki YOK).
-  //    Her biri kendi dosyasından (filePathFor) import edilir + providers'a girer. ──
+  // ── Infra providers (Cache/ExternalService/Worker/EventHandler/
+  //    Orchestrator/MessageQueue) — FULL @Injectable() classes (no Stub suffix).
+  //    Each imported from its own file (filePathFor) + added to providers. ──
   const infraProviderClasses: string[] = [];
   for (const n of infraProviders) {
     const cls = pascalCase(n.name);
@@ -87,15 +87,15 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
     infraProviderClasses.push(cls);
   }
 
-  // ── Middleware'ler — @Injectable() sınıflar; providers'a girer + configure()
-  //    içinde apply().forRoutes(...) ile bağlanır. ──
+  // ── Middleware — @Injectable() classes; added to providers + wired in configure()
+  //    via apply().forRoutes(...). ──
   const middlewareWiring = collectMiddlewareWiring(middlewares, graph, selfPath, imports);
   const middlewareClasses = middlewareWiring.map((m) => m.className);
 
-  // ── Stub provider'lar (varsa): @Injectable() stub sınıfları. Cache/
-  //    ExternalService artık tam emitter'lı -> bu liste pratikte BOŞ; mekanizma
-  //    ileride yeni stub kind'lar için korunur. Sınıf adı/yol stub.emitter ile
-  //    TEK KAYNAK (stubClassName/stubFilePath). ──
+  // ── Stub providers (if any): @Injectable() stub classes. Cache/
+  //    ExternalService now have full emitters -> this list is practically EMPTY; mechanism
+  //    kept for future stub kinds. Class name/path SINGLE SOURCE via stub.emitter
+  //    (stubClassName/stubFilePath). ──
   const stubProviderClasses: string[] = [];
   for (const sp of stubProviders) {
     const cls = stubClassName(sp);
@@ -104,7 +104,7 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
     stubProviderClasses.push(cls);
   }
 
-  // ── TypeOrmModule.forFeature([Model entity'leri + Table'dan sentezlenenler]) ──
+  // ── TypeOrmModule.forFeature([Model entities + synthesized from Table]) ──
   const entityClasses: string[] = [];
   for (const ent of entities) {
     const cls = pascalCase(ent.name);
@@ -122,10 +122,10 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
     imports.add("TypeOrmModule", "@nestjs/typeorm");
   }
 
-  // ── Cross-feature bağımlı feature modülleri (import) ──
-  //    DÖNGÜ kenarları (forwardRefDeps) `forwardRef(() => XModule)` ile emit edilir
-  //    → NestJS circular module dependency'yi boot'ta lazy çözer. Kenar KORUNUR
-  //    (provider import'u kaybolmaz); yalnız referans ertelenir.
+  // ── Cross-feature dependent feature modules (import) ──
+  //    CYCLE edges (forwardRefDeps) emitted as `forwardRef(() => XModule)`
+  //    -> NestJS lazily resolves circular module dependency at boot. Edge PRESERVED
+  //    (provider import not lost); only reference deferred.
   const forwardRefSet = new Set(forwardRefDeps);
   const depModuleClasses: string[] = [];
   for (const depSlug of dependsOn) {
@@ -140,13 +140,13 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
     }
   }
 
-  // ── Mimari altyapı module-seviyesi import'ları (kind'lara göre, deterministik) ──
-  // CacheModule.register() (Cache varsa); HttpModule + ConfigModule
-  // (ExternalService varsa); BullModule.registerQueue({ name: Q }) (MessageQueue
-  // producer + queue-tabanlı EventHandler için, kuyruk başına TEK KAYNAK const).
+  // ── Infra module-level imports (by kind, deterministic) ──
+  // CacheModule.register() (if Cache); HttpModule + ConfigModule
+  // (if ExternalService); BullModule.registerQueue({ name: Q }) (MessageQueue
+  // producer + queue-based EventHandler, ONE SOURCE const per queue).
   const infraImportEntries = collectInfraModuleImports(infraProviders, graph, selfPath, imports);
 
-  // ── @Module dekoratör alanları ──
+  // ── @Module decorator fields ──
   const importEntries: string[] = [];
   if (entityClasses.length > 0) {
     importEntries.push(`TypeOrmModule.forFeature([${entityClasses.join(", ")}])`);
@@ -154,7 +154,7 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
   importEntries.push(...infraImportEntries);
   importEntries.push(...depModuleClasses);
 
-  // providers = gerçek service/repository + mimari altyapı + middleware + (varsa) stub.
+  // providers = real service/repository + infra + middleware + (if any) stub.
   const providerClasses = [
     ...realProviders.map((p) => pascalCase(p.name)),
     ...infraProviderClasses,
@@ -166,8 +166,8 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
   pushArrayField(decoratorLines, "imports", importEntries);
   pushArrayField(decoratorLines, "controllers", allControllers.map((c) => pascalCase(c.name)));
   pushArrayField(decoratorLines, "providers", providerClasses);
-  // exports: Service/Repository VE mimari altyapı provider'ları (cross-feature
-  //   enjeksiyon hedefi). NestJS'te export edilmeyen provider modül-dışı görünmez.
+  // exports: Service/Repository AND infra providers (cross-feature
+  //   injection targets). In NestJS unexported providers are invisible outside the module.
   pushArrayField(decoratorLines, "exports", exports.map((e) => pascalCase(e.name)));
 
   const lines: string[] = [];
@@ -184,7 +184,7 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
   lines.push("})");
 
   if (middlewareWiring.length > 0) {
-    // Middleware varsa modül NestModule implements eder + configure(consumer).
+    // When middleware exists module implements NestModule + configure(consumer).
     imports.add("MiddlewareConsumer", "@nestjs/common");
     imports.add("NestModule", "@nestjs/common");
     lines.push(`export class ${className} implements NestModule {`);
@@ -210,10 +210,10 @@ export function emitFeatureModule(feature: Feature, ctx: EmitterContext): Genera
   return [file];
 }
 
-/* ── Mimari altyapı module import'ları ─────────────────────────────────────
- * Kind'lara göre deterministik @Module.imports girdileri üretir + gerekli
- * sembolleri ImportCollector'a ekler. Sıra SABİTTİR (BullModule kuyrukları
- * kuyruk const adına göre sıralı). ──────────────────────────────────────── */
+/* ── Infra module imports ─────────────────────────────────────
+ * Produce deterministic @Module.imports entries by kind + add required
+ * symbols to ImportCollector. Order FIXED (BullModule queues sorted by
+ * queue const name). ──────────────────────────────────────── */
 function collectInfraModuleImports(
   infraProviders: CodeNode[],
   graph: CodeGraph,
@@ -225,8 +225,8 @@ function collectInfraModuleImports(
   const hasCache = infraProviders.some((n) => n.kindOf() === "Cache");
   const hasExternal = infraProviders.some((n) => n.kindOf() === "ExternalService");
 
-  // CacheModule.register() — CACHE_MANAGER token'ını çözer (store bağlaması app
-  //   root'ta; burada feature-seviyesi register yeterli, bootta token mevcut olur).
+  // CacheModule.register() — resolves CACHE_MANAGER token (store binding at app
+  //   root; feature-level register here is enough, token available at boot).
   if (hasCache) {
     imports.add("CacheModule", "@nestjs/cache-manager");
     entries.push("CacheModule.register()");
@@ -239,9 +239,9 @@ function collectInfraModuleImports(
     entries.push("ConfigModule");
   }
 
-  // BullModule.registerQueue({ name: <CONST> }) — bu feature'ın HER kuyruğu için.
-  //   Kuyruk const'ı .queue.ts'ten import edilir (DEĞER tek kaynak). MessageQueue
-  //   producer'ları + queue-tabanlı EventHandler'ların dinlediği kuyruklar dahil.
+  // BullModule.registerQueue({ name: <CONST> }) — for EVERY queue in this feature.
+  //   Queue const imported from .queue.ts (SINGLE SOURCE for value). Includes MessageQueue
+  //   producers + queues listened to by queue-based EventHandlers.
   const queueNodes = collectFeatureQueues(infraProviders, graph);
   if (queueNodes.length > 0) {
     imports.add("BullModule", "@nestjs/bullmq");
@@ -255,10 +255,10 @@ function collectInfraModuleImports(
   return entries;
 }
 
-/** Bu feature'ın kaydetmesi gereken MessageQueue node'ları: doğrudan feature'a
- *  ait MessageQueue producer'ları ∪ feature'a ait queue-tabanlı EventHandler'ların
- *  SUBSCRIBES (yoksa QueueRef) ile dinlediği kuyruklar. DEDUP + kuyruk const adına
- *  göre sıralı (deterministik). */
+/** MessageQueue nodes this feature must register: MessageQueue producers belonging
+ *  directly to the feature ∪ queues listened to by queue-based EventHandlers in the
+ *  feature via SUBSCRIBES (else QueueRef). DEDUP + sorted by queue const name
+ *  (deterministic). */
 function collectFeatureQueues(infraProviders: CodeNode[], graph: CodeGraph): CodeNode[] {
   const byId = new Map<string, CodeNode>();
   for (const n of infraProviders) {
@@ -275,8 +275,8 @@ function collectFeatureQueues(infraProviders: CodeNode[], graph: CodeGraph): Cod
   });
 }
 
-/** Bir queue-tabanlı EventHandler'ın dinlediği MessageQueue: SUBSCRIBES edge'i
- *  (yoksa QueueRef property'si). event-handler.emitter ile aynı çözüm. */
+/** MessageQueue listened to by a queue-based EventHandler: SUBSCRIBES edge
+ *  (else QueueRef property). Same resolution as event-handler.emitter. */
 function resolveHandlerQueue(handler: CodeNode, graph: CodeGraph): CodeNode | null {
   for (const e of graph.outEdges(handler.id, "SUBSCRIBES")) {
     const tgt = graph.byId(e.targetNodeId);
@@ -290,13 +290,13 @@ function resolveHandlerQueue(handler: CodeNode, graph: CodeGraph): CodeNode | nu
   return null;
 }
 
-/* ── Middleware bağlama (NestModule.configure) ─────────────────────────────
- * Her Middleware için: sınıfı import et + ROUTES_TO ettiği Controller'lara
- * forRoutes(...) üret. AppliesTo==="Global" (veya ROUTES_TO yok) -> forRoutes("*").
- * Birden çok middleware ExecutionOrder'a (küçük önce) göre sıralanır. ──────── */
+/* ── Middleware wiring (NestModule.configure) ─────────────────────────────
+ * For each Middleware: import class + produce forRoutes(...) for controllers
+ * it ROUTES_TO. AppliesTo==="Global" (or no ROUTES_TO) -> forRoutes("*").
+ * Multiple middleware sorted by ExecutionOrder (lower first). ──────── */
 interface MiddlewareWiring {
   className: string;
-  /** forRoutes(...) argüman ifadesi (controller listesi veya "*"). */
+  /** forRoutes(...) argument expression (controller list or "*"). */
   forRoutes: string;
 }
 
@@ -317,8 +317,8 @@ function collectMiddlewareWiring(
     const appliesTo = props.AppliesTo;
     const executionOrder = typeof props.ExecutionOrder === "number" ? props.ExecutionOrder : 0;
 
-    // ROUTES_TO -> Controller (deterministik sıralı). AppliesTo==="Global" ya da
-    //   hiç ROUTES_TO yoksa tüm rotalara ("*").
+    // ROUTES_TO -> Controller (deterministic order). AppliesTo==="Global" or
+    //   no ROUTES_TO -> all routes ("*").
     const routedControllers: CodeNode[] = [];
     for (const e of graph.outEdges(mw.id, "ROUTES_TO")) {
       const tgt = graph.byId(e.targetNodeId);
@@ -342,16 +342,16 @@ function collectMiddlewareWiring(
     wirings.push({ order: executionOrder, name: className, wiring: { className, forRoutes } });
   }
 
-  // ExecutionOrder küçük önce; eşitlikte sınıf adı (deterministik).
+  // ExecutionOrder lower first; tie-break by class name (deterministic).
   wirings.sort((a, b) => (a.order !== b.order ? a.order - b.order : a.name < b.name ? -1 : 1));
   return wirings.map((w) => w.wiring);
 }
 
-/** @Module dekoratör alanını üretir. Boş entries -> alan tamamen atlanır. */
+/** Emit @Module decorator field. Empty entries -> field omitted entirely. */
 function pushArrayField(out: string[], field: string, entries: string[]): void {
   if (entries.length === 0) return;
   out.push(`  ${field}: [${entries.join(", ")}],`);
 }
 
-/* CodeGraph/CodeNode type referansları (emitter dışı tüketici için tutulur). */
+/* CodeGraph/CodeNode type references (kept for consumers outside emitters). */
 export type { CodeGraph, CodeNode };

@@ -3,8 +3,8 @@ import { ProjectSchema, ProjectStatusSchema } from "./project.schema";
 
 const valid = {
   id: "550e8400-e29b-41d4-a716-446655440000",
-  name: "E-Ticaret Mikroservisleri",
-  description: "Ana mimari",
+  name: "E-Commerce Microservices",
+  description: "Main architecture",
   status: "draft" as const,
   ownerId: "user_123",
   orgId: null,
@@ -13,24 +13,24 @@ const valid = {
 };
 
 describe("ProjectSchema", () => {
-  it("geçerli project'i parse eder", () => {
-    expect(ProjectSchema.parse(valid).name).toBe("E-Ticaret Mikroservisleri");
+  it("parses valid project", () => {
+    expect(ProjectSchema.parse(valid).name).toBe("E-Commerce Microservices");
   });
 
-  it("name boşsa fırlatır", () => {
+  it("throws when name is empty", () => {
     expect(() => ProjectSchema.parse({ ...valid, name: "" })).toThrow();
   });
 
-  it("description zorunlu", () => {
+  it("description is required", () => {
     const { description, ...rest } = valid;
     expect(() => ProjectSchema.parse(rest)).toThrow();
   });
 
-  it("bilinmeyen status reddeder", () => {
+  it("rejects unknown status", () => {
     expect(() => ProjectSchema.parse({ ...valid, status: "live" })).toThrow();
   });
 
-  it("ProjectStatusSchema 3 değer içerir", () => {
+  it("ProjectStatusSchema has 3 values", () => {
     expect(ProjectStatusSchema.options).toEqual(["draft", "active", "archived"]);
   });
 });

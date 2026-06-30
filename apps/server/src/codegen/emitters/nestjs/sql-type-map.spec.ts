@@ -4,8 +4,8 @@ import { buildCodeGraph } from "../../ir";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
 /* ────────────────────────────────────────────────────────────────────────
- * sql-type-map.spec.ts — SQL DataType -> (TS tipi, TypeORM @Column tipi).
- * entity/model/dto emitter'ları için TEK KAYNAK; ENUM/JSON dahil GEÇERLİ TS.
+ * sql-type-map.spec.ts — SQL DataType -> (TS type, TypeORM @Column type).
+ * SINGLE SOURCE for entity/model/dto emitters; valid TS including ENUM/JSON.
  * ──────────────────────────────────────────────────────────────────────── */
 
 function enumNode(): StoredNode {
@@ -24,13 +24,13 @@ function enumNode(): StoredNode {
 }
 
 describe("sqlTypeToTs", () => {
-  it("string ailesi -> string (VARCHAR/TEXT/CHAR/UUID, harf duyarsız)", () => {
+  it("string family -> string (VARCHAR/TEXT/CHAR/UUID, case-insensitive)", () => {
     for (const t of ["VARCHAR", "text", "Char", "uuid", "BPCHAR", "citext"]) {
       expect(sqlTypeToTs(t)).toBe("string");
     }
   });
 
-  it("sayısal aile -> number (INT/INTEGER/BIGINT/SMALLINT/DECIMAL/NUMERIC/FLOAT)", () => {
+  it("numeric family -> number (INT/INTEGER/BIGINT/SMALLINT/DECIMAL/NUMERIC/FLOAT)", () => {
     for (const t of ["INT", "integer", "BIGINT", "SMALLINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "REAL"]) {
       expect(sqlTypeToTs(t)).toBe("number");
     }
@@ -41,7 +41,7 @@ describe("sqlTypeToTs", () => {
     expect(sqlTypeToTs("bool")).toBe("boolean");
   });
 
-  it("zaman aile -> Date (TIMESTAMP/DATETIME/DATE/TIME)", () => {
+  it("time family -> Date (TIMESTAMP/DATETIME/DATE/TIME)", () => {
     for (const t of ["TIMESTAMP", "DATETIME", "DATE", "TIME", "timestamptz"]) {
       expect(sqlTypeToTs(t)).toBe("Date");
     }
@@ -54,31 +54,31 @@ describe("sqlTypeToTs", () => {
     expect(sqlTypeToTs("map")).toBe("Record<string, unknown>");
   });
 
-  it("ENUM -> string (generated tip için columnTsType kullan)", () => {
+  it("ENUM -> string (use columnTsType for generated type)", () => {
     expect(sqlTypeToTs("ENUM")).toBe("string");
   });
 
-  it("boş/undefined -> string", () => {
+  it("empty/undefined -> string", () => {
     expect(sqlTypeToTs("")).toBe("string");
     expect(sqlTypeToTs(undefined)).toBe("string");
   });
 
-  it("bilinmeyen tip: unknownAsString=true -> string; false -> ham geçiş", () => {
+  it("unknown type: unknownAsString=true -> string; false -> raw passthrough", () => {
     expect(sqlTypeToTs("Buffer")).toBe("string");
     expect(sqlTypeToTs("Buffer", false)).toBe("Buffer");
-    // serbest tip (DTO/Model) geçişi: özel sınıf adı korunur.
+    // free type (DTO/Model) passthrough: custom class name preserved.
     expect(sqlTypeToTs("GeoPoint", false)).toBe("GeoPoint");
   });
 
-  it("ikili/dosya ailesi (binary/blob/bytes) -> Buffer — DTO yolunda da (ham `binary` TS2304'tü)", () => {
+  it("binary/file family (binary/blob/bytes) -> Buffer — DTO path too (raw `binary` was TS2304)", () => {
     for (const t of ["binary", "BINARY", "varbinary", "blob", "BLOB", "bytea", "bytes"]) {
       expect(sqlTypeToTs(t)).toBe("Buffer");
-      expect(sqlTypeToTs(t, false)).toBe("Buffer"); // DTO/Model yolu da ham `binary` döndürmemeli
+      expect(sqlTypeToTs(t, false)).toBe("Buffer"); // DTO/Model path must not return raw `binary`
     }
   });
 
-  it(".NET/boxed tip adı -> primitive (String->string, Number->number) — DTO/Model yolunda da", () => {
-    // unknownAsString=false (DTO/Model) ham "String" döndürmemeli; aksi halde
+  it(".NET/boxed type name -> primitive (String->string, Number->number) — DTO/Model path too", () => {
+    // unknownAsString=false (DTO/Model) must not return raw "String"; otherwise
     // `Type 'String' is not assignable to type 'string'` (TS2322).
     expect(sqlTypeToTs("String", false)).toBe("string");
     expect(sqlTypeToTs("string", false)).toBe("string");
@@ -87,23 +87,23 @@ describe("sqlTypeToTs", () => {
   });
 });
 
-describe("columnTsType (ENUM çözümü)", () => {
-  it("ENUM + çözülen EnumRef -> generated enum sınıf adı", () => {
+describe("columnTsType (ENUM resolution)", () => {
+  it("ENUM + resolved EnumRef -> generated enum class name", () => {
     const graph = buildCodeGraph([enumNode()], []);
     expect(columnTsType("ENUM", "OrderStatus", graph)).toBe("OrderStatus");
   });
 
-  it("ENUM + çözülemeyen EnumRef -> string (güvenli)", () => {
+  it("ENUM + unresolved EnumRef -> string (safe)", () => {
     const graph = buildCodeGraph([], []);
     expect(columnTsType("ENUM", "Missing", graph)).toBe("string");
   });
 
-  it("ENUM ama EnumRef yok -> string", () => {
+  it("ENUM but no EnumRef -> string", () => {
     const graph = buildCodeGraph([enumNode()], []);
     expect(columnTsType("ENUM", undefined, graph)).toBe("string");
   });
 
-  it("enumImporter callback'i çözülen node ile çağrılır", () => {
+  it("enumImporter callback invoked with resolved node", () => {
     const graph = buildCodeGraph([enumNode()], []);
     let seen = "";
     const out = columnTsType("ENUM", "OrderStatus", graph, (n) => {
@@ -114,7 +114,7 @@ describe("columnTsType (ENUM çözümü)", () => {
     expect(out).toBe("Aliased");
   });
 
-  it("ENUM olmayan tip -> sqlTypeToTs ile aynı (callback çağrılmaz)", () => {
+  it("non-ENUM type -> same as sqlTypeToTs (callback not invoked)", () => {
     const graph = buildCodeGraph([], []);
     expect(columnTsType("JSON", undefined, graph)).toBe("Record<string, unknown>");
     expect(columnTsType("UUID", undefined, graph)).toBe("string");
@@ -122,7 +122,7 @@ describe("columnTsType (ENUM çözümü)", () => {
 });
 
 describe("columnOrmType (TypeORM @Column type)", () => {
-  it("SQL tipleri doğru fiziksel TypeORM tipine eşlenir", () => {
+  it("SQL types map to correct physical TypeORM type", () => {
     expect(columnOrmType("VARCHAR")).toBe("varchar");
     expect(columnOrmType("TEXT")).toBe("text");
     expect(columnOrmType("UUID")).toBe("uuid");
@@ -138,21 +138,21 @@ describe("columnOrmType (TypeORM @Column type)", () => {
     expect(columnOrmType("ENUM")).toBe("enum");
   });
 
-  it("object/map/record (şemasız JSON blob) -> jsonb (TypeORM 'object' tipi YOK; eski TS2769)", () => {
+  it("object/map/record (schemaless JSON blob) -> jsonb (TypeORM has no 'object' type; old TS2769)", () => {
     expect(columnOrmType("object")).toBe("jsonb");
     expect(columnOrmType("OBJECT")).toBe("jsonb");
     expect(columnOrmType("map")).toBe("jsonb");
     expect(columnOrmType("record")).toBe("jsonb");
   });
 
-  it("Model serbest tip eş anlamlıları aynı fiziksel tipe düşer", () => {
+  it("Model free-type synonyms map to same physical type", () => {
     expect(columnOrmType("string")).toBe("varchar");
     expect(columnOrmType("number")).toBe("int");
     expect(columnOrmType("bool")).toBe("boolean");
     expect(columnOrmType("long")).toBe("bigint");
   });
 
-  it("ikili/dosya ailesi (binary/blob/bytes) -> bytea (postgres; ham 'binary' MySQL'e özgü)", () => {
+  it("binary/file family (binary/blob/bytes) -> bytea (postgres; raw 'binary' is MySQL-specific)", () => {
     for (const t of ["binary", "BINARY", "varbinary", "blob", "bytea", "bytes"]) {
       expect(columnOrmType(t)).toBe("bytea");
     }

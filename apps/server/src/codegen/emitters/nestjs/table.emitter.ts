@@ -6,15 +6,15 @@ import { countSurgicalMarkers } from "../../surgical";
 /* ────────────────────────────────────────────────────────────────────────
  * table.emitter.ts — TableNode -> Postgres migration SQL (DDL).
  *
- * Sözleşme (enum.emitter.ts kanonik referansı ile birebir tutarlı):
- *   - default export YOK; named `export const emitTable: NodeEmitter`.
+ * Sozlesme (enum.emitter.ts kanonik referansi ile birebir tutarli):
+ *   - default export NONE; named `export const emitTable: NodeEmitter`.
  *   - SAF fonksiyon: (node, ctx) -> GeneratedFile[]. I/O yok, throw yok.
  *   - Yol her zaman filePathFor(node, ctx.graph) ile (hardcode YASAK). NNN
- *     migration sırası graph.migrationIndexOf üzerinden filePathFor içinde çözülür;
- *     bu nedenle emitter tüm Table setini ctx.graph üzerinden görür.
- *   - İçerik DETERMİNİSTİK: koleksiyonlar verilen sırada, timestamp/random yok.
- *   - İçerik tek "\n" ile biter.
- *   - surgicalMarkers countSurgicalMarkers(content) ile sayılır (SQL'de 0).
+ *     migration sirasi graph.migrationIndexOf uzerinden filePathFor icinde cozulur;
+ *     bu nedenle emitter tum Table setini ctx.graph uzerinden gorur.
+ *   - Icerik DETERMINISTIC: koleksiyonlar verilen sirada, timestamp/random yok.
+ *   - Icerik tek "\n" ile biter.
+ *   - surgicalMarkers countSurgicalMarkers(content) ile sayilir (SQL'de 0).
  *
  * TableNode -> migrations/NNN_create_<pluralizeSnake(TableName)>.sql:
  *   CREATE TABLE <table> (
@@ -26,10 +26,10 @@ import { countSurgicalMarkers } from "../../surgical";
  *   CREATE [UNIQUE] INDEX <i> ON <table> [USING ...] (...) [WHERE ...];  (Indexes)
  *   ALTER TABLE <table> ADD CONSTRAINT <fk> FOREIGN KEY (...) REFERENCES ...;  (ForeignKeys)
  *
- * FK'lar TÜM tablolardan sonra gelmeli (sıra sorunu) — codegen.service migration
- * dosyalarını NNN'e göre sıralar, FK'lar her tablonun kendi dosyasının sonunda
- * ALTER TABLE ile eklenir; referans edilen tablo migration topolojisinde önce
- * (daha düşük NNN) gelir, böylece çalıştırma sırasında hedef tablo zaten vardır.
+ * FK'lar TUM tablolardan sonra gelmeli (sira sorunu) — codegen.service migration
+ * dosyalarini NNN'e gore siralar, FK'lar her tablonun kendi dosyasinin sonunda
+ * ALTER TABLE ile eklenir; referans edilen tablo migration topolojisinde once
+ * (daha dusuk NNN) gelir, boylece calistirma sirasinda hedef tablo zaten vardir.
  * ──────────────────────────────────────────────────────────────────────── */
 
 type Column = {
@@ -72,8 +72,8 @@ type CheckConstraint = { Name?: string; Expression: string };
 
 export const emitTable: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   const props = propsOf<"Table">(node);
-  // TableName fiziksel ad olarak alınır (tekrar çoğullanmaz). model.emitter ile
-  // TEK KAYNAK: tableSqlName -> entity @Entity adı bu migration adıyla aynı kalır.
+  // TableName fiziksel ad olarak alinir (tekrar cogullanmaz). model.emitter ile
+  // TEK SOURCE: tableSqlName -> entity @Entity adi bu migration adiyla ayni kalir.
   const tableName = tableSqlName(node.name);
 
   const columns = (props.Columns ?? []) as Column[];
@@ -84,12 +84,12 @@ export const emitTable: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
 
   const blocks: string[] = [];
 
-  // Üst açıklama (deterministik).
+  // Ust aciklama (deterministik).
   if (props.Description) {
     blocks.push(`-- ${props.Description}`);
   }
 
-  // ── CREATE TABLE gövdesi ──────────────────────────────────────────────
+  // ── CREATE TABLE govdesi ──────────────────────────────────────────────
   const inner: string[] = [];
 
   for (const col of columns) {
@@ -104,7 +104,7 @@ export const emitTable: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
   for (const uc of uniques) {
     const rawCols = uc.Columns ?? [];
     const cols = rawCols.map((c) => quoteIdent(snakeCase(c))).join(", ");
-    if (cols.length === 0) continue; // kayıp kolon -> satırı atla
+    if (cols.length === 0) continue; // kayip kolon -> satiri atla
     const name = uc.Name ?? defaultUniqueName(tableName, rawCols);
     inner.push(`  CONSTRAINT ${quoteIdent(name)} UNIQUE (${cols})`);
   }
@@ -115,10 +115,10 @@ export const emitTable: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
     inner.push(`  CONSTRAINT ${quoteIdent(name)} CHECK (${cc.Expression.trim()})`);
   }
 
-  // ── ENUM kolonları için CHECK constraint (#56: varchar + CHECK) ──────────
-  // Native CREATE TYPE yerine geçerli değerleri CHECK ile kısıtla -> entity'nin
-  // varchar kolonuyla TUTARLI + DB-seviyesi doğrulama. Değerler EnumRef -> Enum
-  // node'dan (Value ?? Key). Ref çözülemezse CHECK atlanır (kolon yine VARCHAR).
+  // ── ENUM kolonlari icin CHECK constraint (#56: varchar + CHECK) ──────────
+  // Native CREATE TYPE yerine gecerli degerleri CHECK ile kisitla -> entity'nin
+  // varchar kolonuyla TUTARLI + DB-seviyesi dogrulama. Degerler EnumRef -> Enum
+  // node'dan (Value ?? Key). Ref cozulemezse CHECK atlanir (kolon yine VARCHAR).
   for (const col of columns) {
     const line = enumCheckConstraint(col, tableName, ctx);
     if (line) inner.push(`  ${line}`);
@@ -128,13 +128,13 @@ export const emitTable: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
     `CREATE TABLE ${quoteIdent(tableName)} (\n` + inner.join(",\n") + `\n);`;
   blocks.push(createTable);
 
-  // ── İndeksler (ayrı CREATE INDEX) ─────────────────────────────────────
+  // ── Indeksler (ayri CREATE INDEX) ─────────────────────────────────────
   for (const idx of indexes) {
     const line = renderIndex(idx, tableName);
     if (line) blocks.push(line);
   }
 
-  // ── Foreign Key'ler (TÜM tablolardan sonra; ALTER TABLE) ──────────────
+  // ── Foreign Key'ler (TUM tablolardan sonra; ALTER TABLE) ──────────────
   for (const fk of foreignKeys) {
     const line = renderForeignKey(fk, tableName, ctx);
     if (line) blocks.push(line);
@@ -151,11 +151,11 @@ export const emitTable: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => 
   return [file];
 };
 
-/* ── Kolon üretimi ──────────────────────────────────────────────────────── */
+/* ── Kolon uretimi ──────────────────────────────────────────────────────── */
 function renderColumn(col: Column): string {
   const parts: string[] = [quoteIdent(snakeCase(col.Name)), sqlType(col)];
 
-  // AUTO_INCREMENT zaten SERIAL/BIGSERIAL'a çevrildi (sqlType içinde); DEFAULT eklemeyiz.
+  // AUTO_INCREMENT zaten SERIAL/BIGSERIAL'a cevrildi (sqlType icinde); DEFAULT eklemeyiz.
   const isSerial = col.AutoIncrement === true;
 
   if (col.IsGenerated === true && col.GeneratedExpression && col.GeneratedExpression.trim().length > 0) {
@@ -208,17 +208,17 @@ function sqlType(col: Column): string {
     case "JSON":
       return "JSONB";
     case "ENUM":
-      // ENUM kolonu -> VARCHAR (entity de varchar; tutarlılık #56). Geçerli değerler
-      // ayrıca CHECK constraint ile kısıtlanır (enumCheckConstraint, emitTable'da).
-      // Native CREATE TYPE üretilmez (diyagram evrilince ALTER TYPE kâbusu olmasın).
+      // ENUM kolonu -> VARCHAR (entity de varchar; tutarlilik #56). Gecerli degerler
+      // ayrica CHECK constraint ile kisitlanir (enumCheckConstraint, emitTable'da).
+      // Native CREATE TYPE uretilmez (diyagram evrilince ALTER TYPE kâbusu olmasin).
       return "VARCHAR(255)";
     default:
       return dt.length > 0 ? dt : "TEXT";
   }
 }
 
-/** PK kolonlarını çözer: önce PrimaryKey.Columns (composite), yoksa
- *  Column.IsPrimaryKey olan kolonlar (verilen sırada). snake_case'lenir. */
+/** PK kolonlarini cozer: once PrimaryKey.Columns (composite), yoksa
+ *  Column.IsPrimaryKey olan kolonlar (verilen sirada). snake_case'lenir. */
 function resolvePrimaryKey(columns: Column[], composite?: string[]): string[] {
   if (composite && composite.length > 0) {
     return composite.map((c) => snakeCase(c));
@@ -226,10 +226,10 @@ function resolvePrimaryKey(columns: Column[], composite?: string[]): string[] {
   return columns.filter((c) => c.IsPrimaryKey === true).map((c) => snakeCase(c.Name));
 }
 
-/* ── İndeks üretimi ─────────────────────────────────────────────────────── */
+/* ── Indeks uretimi ─────────────────────────────────────────────────────── */
 function renderIndex(idx: Index, tableName: string): string | null {
   const cols = (idx.Columns ?? []).map((c) => quoteIdent(snakeCase(c)));
-  if (cols.length === 0) return null; // kayıp kolon -> atla
+  if (cols.length === 0) return null; // kayip kolon -> atla
   const unique = idx.IsUnique === true ? "UNIQUE " : "";
   const using = indexUsing(idx.Type);
   const name = quoteIdent(idx.IndexName);
@@ -239,7 +239,7 @@ function renderIndex(idx: Index, tableName: string): string | null {
   return `CREATE ${unique}INDEX ${name} ON ${table}${using} (${cols.join(", ")})${where};`;
 }
 
-/** İndeks tipi -> Postgres USING ifadesi (BTree varsayılan; atlanır). */
+/** Indeks tipi -> Postgres USING ifadesi (BTree varsayilan; atlanir). */
 function indexUsing(type?: string): string {
   switch ((type ?? "BTree").toLowerCase()) {
     case "hash":
@@ -254,7 +254,7 @@ function indexUsing(type?: string): string {
   }
 }
 
-/* ── Foreign key üretimi (ALTER TABLE; tüm tablolardan sonra) ───────────── */
+/* ── Foreign key uretimi (ALTER TABLE; tum tablolardan sonra) ───────────── */
 function renderForeignKey(
   fk: ForeignKey,
   tableName: string,
@@ -264,9 +264,9 @@ function renderForeignKey(
   const refCols = (fk.ReferencesColumns ?? []).map((c) => quoteIdent(snakeCase(c)));
   if (cols.length === 0 || refCols.length === 0) return null; // eksik kolon -> atla
 
-  // Hedef tablo node'unu çöz; bulunamazsa ham isimden türet (THROW ETMEZ).
+  // Hedef tablo node'unu coz; bulunamazsa ham isimden turet (THROW ETMEZ).
   // Fiziksel ad tek kaynaktan (tableSqlName) — referans edilen tablonun
-  // CREATE TABLE adıyla birebir aynı (çoğullama YOK).
+  // CREATE TABLE adiyla birebir ayni (cogullama NONE).
   const refNode = ctx.graph.resolveRef("Table", fk.ReferencesTable);
   const refTable = refNode ? tableSqlName(refNode.name) : tableSqlName(fk.ReferencesTable);
 
@@ -297,14 +297,14 @@ function fkAction(action?: string): string {
   }
 }
 
-/* ── Deterministik varsayılan constraint adları ─────────────────────────── */
+/* ── Deterministik varsayilan constraint adlari ─────────────────────────── */
 function defaultUniqueName(tableName: string, columns: string[]): string {
   return `uq_${tableName}_${columns.map((c) => snakeCase(c)).join("_")}`;
 }
 
-/** ENUM kolonu için CHECK constraint satırı: değerler EnumRef -> Enum node'dan
- *  (Value ?? Key, enum.emitter ile AYNI backing). Ref çözülemez/değer yoksa null
- *  (CHECK üretilmez; kolon yine VARCHAR). Değerler SQL-escape edilir (' -> ''). */
+/** ENUM kolonu icin CHECK constraint satiri: degerler EnumRef -> Enum node'dan
+ *  (Value ?? Key, enum.emitter ile AYNI backing). Ref cozulemez/deger yoksa null
+ *  (CHECK uretilmez; kolon yine VARCHAR). Degerler SQL-escape edilir (' -> ''). */
 function enumCheckConstraint(col: Column, tableName: string, ctx: EmitterContext): string | null {
   if ((col.DataType ?? "").toUpperCase() !== "ENUM" || !col.EnumRef) return null;
   const enumNode = ctx.graph.resolveRef("Enum", col.EnumRef);
@@ -319,7 +319,7 @@ function enumCheckConstraint(col: Column, tableName: string, ctx: EmitterContext
 }
 
 function defaultCheckName(tableName: string, expression: string): string {
-  // İfadeden çıplak kimlik türet: harf/rakam dışı -> "_", sıkıştırılır.
+  // Ifadeden ciplak kimlik turet: harf/rakam disi -> "_", sikistirilir.
   const slug = expression
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
@@ -332,8 +332,8 @@ function defaultForeignKeyName(tableName: string, columns: string[]): string {
   return `fk_${tableName}_${columns.map((c) => snakeCase(c)).join("_")}`;
 }
 
-/* ── SQL kimlik alıntılama (deterministik; her zaman çift tırnak) ────────── */
+/* ── SQL kimlik alintilama (deterministik; her zaman cift tirnak) ────────── */
 function quoteIdent(ident: string): string {
-  // Postgres kimliği: gömülü çift tırnak ikilenir.
+  // Postgres kimligi: gomulu cift tirnak ikilenir.
   return `"${ident.replace(/"/g, '""')}"`;
 }

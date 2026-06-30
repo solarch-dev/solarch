@@ -20,8 +20,8 @@ const method = (name: string, throws: string[]) => ({
   MethodName: name, Visibility: "public", Parameters: [], ReturnType: "void", IsAsync: true, Throws: throws,
 });
 
-describe("exception-synthesis — bildirilmiş-ama-tanımsız Throws", () => {
-  it("Exception node'u OLMAYAN Throws'ları toplar; OLANI atlar (dedup + sıralı)", () => {
+describe("exception-synthesis — declared-but-undefined Throws", () => {
+  it("collects Throws WITHOUT Exception nodes; skips existing ones (dedup + sorted)", () => {
     const svc1 = node("Service", "s1", { ServiceName: "OrderService", Methods: [
       method("PlaceOrder", ["CartEmptyException", "InsufficientStockException", "InvalidDiscountException"]),
       method("Cancel", ["InvalidDiscountException"]), // dedup
@@ -29,7 +29,7 @@ describe("exception-synthesis — bildirilmiş-ama-tanımsız Throws", () => {
     const svc2 = node("Service", "s2", { ServiceName: "PaymentService", Methods: [
       method("Pay", ["PaymentFailedException", "NotFoundException"]),
     ], Dependencies: [] });
-    // InsufficientStockException + NotFoundException GERÇEK node → atlanmalı.
+    // InsufficientStockException + NotFoundException are REAL nodes → should be skipped.
     const exc1 = node("Exception", "e1", { ExceptionName: "InsufficientStockException", HttpStatusCode: 409, LogSeverity: "Warning" });
     const exc2 = node("Exception", "e2", { ExceptionName: "NotFoundException", HttpStatusCode: 404, LogSeverity: "Warning" });
     const graph = buildCodeGraph([svc1, svc2, exc1, exc2], []);
@@ -38,13 +38,13 @@ describe("exception-synthesis — bildirilmiş-ama-tanımsız Throws", () => {
     ]);
   });
 
-  it("tek-kaynak ad/yol: pascalCase sınıf + common/exceptions/<kebab>.exception.ts", () => {
+  it("single source name/path: pascalCase class + common/exceptions/<kebab>.exception.ts", () => {
     expect(synthExceptionClassName("CartEmptyException")).toBe("CartEmptyException");
     expect(synthExceptionFilePath("CartEmptyException")).toBe("common/exceptions/cart-empty.exception.ts");
     expect(synthExceptionFilePath("RefundFailedException")).toBe("common/exceptions/refund-failed.exception.ts");
   });
 
-  it("üretilen sınıf: HttpException alt-sınıfı + opsiyonel message + code (derlenebilir)", () => {
+  it("generated class: HttpException subclass + optional message + code (compilable)", () => {
     const f = emitSyntheticException("CartEmptyException");
     expect(f.path).toBe("common/exceptions/cart-empty.exception.ts");
     expect(f.content).toContain("export class CartEmptyException extends HttpException {");

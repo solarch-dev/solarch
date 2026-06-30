@@ -3,7 +3,7 @@ import { lintContracts } from "./contract-lint";
 import { buildCodeGraph } from "./ir";
 import type { StoredNode } from "../nodes/nodes.repository";
 
-/* ── Fixture yardımcısı ─────────────────────────────────────────────────── */
+/* ── Fixture yardimcisi ─────────────────────────────────────────────────── */
 function node(type: StoredNode["type"], id: string, properties: Record<string, unknown>): StoredNode {
   return {
     id,
@@ -34,7 +34,7 @@ const ep = (over: Record<string, unknown>) => ({
 const CTRL = "c0000000-0000-4000-8000-000000000001";
 
 describe("lintContracts", () => {
-  it("RequestDTORef'siz write endpoint (POST) -> uyarı (controller + metot + route)", () => {
+  it("RequestDTORef'siz write endpoint (POST) -> uyari (controller + metot + route)", () => {
     const ctrl = node("Controller", CTRL, {
       ControllerName: "CategoryController",
       Description: "kategori",
@@ -48,13 +48,13 @@ describe("lintContracts", () => {
     expect(warnings[0]).toMatch(/RequestDTORef|request body|input DTO/i);
   });
 
-  it("PUT ve PATCH de gövde-alan write -> RequestDTORef'siz uyarı", () => {
+  it("PUT ve PATCH de govde-alan write -> RequestDTORef'siz uyari", () => {
     const ctrl = node("Controller", CTRL, {
       ControllerName: "OrderController",
-      Description: "sipariş",
+      Description: "order",
       BaseRoute: "orders",
       Endpoints: [
-        // PathParam verilir -> route-param kuralı tetiklenmez; yalnız RequestDTORef'siz body kuralı.
+        // PathParam verilir -> route-param kurali tetiklenmez; yalniz RequestDTORef'siz body kurali.
         ep({ HttpMethod: "PUT", Route: ":id", PathParams: [{ Name: "id", Type: "string" }] }),
         ep({ HttpMethod: "PATCH", Route: ":id/status", PathParams: [{ Name: "id", Type: "string" }] }),
       ],
@@ -62,10 +62,10 @@ describe("lintContracts", () => {
     expect(lintContracts(buildCodeGraph([ctrl], []))).toHaveLength(2);
   });
 
-  it("RequestDTORef OLAN write -> uyarı yok; GET/DELETE (gövdesiz) -> uyarı yok", () => {
+  it("RequestDTORef OLAN write -> uyari yok; GET/DELETE (govdesiz) -> uyari yok", () => {
     const ctrl = node("Controller", CTRL, {
       ControllerName: "ProductController",
-      Description: "ürün",
+      Description: "urun",
       BaseRoute: "products",
       Endpoints: [
         ep({ HttpMethod: "POST", Route: "/", RequestDTORef: "CreateProductDto" }),
@@ -73,21 +73,21 @@ describe("lintContracts", () => {
         ep({ HttpMethod: "DELETE", Route: ":id", PathParams: [{ Name: "id", Type: "string" }] }),
       ],
     });
-    // CreateProductDto gerçek bir DTO node'u (dangling-ref kuralı tetiklenmesin).
+    // CreateProductDto gercek bir DTO node'u (dangling-ref kurali tetiklenmesin).
     const dto = node("DTO", "db300000-0000-4000-8000-000000000001", {
       Name: "CreateProductDto",
-      Description: "ürün girdisi",
+      Description: "urun girdisi",
       Fields: [{ Name: "name", DataType: "string", IsRequired: true, IsArray: false }],
     });
     expect(lintContracts(buildCodeGraph([ctrl, dto], []))).toHaveLength(0);
   });
 
-  it("RequiredRoles var ama RequiresAuth yok -> uyarı (rol auth olmadan enforce edilemez)", () => {
+  it("RequiredRoles var ama RequiresAuth yok -> uyari (rol auth olmadan enforce edilemez)", () => {
     // RolesGuard request.user.role'e bakar; AuthGuard yoksa request.user set edilmez ->
-    // RolesGuard her isteği reddeder -> endpoint erişilemez. Kontrat ihlali.
+    // RolesGuard her istegi reddeder -> endpoint erisilemez. Kontrat ihlali.
     const ctrl = node("Controller", CTRL, {
       ControllerName: "AdminController",
-      Description: "yönetim",
+      Description: "yonetim",
       BaseRoute: "admin",
       Endpoints: [
         ep({ HttpMethod: "GET", Route: "panel", RequiresAuth: false, RequiredRoles: ["admin"], ResponseDTORef: "PanelDto" }),
@@ -97,10 +97,10 @@ describe("lintContracts", () => {
     expect(warnings.some((w) => /role/i.test(w) && /auth/i.test(w))).toBe(true);
   });
 
-  it("RequiredRoles + RequiresAuth birlikte -> auth uyarısı YOK", () => {
+  it("RequiredRoles + RequiresAuth birlikte -> auth uyarisi NONE", () => {
     const ctrl = node("Controller", CTRL, {
       ControllerName: "AdminController",
-      Description: "yönetim",
+      Description: "yonetim",
       BaseRoute: "admin",
       Endpoints: [
         ep({ HttpMethod: "GET", Route: "panel", RequiresAuth: true, RequiredRoles: ["admin"], ResponseDTORef: "PanelDto" }),
@@ -110,16 +110,16 @@ describe("lintContracts", () => {
     expect(warnings.some((w) => /role/i.test(w) && /auth/i.test(w))).toBe(false);
   });
 
-  it("route param'ı eşleşen PathParam'sız -> uyarı (handler okuyamaz)", () => {
-    // GET /:id ama PathParams boş -> @Param("id") üretilmez, handler id'yi okuyamaz.
+  it("route param'i eslesen PathParam'siz -> uyari (handler okuyamaz)", () => {
+    // GET /:id ama PathParams bos -> @Param("id") uretilmez, handler id'yi okuyamaz.
     const dto = node("DTO", "da100000-0000-4000-8000-000000000001", {
       Name: "OrderDto",
-      Description: "sipariş",
+      Description: "order",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctrl = node("Controller", CTRL, {
       ControllerName: "OrderController",
-      Description: "sipariş",
+      Description: "order",
       BaseRoute: "orders",
       Endpoints: [ep({ HttpMethod: "GET", Route: ":id", PathParams: [], ResponseDTORef: "OrderDto" })],
     });
@@ -127,15 +127,15 @@ describe("lintContracts", () => {
     expect(warnings.some((w) => /route parameter/i.test(w) && /\bid\b/.test(w))).toBe(true);
   });
 
-  it("PathParam route'la eşleşince -> route-param uyarısı YOK", () => {
+  it("PathParam route'la eslesince -> route-param uyarisi NONE", () => {
     const dto = node("DTO", "da200000-0000-4000-8000-000000000001", {
       Name: "OrderDto",
-      Description: "sipariş",
+      Description: "order",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctrl = node("Controller", CTRL, {
       ControllerName: "OrderController",
-      Description: "sipariş",
+      Description: "order",
       BaseRoute: "orders",
       Endpoints: [ep({ HttpMethod: "GET", Route: ":id", PathParams: [{ Name: "id", Type: "string" }], ResponseDTORef: "OrderDto" })],
     });
@@ -143,25 +143,25 @@ describe("lintContracts", () => {
     expect(warnings.some((w) => /route parameter/i.test(w))).toBe(false);
   });
 
-  it("çözülemeyen DTO ref (Request/Response) -> uyarı (var olmayan DTO)", () => {
+  it("cozulemeyen DTO ref (Request/Response) -> uyari (var olmayan DTO)", () => {
     const ctrl = node("Controller", CTRL, {
       ControllerName: "ProductController",
-      Description: "ürün",
+      Description: "urun",
       BaseRoute: "products",
       Endpoints: [
         ep({ HttpMethod: "POST", Route: "/", RequestDTORef: "GhostInput", ResponseDTORef: "GhostOutput" }),
       ],
     });
-    // GhostInput/GhostOutput DTO node'u YOK -> dangling ref.
+    // GhostInput/GhostOutput DTO node'u NONE -> dangling ref.
     const warnings = lintContracts(buildCodeGraph([ctrl], []));
     expect(warnings.some((w) => /GhostInput/.test(w) && /exist|resolve/i.test(w))).toBe(true);
     expect(warnings.some((w) => /GhostOutput/.test(w))).toBe(true);
   });
 
-  it("Repository EntityReference çözülemezse -> uyarı (Repository<any> fallback)", () => {
+  it("Repository EntityReference cozulemezse -> uyari (Repository<any> fallback)", () => {
     const repo = node("Repository", "dc100000-0000-4000-8000-000000000001", {
       RepositoryName: "GhostRepository",
-      Description: "bağlantısız",
+      Description: "baglantisiz",
       EntityReference: "Phantom",
       IsCached: false,
       CustomQueries: [],
@@ -170,10 +170,10 @@ describe("lintContracts", () => {
     expect(warnings.some((w) => /Phantom/.test(w) && /resolve|Model or Table|exist/i.test(w))).toBe(true);
   });
 
-  it("Service Dependency Ref çözülemezse -> uyarı (import'suz inject)", () => {
+  it("Service Dependency Ref cozulemezse -> uyari (import'suz inject)", () => {
     const svc = node("Service", "dc200000-0000-4000-8000-000000000001", {
       ServiceName: "OrderService",
-      Description: "sipariş",
+      Description: "order",
       IsTransactionScoped: false,
       Methods: [{ MethodName: "doThing", Visibility: "public", Parameters: [], ReturnType: "void", IsAsync: true, Throws: [] }],
       Dependencies: [{ Kind: "Repository", Ref: "GhostRepo" }],
@@ -182,7 +182,7 @@ describe("lintContracts", () => {
     expect(warnings.some((w) => /GhostRepo/.test(w) && /resolve|exist/i.test(w))).toBe(true);
   });
 
-  it("Kural 6: DTO zorunlu alanı NULLABLE kolondan besleniyor -> uyarı; NOT NULL/optional -> uyarı yok", () => {
+  it("Kural 6: DTO zorunlu alani NULLABLE kolondan besleniyor -> uyari; NOT NULL/optional -> uyari yok", () => {
     const table = node("Table", "dt100000-0000-4000-8000-000000000001", {
       TableName: "Videos",
       Description: "videolar",
@@ -194,11 +194,11 @@ describe("lintContracts", () => {
     });
     const dto = node("DTO", "dd100000-0000-4000-8000-000000000001", {
       Name: "VideoDTO",
-      Description: "video çıktısı",
+      Description: "video ciktisi",
       Fields: [
-        { Name: "Title", DataType: "string", IsRequired: true, IsArray: false }, // NOT NULL → uyarı yok
+        { Name: "Title", DataType: "string", IsRequired: true, IsArray: false }, // NOT NULL → uyari yok
         { Name: "VideoUrl", DataType: "string", IsRequired: true, IsArray: false }, // nullable kolon + zorunlu → UYARI
-        { Name: "Description", DataType: "string", IsRequired: false, IsArray: false }, // optional → uyarı yok
+        { Name: "Description", DataType: "string", IsRequired: false, IsArray: false }, // optional → uyari yok
       ],
     });
     const warnings = lintContracts(buildCodeGraph([table, dto], []));
@@ -208,20 +208,20 @@ describe("lintContracts", () => {
     expect(nullWarn[0]).toContain("Videos.VideoUrl");
   });
 
-  it("Kural 6: entity-bağlı olmayan DTO (eşleşen tablo yok) -> nullability uyarısı yok", () => {
+  it("Kural 6: entity-bagli olmayan DTO (eslesen tablo yok) -> nullability uyarisi yok", () => {
     const dto = node("DTO", "dd200000-0000-4000-8000-000000000001", {
       Name: "LoginRequestDTO",
-      Description: "giriş",
+      Description: "giris",
       Fields: [{ Name: "email", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const warnings = lintContracts(buildCodeGraph([dto], []));
     expect(warnings.some((w) => /is required but its source column/.test(w))).toBe(false);
   });
 
-  it("DETERMİNİZM: uyarılar sıralı + tekrar üretimde aynı", () => {
+  it("DETERMINISM: uyarilar sirali + tekrar uretimde ayni", () => {
     const ctrl = node("Controller", CTRL, {
       ControllerName: "MixController",
-      Description: "karışık",
+      Description: "karisik",
       BaseRoute: "mix",
       Endpoints: [
         ep({ HttpMethod: "POST", Route: "zeta" }),

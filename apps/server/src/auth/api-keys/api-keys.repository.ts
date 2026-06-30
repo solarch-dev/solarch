@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { Neo4jService } from "../../neo4j/neo4j.service";
 
-/** API anahtarı kaydı — anahtarın kendisi ASLA saklanmaz, yalnız SHA-256 hash'i.
- *  prefix (slk_ + ilk 6 karakter) listede "hangi anahtar" tanıma içindir. */
+/** API key record — the key itself is NEVER stored, only SHA-256 hash.
+ *  prefix (slk_ + first 6 chars) identifies which key in listings. */
 export interface StoredApiKey {
   id: string;
   userId: string;
@@ -44,7 +44,7 @@ export class ApiKeysRepository {
     });
   }
 
-  /** Hash ile arama — anahtar yüksek entropili olduğundan exact-match yeterli. */
+  /** Lookup by hash — high-entropy key makes exact-match sufficient. */
   async findByHash(hash: string): Promise<StoredApiKey | null> {
     const r = await this.neo4j.run(`MATCH (k:ApiKey {hash: $hash}) RETURN k`, { hash });
     if (!r.records.length) return null;
@@ -59,7 +59,7 @@ export class ApiKeysRepository {
     };
   }
 
-  /** Sahiplik koşullu silme — başkasının anahtarı silinemez (BOLA). */
+  /** Ownership-conditional delete — cannot delete another user's key (BOLA). */
   async deleteOwned(id: string, userId: string): Promise<boolean> {
     const r = await this.neo4j.run(
       `MATCH (k:ApiKey {id: $id, userId: $userId}) DELETE k RETURN count(*) AS n`,

@@ -52,7 +52,7 @@ describe("Tabs E2E", () => {
     await container.stop();
   });
 
-  it("proje açılınca Ana Mimari sekmesi oluşur", async () => {
+it("When the project is opened, the Main Architecture tab appears", async () => {
     const p = await request(app.getHttpServer()).post(`${base}/projects`).send({ name: "Tab E2E" }).expect(201);
     projectId = p.body.data.id;
     const tabs = await request(app.getHttpServer()).get(`${base}/projects/${projectId}/tabs`).expect(200);
@@ -61,7 +61,7 @@ describe("Tabs E2E", () => {
     expect(tabs.body.data[0].name).toBe("Main Architecture");
   });
 
-  it("node default sekmeye ev sahibi olur, tab graph'ta owned görünür", async () => {
+it("node hosts the tab by default, the tab appears owned in the graph", async () => {
     const n = await request(app.getHttpServer()).post(`${base}/projects/${projectId}/nodes`).send({
       projectId, position: { x: 10, y: 20 }, type: "Service",
       properties: { ServiceName: "OrderSvc", Description: "d", IsTransactionScoped: false, Methods: [{ MethodName: "x", ReturnType: "void" }] },
@@ -76,7 +76,7 @@ describe("Tabs E2E", () => {
   });
 
   it("yeni sekme + node import (referans) round-trip", async () => {
-    const t = await request(app.getHttpServer()).post(`${base}/projects/${projectId}/tabs`).send({ name: "Sipariş" }).expect(201);
+const t = await request(app.getHttpServer()).post(`${base}/projects/${projectId}/tabs`).send({ name: "Order" }).expect(201);
     const tabId = t.body.data.id;
     await request(app.getHttpServer()).put(`${base}/projects/${projectId}/tabs/${tabId}/references/${nodeId}`).send({ x: 99, y: 88 }).expect(200);
     const g = await request(app.getHttpServer()).get(`${base}/projects/${projectId}/tabs/${tabId}/graph`).expect(200);
@@ -100,8 +100,8 @@ describe("Tabs E2E", () => {
     await request(app.getHttpServer()).delete(`${base}/projects/${projectId}/tabs/${defId}`).expect(400);
   });
 
-  it("sekme silinince owned node Ana Mimari'ye taşınır, node kaybolmaz", async () => {
-    const t = await request(app.getHttpServer()).post(`${base}/projects/${projectId}/tabs`).send({ name: "Geçici" }).expect(201);
+it("when the tab is deleted, the owned node is moved to the Main Architecture, the node is not lost", async () => {
+const t = await request(app.getHttpServer()).post(`${base}/projects/${projectId}/tabs`).send({ name: "Temporary" }).expect(201);
     const tabId = t.body.data.id;
     const n = await request(app.getHttpServer()).post(`${base}/projects/${projectId}/nodes`).send({
       projectId, position: { x: 1, y: 1 }, homeTabId: tabId, type: "Cache",

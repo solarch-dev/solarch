@@ -48,14 +48,14 @@ export class PatternsService {
       throw new NotFoundException({ code: "ERR_PATTERN_NOT_FOUND", message: `Pattern '${id}' not found.` });
   }
 
-  /** Sorguyu embed edip top-K döner. Embedding yapılandırılmamışsa boş (degrade). */
+/** Embeds the query and returns top-K. Empty (gradient) if embedding is not configured. */
   async search(query: string, k: number, minScore: number): Promise<PatternSearchHit[]> {
     if (!this.embeddings.isConfigured()) return [];
     const vec = await this.embeddings.embed(query);
     return this.repo.search(vec, k, minScore);
   }
 
-  /** Proje grafiğinden pattern terfi. nodeIds verilmezse tüm proje. */
+/** Promote pattern from project graph. If nodeIds are not given, the entire project. */
   async promoteFromProject(
     projectId: string,
     input: { name: string; description: string; tags?: string[]; nodeIds?: string[] },
@@ -71,7 +71,7 @@ export class PatternsService {
     if (selected.length === 0)
       throw new NotFoundException({ code: "ERR_PATTERN_NODE_NOT_FOUND", message: "The selected nodeIds were not found in the project." });
 
-    // gerçek id → tempId; sadece seçili node'lar arası edge'ler taşınır.
+// actual id → tempId; Only edges between selected nodes are moved.
     const idToTemp = new Map<string, string>();
     selected.forEach((n: any, i: number) => idToTemp.set(n.id, `t_${i}_${String(n.type).toLowerCase()}`));
     const graph: PatternGraph = {

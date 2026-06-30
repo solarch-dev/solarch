@@ -18,7 +18,7 @@ function make(embConfigured = true) {
 }
 
 describe("PatternsService", () => {
-  it("create embed edip repo.create çağırır", async () => {
+it("create embeds and calls repo.create", async () => {
     const { svc, repo, embeddings } = make();
     await svc.create({ name: "n", description: "d", tags: [], graph } as any);
     expect(embeddings.embed).toHaveBeenCalled();
@@ -28,13 +28,13 @@ describe("PatternsService", () => {
     );
   });
 
-  it("embedding yoksa search boş döner (degrade)", async () => {
+it("If there is no embedding, search returns empty (gradient)", async () => {
     const { svc, embeddings } = make(false);
     expect(await svc.search("x", 3, 0.7)).toEqual([]);
     expect(embeddings.embed).not.toHaveBeenCalled();
   });
 
-  it("embedding yoksa create 503 fırlatır", async () => {
+it("If there is no embedding, create throws 503", async () => {
     const { svc } = make(false);
     await expect(svc.create({ name: "n", description: "d", tags: [], graph } as any)).rejects.toThrow();
   });
@@ -45,7 +45,7 @@ describe("PatternsService", () => {
     await expect(svc.promoteFromProject("p", { name: "n", description: "d" })).rejects.toThrow();
   });
 
-  it("promote: tüm proje grafiğini tempId'leyip create eder", async () => {
+it("promote: tempIds and creates the entire project graph", async () => {
     const { svc, projectsRepo, repo } = make();
     projectsRepo.getById.mockResolvedValue({ id: "p" });
     projectsRepo.getGraph.mockResolvedValue({

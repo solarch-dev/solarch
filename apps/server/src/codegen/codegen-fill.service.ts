@@ -9,8 +9,8 @@ import { SurgicalFillRepository } from "./surgical-fill.repository";
 import { ensureFillDepsCache } from "./codegen-fill-deps";
 import type { CodegenTarget, GeneratedFile } from "./types";
 
-/** Eşzamanlı doldurulacak DOSYA sayısı (env ile ayarlanır; aynı dosyanın bölgeleri
- *  her zaman sıralı). */
+/** Eszamanli doldurulacak DOSYA sayisi (env ile ayarlanir; ayni dosyanin bolgeleri
+ *  her zaman sirali). */
 const FILL_PARALLEL = Math.max(1, Number.parseInt(process.env.SOLARCH_FILL_PARALLEL ?? "6", 10) || 6);
 
 /** Resolve the @solarch/cli `fill` entry point. It runs as a subprocess so the server's
@@ -28,29 +28,29 @@ function resolveCliEntry(): string {
 }
 const CLI_ENTRY = resolveCliEntry();
 
-/** Fill akış olayları — SSE'ye birebir map'lenir. */
+/** Fill akis olaylari — SSE'ye birebir map'lenir. */
 export type FillEvent =
   | { event: "start"; fileCount: number; markerCount: number }
   | { event: "mode"; verified: boolean; withTests: boolean; reason?: string }
   | { event: "region"; status: string; nodeId?: string; member: string; file: string; attempts: number; violations?: string[]; error?: string; body?: string }
   | { event: "phase"; kind: string; round?: number; ok?: boolean; errorCount?: number; file?: string; member?: string; files?: number; skipped?: boolean }
-  // GÖZLEM: fill ajanının tool eylemi (read/grep/glob/lookup_members/verify_fill). KALICI DEĞİL —
-  // yalnız canlı akar (persistRegion'a girmez). Özet GÜVENLİ (kod gövdesi / secret değer YOK).
+  // GOZLEM: fill ajaninin tool eylemi (read/grep/glob/lookup_members/verify_fill). KALICI NOT —
+  // yalniz canli akar (persistRegion'a girmez). Ozet GUVENLI (kod govdesi / secret deger NONE).
   | { event: "activity"; member: string; file: string; tool: string; summary: string; ok?: boolean; attempt?: number }
   | { event: "report"; filled: number; violations: number; errors: number; typecheck?: { ok: boolean }; tests?: { ok: boolean; skipped?: boolean } }
   | { event: "files"; files: GeneratedFile[] }
   | { event: "error"; message: string; code?: string };
 
-/** Surgical AI (sunucu-tarafı) — Constructor iskeletinin `@solarch:surgical`
- *  bölgelerini AI'la doldurur. Akış: assemble (DB'siz) → geçici dizine yaz →
- *  sıcak deps cache'ini node_modules olarak symlink'le → `solarch fill --all
- *  --parallel N --json` subprocess'i (DOĞRULANMIŞ: tsc döngüde, opsiyonel jest) →
- *  NDJSON ilerleme + faz olaylarını stream et → dolu dosyaları geri oku → temizle.
+/** Surgical AI (sunucu-tarafi) — Constructor iskeletinin `@solarch:surgical`
+ *  bolgelerini AI'la doldurur. Akis: assemble (DB'siz) → gecici dizine yaz →
+ *  sicak deps cache'ini node_modules olarak symlink'le → `solarch fill --all
+ *  --parallel N --json` subprocess'i (DOGRULANMIS: tsc dongude, opsiyonel jest) →
+ *  NDJSON ilerleme + faz olaylarini stream et → dolu dosyalari geri oku → temizle.
  *
- *  Doğrulama: deps cache (codegen-fill-deps) kurulabildiyse temp dizine node_modules
- *  symlink edilir → CLI gerçek `tsc` koşar, hatalı bölgeleri onarır (parallel). Cache
- *  yoksa (npm yok / offline) `--skip-verify` TASLAK yoluna düşülür + `mode` olayı
- *  verified:false der. jest ("derin doğrula") opsiyoneldir (withTests). */
+ *  Dogrulama: deps cache (codegen-fill-deps) kurulabildiyse temp dizine node_modules
+ *  symlink edilir → CLI gercek `tsc` kosar, hatali bolgeleri onarir (parallel). Cache
+ *  yoksa (npm yok / offline) `--skip-verify` TASLAK yoluna dusulur + `mode` olayi
+ *  verified:false der. jest ("derin dogrula") opsiyoneldir (withTests). */
 @Injectable()
 export class CodegenFillService {
   private readonly logger = new Logger(CodegenFillService.name);
@@ -66,7 +66,7 @@ export class CodegenFillService {
     signal?: AbortSignal,
     opts?: { withTests?: boolean },
   ): AsyncGenerator<FillEvent> {
-    // service.generate proje yoksa NotFoundException atar → controller'a düşer.
+    // service.generate proje yoksa NotFoundException atar → controller'a duser.
     const project = await this.codegen.generate(projectId, target);
     const markerCount = project.files.reduce((s, f) => s + (f.surgicalMarkers ?? 0), 0);
     if (markerCount === 0) {
@@ -84,10 +84,10 @@ export class CodegenFillService {
       }
       yield { event: "start", fileCount: project.files.length, markerCount };
 
-      // Doğrulama bağımlılıkları: sıcak cache'i node_modules olarak symlink'le.
-      // SESSİZ DRAFT YOK — verified sağlanamıyorsa açık, tekrar-denenebilir hata ver
-      // ("app'te temiz, lokalde tsc hatası" sürprizini engelle). Cache startup'ta warm
-      // edilir (CodegenDepsWarmupService); bu hata yalnız warm henüz bitmediyse/başarısızsa.
+      // Dogrulama bagimliliklari: sicak cache'i node_modules olarak symlink'le.
+      // SESSIZ DRAFT NONE — verified saglanamiyorsa acik, tekrar-denenebilir hata ver
+      // ("app'te temiz, lokalde tsc hatasi" surprizini engelle). Cache startup'ta warm
+      // edilir (CodegenDepsWarmupService); bu hata yalniz warm henuz bitmediyse/basarisizsa.
       const depsDir = await ensureFillDepsCache(this.logger);
       let verified = false;
       let unverifiedReason = "verified-deps cache unavailable (npm/network at startup)";
@@ -126,7 +126,7 @@ export class CodegenFillService {
         stderr += String(d);
       });
 
-      // stdout NDJSON — satır satır parse et; dolan bölgeyi ANINDA kalıcı sakla, sonra yield.
+      // stdout NDJSON — satir satir parse et; dolan bolgeyi ANINDA kalici sakla, sonra yield.
       const rl = createInterface({ input: child.stdout });
       for await (const line of rl) {
         const trimmed = line.trim();
@@ -135,10 +135,10 @@ export class CodegenFillService {
         try {
           ev = JSON.parse(trimmed) as FillEvent;
         } catch {
-          continue; // json olmayan gürültü — atla
+          continue; // json olmayan gurultu — atla
         }
-        // Bölge dolduğu an gövdeyi bölge-bazında kalıcı uygula (re-open dolu görünür,
-        // yarıda kesilse de elde olan kalır). En iyi çaba; hata fill'i bozmaz.
+        // Bolge doldugu an govdeyi bolge-bazinda kalici uygula (re-open dolu gorunur,
+        // yarida kesilse de elde olan kalir). En iyi caba; hata fill'i bozmaz.
         if (ev.event === "region" && ev.nodeId) {
           await this.persistRegion(projectId, ev);
         }
@@ -148,7 +148,7 @@ export class CodegenFillService {
       signal?.removeEventListener("abort", onAbort);
       if (code !== 0 && stderr) this.logger.warn(`fill subprocess exit ${code}: ${stderr.slice(0, 400)}`);
 
-      // Dolu dosyaları geri oku (tümünü; değişmeyenler aynen döner).
+      // Dolu dosyalari geri oku (tumunu; degismeyenler aynen doner).
       const filled = await Promise.all(
         project.files.map(async (f) => {
           try {
@@ -160,24 +160,24 @@ export class CodegenFillService {
       );
       yield { event: "files", files: filled };
     } finally {
-      // ÖNCE node_modules symlink'ini AYRI kaldır → rm asla paylaşılan cache'e
-      // (symlink hedefine) inmesin. (fs.rm symlink'i izlemez ama kasıtlı garanti.)
+      // FIRST node_modules symlink'ini AYRI kaldir → rm asla paylasilan cache'e
+      // (symlink hedefine) inmesin. (fs.rm symlink'i izlemez ama kasitli garanti.)
       await unlink(join(dir, "node_modules")).catch(() => {});
       await rm(dir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
-  /** Bir "region" olayını DB'ye kalıcı uygula — DB bölgenin FINAL durumunu yansıtsın.
+  /** Bir "region" olayini DB'ye kalici uygula — DB bolgenin FINAL durumunu yansitsin.
    *
-   *  Bir bölge AYNI fill akışında önce "filled" sonra "violation" emit edilebilir:
-   *  ilk-dolum import'lar çözülmeden tip-denetler (gerçek tip hatası "Cannot find name"
-   *  arkasına saklanır → "filled"); repair fazında import'lar çözülünce hata görünür ve
-   *  model çözemezse bölge "violation"a düşer. Bu yüzden:
-   *   - "filled" → gövdeyi yaz/üzerine yaz (geçerli sonuç).
-   *   - "violation"/"error" → saklı (kırık) gövdeyi SİL → bölge stub'a döner (stub DERLENİR,
-   *     derlenmeyen gövde KALICI OLMAZ). 3 gündür GetVideo TS2322'sinin saklanma sebebi:
-   *     "filled" kaydediliyor ama sonraki "violation" yok sayılıyordu → kırık gövde kalıyordu.
-   *  En iyi çaba: persist hatası fill akışını bozmaz. */
+   *  Bir bolge AYNI fill akisinda once "filled" sonra "violation" emit edilebilir:
+   *  ilk-dolum import'lar cozulmeden tip-denetler (gercek tip hatasi "Cannot find name"
+   *  arkasina saklanir → "filled"); repair fazinda import'lar cozulunce hata gorunur ve
+   *  model cozemezse bolge "violation"a duser. Bu yuzden:
+   *   - "filled" → govdeyi yaz/uzerine yaz (gecerli sonuc).
+   *   - "violation"/"error" → sakli (kirik) govdeyi SIL → bolge stub'a doner (stub DERLENIR,
+   *     derlenmeyen govde KALICI NOT). 3 gundur GetVideo TS2322'sinin saklanma sebebi:
+   *     "filled" kaydediliyor ama sonraki "violation" yok sayiliyordu → kirik govde kaliyordu.
+   *  En iyi caba: persist hatasi fill akisini bozmaz. */
   private async persistRegion(projectId: string, ev: Extract<FillEvent, { event: "region" }>): Promise<void> {
     if (!ev.nodeId) return;
     if (ev.status === "filled" && ev.body) {

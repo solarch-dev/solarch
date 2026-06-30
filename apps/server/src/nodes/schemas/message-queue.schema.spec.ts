@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   QueueName: "order-events",
-  Description: "Sipariş olayları",
+  Description: "Order events",
   Type: "Topic" as const,
   Provider: "Kafka" as const,
   MessageFormat: "OrderEventDTO",
@@ -21,7 +21,7 @@ const parse = (properties: unknown) =>
   MessageQueueNodeSchema.parse({ ...validBase, type: "MessageQueue", properties });
 
 describe("MessageQueueNodeSchema (enriched)", () => {
-  it("geçerli MessageQueue'yu parse eder", () => {
+  it("parses valid MessageQueue'yu", () => {
     const node = parse(validProperties);
     expect(node.properties.Provider).toBe("Kafka");
   });
@@ -38,7 +38,7 @@ describe("MessageQueueNodeSchema (enriched)", () => {
     expect(node.properties.RetentionSeconds).toBe(604800);
   });
 
-  it("geçersiz DeliveryGuarantee reddeder", () => {
+  it("rejects invalid DeliveryGuarantee", () => {
     expect(() => parse({ ...validProperties, DeliveryGuarantee: "best-effort" })).toThrow();
   });
 

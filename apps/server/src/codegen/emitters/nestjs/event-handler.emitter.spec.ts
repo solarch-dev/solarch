@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -48,10 +48,10 @@ const QUEUE = "10000000-0000-4000-8000-000000000002";
 const SVC = "10000000-0000-4000-8000-000000000003";
 const CACHE = "10000000-0000-4000-8000-000000000004";
 
-/* ── Node fixture'ları ──────────────────────────────────────────────────── */
+/* ── Node fixtures ──────────────────────────────────────────────────── */
 const imageQueue = node("MessageQueue", QUEUE, {
   QueueName: "ImageJobsQueue",
-  Description: "Görsel işleme kuyruğu",
+  Description: "Gorsel isleme kuyrugu",
   Type: "Queue",
   Provider: "RabbitMQ",
   MessageFormat: "ImageJobDto",
@@ -59,7 +59,7 @@ const imageQueue = node("MessageQueue", QUEUE, {
 
 const imageService = node("Service", SVC, {
   ServiceName: "ImageService",
-  Description: "Görsel iş mantığı",
+  Description: "Image business logic",
   IsTransactionScoped: false,
   Dependencies: [],
   Methods: [
@@ -78,10 +78,10 @@ const imageCache = node("Cache", CACHE, {
   CacheName: "ImageCache",
 });
 
-// Kuyruk-tabanlı handler: ImageJobsQueue'yu dinler, ImageService'i çağırır.
+// Kuyruk-tabanli handler: ImageJobsQueue'yu dinler, ImageService'i cagirir.
 const queueHandler = node("EventHandler", HANDLER, {
   HandlerName: "ImageJobEventHandler",
-  Description: "Görsel işleme job'unu tüketir",
+  Description: "Gorsel isleme job'unu tuketir",
   EventName: "image.job.created",
   IsAsync: true,
   QueueRef: "ImageJobsQueue",
@@ -89,16 +89,16 @@ const queueHandler = node("EventHandler", HANDLER, {
   DeadLetterQueue: "ImageJobsDLQ",
 });
 
-// Olay-tabanlı handler: kuyruk YOK, sadece bir olay dinler.
+// Olay-tabanli handler: kuyruk NONE, sadece bir olay dinler.
 const eventHandler = node("EventHandler", HANDLER, {
   HandlerName: "OrderCreatedEventHandler",
-  Description: "Sipariş oluşturulduğunda tetiklenir",
+  Description: "Order olusturuldugunda tetiklenir",
   EventName: "order.created",
   IsAsync: false,
 });
 
 describe("emitEventHandler", () => {
-  it("kuyruk-tabanlı (BullMQ @Processor) — snapshot", () => {
+  it("kuyruk-tabanli (BullMQ @Processor) — snapshot", () => {
     const ctx = ctxFrom(
       [queueHandler, imageQueue, imageService, imageCache],
       [
@@ -116,7 +116,7 @@ describe("emitEventHandler", () => {
       import { ImageService } from "../image/image.service";
       import { ImageCache } from "./image.cache";
 
-      /** Görsel işleme job'unu tüketir */
+      /** Gorsel isleme job'unu tuketir */
       /** retry: maxRetries=3, delaySeconds=10 */
       /** dead-letter-queue: ImageJobsDLQ */
       @Processor("ImageJobsQueue")
@@ -130,7 +130,7 @@ describe("emitEventHandler", () => {
 
         async process(job: Job): Promise<void> {
           // @solarch:surgical id=10000000-0000-4000-8000-000000000001#process
-          // Görsel işleme job'unu tüketir
+          // Gorsel isleme job'unu tuketir
           // Triggering queue: ImageJobsQueue.
           // deps: this.imageCache, this.imageService
           throw new Error("NOT_IMPLEMENTED: ImageJobEventHandler.process");
@@ -144,7 +144,7 @@ describe("emitEventHandler", () => {
     `);
   });
 
-  it("olay-tabanlı (@OnEvent) — snapshot", () => {
+  it("olay-tabanli (@OnEvent) — snapshot", () => {
     const ctx = ctxFrom(
       [eventHandler, imageService],
       [edge("e-calls-svc", "CALLS", HANDLER, SVC)],
@@ -156,7 +156,7 @@ describe("emitEventHandler", () => {
       import { OnEvent } from "@nestjs/event-emitter";
       import { ImageService } from "./image.service";
 
-      /** Sipariş oluşturulduğunda tetiklenir */
+      /** Order olusturuldugunda tetiklenir */
       @Injectable()
       export class OrderCreatedEventHandler {
         constructor(
@@ -166,7 +166,7 @@ describe("emitEventHandler", () => {
         @OnEvent("order.created")
         handleOrderCreated(payload: unknown): void {
           // @solarch:surgical id=10000000-0000-4000-8000-000000000001#handleOrderCreated
-          // Sipariş oluşturulduğunda tetiklenir
+          // Order olusturuldugunda tetiklenir
           // Triggering event: order.created.
           // deps: this.imageService
           throw new Error("NOT_IMPLEMENTED: OrderCreatedEventHandler.handleOrderCreated");
@@ -180,7 +180,7 @@ describe("emitEventHandler", () => {
     `);
   });
 
-  it("QueueRef property'si (SUBSCRIBES edge yoksa) da kuyruk-tabanlı kola düşer", () => {
+  it("QueueRef property'si (SUBSCRIBES edge yoksa) da kuyruk-tabanli kola duser", () => {
     const ctx = ctxFrom([queueHandler, imageQueue], []);
     const [file] = emitEventHandler(ctx.graph.byId(HANDLER)!, ctx);
     expect(file.content).toContain('@Processor("ImageJobsQueue")');
@@ -188,10 +188,10 @@ describe("emitEventHandler", () => {
     expect(file.content).toContain("import { Processor, WorkerHost } from \"@nestjs/bullmq\";");
   });
 
-  it("kuyruk çözülemezse (QueueRef + edge yok) olay-tabanlı kola düşer", () => {
+  it("kuyruk cozulemezse (QueueRef + edge yok) olay-tabanli kola duser", () => {
     const orphanQueueHandler = node("EventHandler", HANDLER, {
       HandlerName: "GhostHandler",
-      Description: "Kayıp kuyruk referansı",
+      Description: "Kayip kuyruk referansi",
       EventName: "ghost.event",
       IsAsync: true,
       QueueRef: "NonExistentQueue",
@@ -225,22 +225,22 @@ describe("emitEventHandler", () => {
     expect(syncFile.content).not.toContain("async handleOrderCreated");
   });
 
-  it("dosya yolu filePathFor ile (.handler.ts, rol son-eki tekrarsız)", () => {
-    // Handler ImageService'i çağırır -> feature-inference onu "image" feature'ına
-    // yerleştirir. baseNameOf("OrderCreatedEventHandler") -> "OrderCreated" ->
-    // dosya kök adı "order-created", rol son-eki ("EventHandler") TEKRARLANMAZ.
+  it("dosya yolu filePathFor ile (.handler.ts, rol son-eki tekrarsiz)", () => {
+    // Handler ImageService'i cagirir -> feature-inference onu "image" feature'ina
+    // yerlestirir. baseNameOf("OrderCreatedEventHandler") -> "OrderCreated" ->
+    // dosya kok adi "order-created", rol son-eki ("EventHandler") TEKRARLANMAZ.
     const ctx = ctxFrom([eventHandler, imageService], [edge("e", "CALLS", HANDLER, SVC)]);
     const [file] = emitEventHandler(ctx.graph.byId(HANDLER)!, ctx);
     expect(file.path).toBe("image/order-created.handler.ts");
   });
 
-  it("dep yoksa constructor üretilmez (boş DI)", () => {
+  it("dep yoksa constructor uretilmez (bos DI)", () => {
     const ctx = ctxFrom([eventHandler], []);
     const [file] = emitEventHandler(ctx.graph.byId(HANDLER)!, ctx);
     expect(file.content).not.toContain("constructor(");
   });
 
-  it("DEDUP: aynı Service'e iki CALLS edge -> tek DI alanı", () => {
+  it("DEDUP: ayni Service'e iki CALLS edge -> tek DI alani", () => {
     const ctx = ctxFrom(
       [eventHandler, imageService],
       [edge("e1", "CALLS", HANDLER, SVC), edge("e2", "CALLS", HANDLER, SVC)],
@@ -250,14 +250,14 @@ describe("emitEventHandler", () => {
     expect(occurrences).toBe(1);
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFrom([eventHandler], []);
     const [file] = emitEventHandler(ctx.graph.byId(HANDLER)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: iki bağımsız graph kuruluşu -> byte-identical", () => {
+  it("DETERMINISM: two independent graph builds -> byte-identical", () => {
     const nodes = [queueHandler, imageQueue, imageService, imageCache];
     const edges = [
       edge("e-sub", "SUBSCRIBES", HANDLER, QUEUE),
@@ -269,7 +269,7 @@ describe("emitEventHandler", () => {
     expect(a).toBe(b);
   });
 
-  it("edge-case: hiç edge/kuyruk yok — throw etmez, minimal @OnEvent handler", () => {
+  it("edge-case: hic edge/kuyruk yok — throw etmez, minimal @OnEvent handler", () => {
     const ctx = ctxFrom([eventHandler], []);
     let file: { content: string; surgicalMarkers: number } | undefined;
     expect(() => {

@@ -12,7 +12,7 @@ function makeRepo(initial: StoredNode[] = []) {
     update: vi.fn(async (p: string, id: string, upd: any) => {
       const existing = store.get(id);
       if (!existing) return null;
-      // atomik version guard simülasyonu (repo ile aynı semantik)
+      // atomic version guard simulation (same semantics as repo)
       if (upd.expectedVersion !== undefined && (existing.version ?? 1) !== upd.expectedVersion) return null;
       const next = { ...existing };
       if (upd.positionX !== undefined) next.positionX = upd.positionX;
@@ -59,31 +59,31 @@ describe("NodesService.create", () => {
     service = new NodesService(repo as any, projectsRepoMock as any, tabsMock as any);
   });
 
-  it("URL projectId ile body projectId uyuşmuyorsa BadRequestException fırlatır", async () => {
+  it("throws BadRequestException when URL projectId does not match body projectId", async () => {
     await expect(service.create("other-project", validTable as any)).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it("id verilmediyse server üretir", async () => {
+  it("server generates id when not provided", async () => {
     const { id, ...noId } = validTable;
     const result = await service.create(projectId, noId as any);
     expect(result.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("createdAt/updatedAt verilmediyse server üretir", async () => {
+  it("server generates createdAt/updatedAt when not provided", async () => {
     const { createdAt, updatedAt, ...rest } = validTable;
     const result = await service.create(projectId, rest as any);
     expect(result.createdAt).toBeDefined();
     expect(result.updatedAt).toBeDefined();
   });
 
-  it("aynı id zaten varsa ERR_ID_CONFLICT", async () => {
+  it("ERR_ID_CONFLICT when same id already exists", async () => {
     repo = makeRepo([{ id: validTable.id, type: "Table", projectId, positionX: 0, positionY: 0, createdAt: "x", updatedAt: "x", properties: {} }]);
     service = new NodesService(repo as any, projectsRepoMock as any, tabsMock as any);
     await expect(service.create(projectId, validTable as any))
       .rejects.toMatchObject({ response: { code: "ERR_ID_CONFLICT" } });
   });
 
-  it("aynı isim varsa ERR_NAME_DUPLICATE", async () => {
+  it("ERR_NAME_DUPLICATE when same name exists", async () => {
     repo = makeRepo([{ id: "550e8400-e29b-41d4-a716-446655440099", type: "Table", projectId, positionX: 0, positionY: 0, createdAt: "x", updatedAt: "x", properties: { TableName: "users" } }]);
     service = new NodesService(repo as any, projectsRepoMock as any, tabsMock as any);
     const { id, ...noId } = validTable;
@@ -107,48 +107,48 @@ describe("NodesService.update", () => {
     service = new NodesService(repo as any, projectsRepoMock as any, tabsMock as any);
   });
 
-  it("yok ise NotFoundException", async () => {
+  it("NotFoundException when missing", async () => {
     await expect(service.update(projectId, "00000000-0000-0000-0000-000000000000", { position: { x: 1, y: 1 } }))
       .rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("type değiştirmeye çalışırsa ERR_KIND_IMMUTABLE", async () => {
+  it("ERR_KIND_IMMUTABLE when attempting to change type", async () => {
     await expect(service.update(projectId, validTable.id, { type: "DTO" } as any))
       .rejects.toMatchObject({ response: { code: "ERR_KIND_IMMUTABLE" } });
   });
 
-  it("position update updatedAt'i de set eder", async () => {
+  it("position update sets updatedAt", async () => {
     const result = await service.update(projectId, validTable.id, { position: { x: 99, y: 88 } });
     expect(result.position.x).toBe(99);
     expect(result.updatedAt).not.toBe(validTable.updatedAt);
   });
 
-  it("expectedVersion uyuşmazsa ERR_VERSION_CONFLICT (lost-update engellenir)", async () => {
+  it("ERR_VERSION_CONFLICT when expectedVersion mismatches (prevents lost update)", async () => {
     await expect(service.update(projectId, validTable.id, { position: { x: 1, y: 1 }, expectedVersion: 99 }))
       .rejects.toMatchObject({ response: { code: "ERR_VERSION_CONFLICT" } });
   });
 
-  it("doğru expectedVersion ile update geçer + version artar", async () => {
+  it("update with correct expectedVersion succeeds and increments version", async () => {
     const result = await service.update(projectId, validTable.id, { position: { x: 7, y: 7 }, expectedVersion: 1 });
     expect(result.position.x).toBe(7);
     expect(result.version).toBe(2);
   });
 
-  it("expectedVersion verilmezse update geçer (geriye uyum) + version artar", async () => {
+  it("update without expectedVersion succeeds (backward compat) and increments version", async () => {
     const result = await service.update(projectId, validTable.id, { position: { x: 3, y: 3 } });
     expect(result.version).toBe(2);
   });
 });
 
 describe("NodesService.delete", () => {
-  it("yok ise NotFoundException", async () => {
+  it("NotFoundException when missing", async () => {
     const repo = makeRepo();
     const service = new NodesService(repo as any, projectsRepoMock as any, tabsMock as any);
     await expect(service.delete(projectId, "00000000-0000-0000-0000-000000000000"))
       .rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("var ise siler", async () => {
+  it("deletes when present", async () => {
     const repo = makeRepo([{
       id: validTable.id, type: "Table", projectId,
       positionX: 0, positionY: 0,

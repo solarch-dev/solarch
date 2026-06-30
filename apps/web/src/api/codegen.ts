@@ -1,15 +1,10 @@
 /** Constructor codegen — backend generates a NestJS project skeleton from the node graph.
- *  schema.d.ts has no codegen path → typed api.POST is replaced by RAW fetch (raw.ts/client.ts
- *  pattern: getClerkToken Bearer + credentials:include + throwIfNotOk). Errors fall through to
- *  global mutationCache.onError (402 ERR_PLAN_CODEGEN → /billing is already handled there) —
- *  no local onError to avoid double-toast. */
+ *  schema.d.ts has no codegen path → typed api.POST is replaced by RAW fetch (raw.ts/client.ts). */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { getClerkToken, throwIfNotOk } from "./client";
+import { throwIfNotOk } from "./client";
 import type { SystemMap } from "../features/simple/types";
-import { guestHeaders, openGuestSignupModal, getGuestToken } from "../lib/guest";
 import { API_URL } from "../lib/env";
 
 /** A single generated file. Matches the backend contract. */
@@ -48,16 +43,10 @@ export function useGenerateCode(projectId: string) {
     mutationFn: async (
       input?: { target?: "nestjs" },
     ): Promise<GeneratedProject> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/codegen`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          // No Clerk session → guest ticket; a ticketless request gets 401 and
-          // resets the guest session (see providers.handleAuthRedirect).
-          ...(token ? { Authorization: `Bearer ${token}` } : guestHeaders()),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target: input?.target ?? "nestjs" }),
       });
       await throwIfNotOk(res);
@@ -66,8 +55,6 @@ export function useGenerateCode(projectId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["codegen-status", projectId] });
-      // Free preview meter consumed → refresh subscription status (gate the next open).
-      qc.invalidateQueries({ queryKey: ["subscription"] });
     },
   });
 }
@@ -78,13 +65,11 @@ export function useGenerateCode(projectId: string) {
 export function useRevertFill(projectId: string) {
   return useMutation({
     mutationFn: async (input: { nodeId: string; member: string }): Promise<void> => {
-      const token = await getClerkToken();
       const res = await fetch(
         `/api/v1/projects/${projectId}/codegen/fill/${encodeURIComponent(input.nodeId)}/${encodeURIComponent(input.member)}`,
         {
           method: "DELETE",
           credentials: "include",
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : guestHeaders()) },
         },
       );
       await throwIfNotOk(res);
@@ -122,10 +107,8 @@ export function useCodegenStatus(projectId: string | undefined) {
     queryKey: ["codegen-status", projectId],
     enabled: !!projectId,
     queryFn: async (): Promise<CodegenStatus> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/codegen/status`, {
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: CodegenStatus };
@@ -141,10 +124,8 @@ export function useSimpleView(projectId: string | undefined) {
     queryKey: ["simple-view", projectId],
     enabled: !!projectId,
     queryFn: async (): Promise<SystemMap> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/codegen/simple-view`, {
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: SystemMap };
@@ -162,10 +143,8 @@ export function useSimpleSketch(projectId: string | undefined) {
     enabled: !!projectId,
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<SimpleSketch> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/codegen/simple-sketch`, {
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: SimpleSketch };
@@ -195,11 +174,9 @@ export function useSimpleSketchModel(projectId: string | undefined, stage?: "bas
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async (): Promise<SimpleSketchModelResp> => {
-      const token = await getClerkToken();
       const url = `/api/v1/projects/${projectId}/codegen/simple-sketch-model${stage ? `?stage=${stage}` : ""}`;
       const res = await fetch(url, {
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: SimpleSketchModelResp };
@@ -215,11 +192,9 @@ export function useRegenerateSketchModel(projectId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<SimpleSketchModelResp> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/codegen/simple-sketch-model/regenerate`, {
         method: "POST",
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: SimpleSketchModelResp };
@@ -234,9 +209,6 @@ export function useRegenerateSketchModel(projectId: string | undefined) {
 // ────────────────────────────────────────────────────────────
 // Surgical AI fill — SSE stream (server fills @solarch:surgical bodies)
 // ────────────────────────────────────────────────────────────
-
-const isGuestClient = (): boolean =>
-  !(window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user && !!getGuestToken();
 
 export interface FillRegion {
   status: "filled" | "violation" | "error";
@@ -390,33 +362,20 @@ export function useFillStream(projectId: string | undefined) {
       setState((s) => ({ ...s, files: d.files, status: "done" }));
       close();
       qc.invalidateQueries({ queryKey: ["codegen-status", projectId] });
-      qc.invalidateQueries({ queryKey: ["subscription"] }); // generations quota consumed
     });
     es.addEventListener("error", (e) => {
       const data = (e as MessageEvent).data;
       let msg = "Surgical AI connection lost.";
-      let code: string | undefined;
       if (typeof data === "string") {
         try {
           const p = JSON.parse(data);
           msg = p.message ?? msg;
-          code = p.code;
         } catch { /* native close after done → no data */ }
       }
       // Native error after done → don't clobber done.
-      // Plan/quota errors are NOT retryable (upgrade required); others (provider/timeout/
-      // ERR_FILL_UNVERIFIED/connection) are retryable → show "Try again".
-      const retryable = !(code && (code.startsWith("ERR_PLAN_") || code.startsWith("ERR_QUOTA")));
+      const retryable = true;
       setState((s) => (s.status === "done" ? s : { ...s, status: "error", error: msg, retryable }));
       close();
-      if (code && (code.startsWith("ERR_PLAN_") || code.startsWith("ERR_QUOTA"))) {
-        toast.error(msg);
-        qc.invalidateQueries({ queryKey: ["subscription"] });
-        if (code === "ERR_PLAN_METER") return;
-        if (isGuestClient()) { openGuestSignupModal(); return; }
-        try { sessionStorage.setItem("solarch:billing-notice", msg); } catch { /* unavailable */ }
-        if (window.location.pathname !== "/billing") setTimeout(() => window.location.assign("/billing"), 1400);
-      }
     });
   }, [projectId, qc, close]);
 

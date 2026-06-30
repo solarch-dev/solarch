@@ -2,5 +2,5 @@ import { SetMetadata } from "@nestjs/common";
 
 export const IS_PUBLIC_KEY = "isPublic";
 
-/** Bir route/controller'ı global ClerkAuthGuard'tan muaf tutar (örn. /health). */
+/** Exempts a route/controller from the global LocalAuthGuard (e.g. /health). */
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);

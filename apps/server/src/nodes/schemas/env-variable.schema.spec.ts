@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   Key: "DB_PASSWORD",
-  Description: "Veritabanı şifresi",
+  Description: "Database password",
   DataType: "String" as const,
   IsSecret: true,
   Environment: ["Dev", "Prod"] as const,
@@ -21,13 +21,13 @@ const parse = (properties: unknown) =>
   EnvironmentVariableNodeSchema.parse({ ...validBase, type: "EnvironmentVariable", properties });
 
 describe("EnvironmentVariableNodeSchema (enriched)", () => {
-  it("geçerli EnvironmentVariable'ı parse eder (IsRequired default true)", () => {
+  it("parses valid EnvironmentVariable (IsRequired defaults to true)", () => {
     const node = parse(validProperties);
     expect(node.properties.IsSecret).toBe(true);
     expect(node.properties.IsRequired).toBe(true);
   });
 
-  it("DefaultValue + ValidationPattern + IsRequired=false kabul eder", () => {
+  it("accepts DefaultValue + ValidationPattern + IsRequired=false", () => {
     const node = parse({
       ...validProperties,
       IsSecret: false,
@@ -39,11 +39,11 @@ describe("EnvironmentVariableNodeSchema (enriched)", () => {
     expect(node.properties.IsRequired).toBe(false);
   });
 
-  it("Environment boşsa fırlatır", () => {
+  it("throws when Environment is empty", () => {
     expect(() => parse({ ...validProperties, Environment: [] })).toThrow();
   });
 
-  it("Bilinmeyen Environment reddeder", () => {
+  it("rejects unknown Environment", () => {
     expect(() => parse({ ...validProperties, Environment: ["UAT"] })).toThrow();
   });
 });

@@ -16,45 +16,45 @@ import { countSurgicalMarkers, notImplemented, surgicalMarker } from "../../surg
 /* ────────────────────────────────────────────────────────────────────────
  * repository.emitter.ts — RepositoryNode -> <feature>/<r>.repository.ts.
  *
- * KANONİK enum.emitter.ts deseni: named `export const emitRepository`, SAF
- * fonksiyon, throw YOK, yol filePathFor ile, import'lar ImportCollector ile,
- * surgicalMarkers countSurgicalMarkers ile, içerik tek "\n" ile biter.
+ * CANONICAL enum.emitter.ts pattern: named `export const emitRepository`, PURE
+ * function, no throw, path via filePathFor, imports via ImportCollector,
+ * surgicalMarkers via countSurgicalMarkers, content ends with single "\n".
  *
- * Üretim:
- *   - @Injectable() sınıf. (BaseClass çözülemez bir serbest ad — `extends`
- *       ÜRETİLMEZ; yalnız TODO yorumu bırakılır, aksi halde TS2304 derlemeyi kırardı.)
+ * Output:
+ *   - @Injectable() class. (BaseClass unresolved free name — no `extends`
+ *       generated; only TODO comment left, else TS2304 breaks compile.)
  *   - constructor: @InjectRepository(Entity) private readonly repo: Repository<Entity>.
  *       Entity = EntityReference -> Model/Table node (ctx.resolveRef).
- *         · Model -> entity sınıfı import edilir.
- *         · Table (Model YOK) -> Table'dan SENTEZLENEN @Entity sınıfı import edilir
- *           (entity-synthesis); böylece @InjectRepository(Entity)/Repository<Entity>/
- *           module.forFeature TUTARLI olur ve uygulama BOOT EDER.
- *         · Kayıp ref -> string token + Repository<any> (derlenebilir, TODO).
- *   - STANDART CRUD (#3): her repository TAM CRUD taşır — findById/findAll/save/
- *       remove. Bunlar SURGICAL DEĞİL; enjekte edilen TypeORM Repository<Entity>'ye
- *       delege eden GERÇEK (deterministik) gövdeler içerir (NOT_IMPLEMENTED yok):
+ *         · Model -> entity class imported.
+ *         · Table (no Model) -> SYNTHESIZED @Entity from Table imported
+ *           (entity-synthesis); so @InjectRepository(Entity)/Repository<Entity>/
+ *           module.forFeature stay CONSISTENT and app BOOTS.
+ *         · Missing ref -> string token + Repository<any> (compilable, TODO).
+ *   - STANDARD CRUD (#3): every repository carries FULL CRUD — findById/findAll/save/
+ *       remove. These are NOT surgical; REAL (deterministic) bodies delegate to
+ *       injected TypeORM Repository<Entity> (no NOT_IMPLEMENTED):
  *         findById(id): repo.findOneBy({ <pk>: id }) -> Entity | null
  *         findAll():     repo.find()                  -> Entity[]
  *         save(entity):  repo.save(entity)            -> Entity
  *         remove(id):    repo.delete(id) (void)
- *       PK alanı/tipi entity'den çözülür (Model "id" / Table pickPrimaryKey). Bir
- *       CustomQuery aynı isimde ise CRUD metodu ATLANIR (kullanıcı niyeti kazanır;
- *       çift metot derlemeyi kırardı). Kayıp entity (Repository<any>) -> CRUD yine
- *       üretilir (any tip, derlenebilir; pk tipi string'e düşer).
- *   - CustomQueries: her biri async metot imzası (Parameters + ReturnType) +
- *       surgical marker + NOT_IMPLEMENTED gövde. İsme göre sıralı (determinizm).
- *       Param/Return tipleri scalarTsType + resolveTypeRef ile NORMALIZE edilir
- *       (UUID->string; User -> import + sınıf), aksi halde TS2304.
- *       Surgical marker'a, entity'de sentezlenen @ManyToOne/@OneToMany ilişkileri
- *       (M2) için "join/relations ile çek, N+1'den kaçın" REHBER notu eklenir;
- *       Surgical AI gövdeyi doldururken ilişkili veriyi tek sorguda toplar.
+ *       PK field/type resolved from entity (Model "id" / Table pickPrimaryKey). If
+ *       CustomQuery has same name CRUD method SKIPPED (user intent wins;
+ *       duplicate method breaks compile). Missing entity (Repository<any>) -> CRUD
+ *       still generated (any type, compilable; pk type falls back to string).
+ *   - CustomQueries: each async method signature (Parameters + ReturnType) +
+ *       surgical marker + NOT_IMPLEMENTED body. Sorted by name (determinism).
+ *       Param/Return types normalized via scalarTsType + resolveTypeRef
+ *       (UUID->string; User -> import + class), else TS2304.
+ *       Surgical marker gets GUIDANCE note for synthesized @ManyToOne/@OneToMany
+ *       relations (M2): "fetch via join/relations, avoid N+1"; Surgical AI loads
+ *       related data in one query when filling body.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Surgical AI'a, sentezlenen entity ilişkilerini (M2 @ManyToOne/@OneToMany)
- *  verimli kullanması için sabit REHBER notu. Entity'ler eager:false üretilir;
- *  ilişkili veri gerektiğinde QueryBuilder.leftJoinAndSelect veya
- *  find({ relations: [...] }) ile TEK sorguda çekilmeli — döngü içinde lazy
- *  erişim N+1 patlamasına yol açar. Deterministik (sabit metin). */
+/** Fixed GUIDANCE note for Surgical AI to use synthesized entity relations
+ *  (M2 @ManyToOne/@OneToMany) efficiently. Entities emitted eager:false;
+ *  when related data needed use QueryBuilder.leftJoinAndSelect or
+ *  find({ relations: [...] }) in ONE query — lazy access in loop causes
+ *  N+1 explosion. Deterministic (fixed text). */
 const RELATION_GUIDANCE =
   "GUIDANCE: fetch related data in a SINGLE query via join/relations (leftJoinAndSelect or find({ relations })); avoid N+1 by not relying on lazy access inside a loop.";
 
@@ -68,15 +68,15 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   imports.add("InjectRepository", "@nestjs/typeorm");
   imports.add("Repository", "typeorm");
 
-  // ── EntityReference çözümleme (Model veya Table) ────────────────────────
+  // ── EntityReference resolution (Model or Table) ────────────────────────
   // @InjectRepository(<arg>) + private readonly repo: Repository<<type>>.
-  //   - Çözülen Model -> entity sınıfı + import (tip ve değer aynı sembol).
-  //   - Çözülen Table (Model YOK) -> Table'dan SENTEZLENEN @Entity sınıfı +
-  //     import. Sentetik entity entity-synthesis emitter tarafından üretilir;
-  //     adı entityClassNameForTable ile TEK KAYNAK -> forFeature/InjectRepository
-  //     /Repository<T> hepsi AYNI sınıfa bağlanır -> uygulama BOOT EDER.
-  //   - Çözülemeyen ref -> DERLENEBİLİR kalmak için STRING token:
-  //     @InjectRepository("rawRef") + Repository<any> (TS2304 önlenir).
+  //   - Resolved Model -> entity class + import (type and value same symbol).
+  //   - Resolved Table (no Model) -> SYNTHESIZED @Entity from Table +
+  //     import. Synthetic entity produced by entity-synthesis emitter;
+  //     name via entityClassNameForTable SINGLE SOURCE -> forFeature/InjectRepository
+  //     /Repository<T> all bind SAME class -> app BOOTS.
+  //   - Unresolved ref -> STRING token to stay COMPILABLE:
+  //     @InjectRepository("rawRef") + Repository<any> (prevents TS2304).
   const entityRefName = props.EntityReference;
   const entityNode = entityRefName
     ? ctx.graph.resolveRef(["Model", "Table"], entityRefName)
@@ -86,7 +86,7 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   const isTableEntity = entityNode !== null && entityNode.kindOf() === "Table";
   const missingEntity = entityRefName.length > 0 && entityNode === null;
 
-  // Repository<...> tip argümanı ve @InjectRepository(...) değer argümanı.
+  // Repository<...> type arg and @InjectRepository(...) value arg.
   let entityType: string;
   let injectArg: string;
   if (isModelEntity) {
@@ -95,7 +95,7 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
     const toPath = filePathFor(entityNode!, ctx.graph);
     imports.add(entityType, importPathOf(relativeImportPath(filePath, toPath)));
   } else if (isTableEntity) {
-    // Model yok -> Table'dan sentezlenen entity (entity-synthesis ile aynı isim/yol).
+    // No Model -> synthesized entity from Table (same name/path as entity-synthesis).
     entityType = entityClassNameForTable(entityNode!);
     injectArg = entityType;
     imports.add(
@@ -103,7 +103,7 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
       importPathOf(relativeImportPath(filePath, synthEntityFilePath(entityNode!, ctx.graph))),
     );
   } else {
-    // Kayıp ref -> import edilebilir sembol yok. String token + any.
+    // Missing ref -> no importable symbol. String token + any.
     entityType = "any";
     injectArg = JSON.stringify(entityRefName);
   }
@@ -113,7 +113,7 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   if (props.Description) {
     lines.push(`/** ${props.Description} */`);
   }
-  // BaseClass: çözülemez serbest ad -> `extends` ÜRETİLMEZ (TS2304 önlenir).
+  // BaseClass: unresolved free name -> no `extends` generated (prevents TS2304).
   if (props.BaseClass && props.BaseClass.length > 0) {
     lines.push(
       `// TODO: BaseClass "${props.BaseClass}" — unresolved base class; \`extends\` was not generated (add it manually).`,
@@ -131,18 +131,18 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   lines.push(`    private readonly repo: Repository<${entityType}>,`);
   lines.push("  ) {}");
 
-  // ── STANDART CRUD (#3): findById/findAll/save/remove ────────────────────
-  // GERÇEK (deterministik) gövdeler — enjekte edilen TypeORM Repository<Entity>'ye
-  //   delege eder; surgical DEĞİL, NOT_IMPLEMENTED DEĞİL. Bir CustomQuery aynı isimde
-  //   ise o CRUD metodu ATLANIR (kullanıcı niyeti kazanır + çift metot derlemeyi
-  //   kırardı). PK alan adı/tipi entity'den çözülür (kayıp entity -> "id"/string + any).
+  // ── STANDARD CRUD (#3): findById/findAll/save/remove ────────────────────
+  // REAL (deterministic) bodies — delegate to injected TypeORM Repository<Entity>;
+  //   not surgical, not NOT_IMPLEMENTED. If CustomQuery has same name that CRUD
+  //   method SKIPPED (user intent wins + duplicate method breaks compile). PK field
+  //   name/type from entity (missing entity -> "id"/string + any).
   const customNames = new Set((props.CustomQueries ?? []).map((q) => q.QueryName));
   const pk = resolvePrimaryKey(entityNode);
   const crud = renderCrudMethods(entityType, pk, customNames);
   if (crud.usesFindOptionsWhere) imports.add("FindOptionsWhere", "typeorm");
   for (const ml of crud.lines) lines.push(ml);
 
-  // ── CustomQueries -> async metot + surgical gövde ───────────────────────
+  // ── CustomQueries -> async method + surgical body ───────────────────────
   const queries = [...(props.CustomQueries ?? [])].sort((a, b) =>
     a.QueryName < b.QueryName ? -1 : a.QueryName > b.QueryName ? 1 : 0,
   );
@@ -156,8 +156,8 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
 
     lines.push("");
     lines.push(`  async ${methodName}(${params}): ${returnType} {`);
-    // İş açıklaması + ilişki/N+1 rehberi (entity'de sentezlenen @ManyToOne/
-    //   @OneToMany ilişkileri eager:false; Surgical AI join ile tek sorguda çeker).
+    // Work description + relation/N+1 guidance (synthesized @ManyToOne/
+    //   @OneToMany relations eager:false; Surgical AI fetches via join in one query).
     const description = q.Description
       ? `${q.Description}\n${RELATION_GUIDANCE}`
       : RELATION_GUIDANCE;
@@ -186,30 +186,30 @@ export const emitRepository: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   return [file];
 };
 
-/* ── STANDART CRUD (#3) ────────────────────────────────────────────────────
- * Her repository, enjekte edilen TypeORM Repository<Entity>'ye delege eden TAM
- * CRUD taşır. Bu gövdeler GERÇEK + deterministik (NOT_IMPLEMENTED yok, surgical
- * yok) — TypeORM API'si yeterlidir, algoritma gerektirmez:
+/* ── STANDARD CRUD (#3) ────────────────────────────────────────────────────
+ * Every repository carries FULL CRUD delegating to injected TypeORM
+ * Repository<Entity>. Bodies REAL + deterministic (no NOT_IMPLEMENTED, no
+ * surgical) — TypeORM API suffices, no algorithm needed:
  *   findById(id): repo.findOneBy({ <pk>: id }) -> Entity | null
  *   findAll():    repo.find()                   -> Entity[]
  *   save(entity): repo.save(entity)             -> Entity
  *   remove(id):   repo.delete(id) (void)
- * Bir CustomQuery aynı isimde ise CRUD metodu ATLANIR (çift metot derlemeyi kırar;
- * kullanıcı niyeti kazanır). ──────────────────────────────────────────────── */
+ * If CustomQuery has same name CRUD method SKIPPED (duplicate breaks compile;
+ * user intent wins). ──────────────────────────────────────────────── */
 
-/** Entity'nin birincil-anahtar alan adı + TS tipi. Çözülemeyen entity (Repository
- *  <any>) -> { name:"id", tsType:"string" } (derlenebilir varsayılan). */
+/** Entity primary-key field name + TS type. Unresolved entity (Repository
+ *  <any>) -> { name:"id", tsType:"string" } (compilable default). */
 interface PrimaryKey {
-  /** PK alan adı (entity property). */
+  /** PK field name (entity property). */
   name: string;
-  /** PK TS tipi (findById/remove param tipi). */
+  /** PK TS type (findById/remove param type). */
   tsType: string;
 }
 
-/** Bir entity node'undan (Model veya Table) PK alan adı + TS tipini çözer.
- *   - Model: "id" adlı Property; yoksa ilk Property; yoksa "id"/string.
- *   - Table: "id" adlı kolon; yoksa IsPrimaryKey kolon; yoksa ilk kolon.
- *  Kayıp entity (null) -> "id"/string. Saf + deterministik (DataType normalize). */
+/** Resolve PK field name + TS type from entity node (Model or Table).
+ *   - Model: Property named "id"; else first Property; else "id"/string.
+ *   - Table: column named "id"; else IsPrimaryKey column; else first column.
+ *  Missing entity (null) -> "id"/string. Pure + deterministic (DataType normalize). */
 function resolvePrimaryKey(entityNode: CodeNode | null): PrimaryKey {
   if (!entityNode) return { name: "id", tsType: "string" };
 
@@ -217,8 +217,8 @@ function resolvePrimaryKey(entityNode: CodeNode | null): PrimaryKey {
     const properties = propsOf<"Model">(entityNode).Properties ?? [];
     const byId = properties.find((p) => p.Name.toLowerCase() === "id");
     const chosen = byId ?? properties[0];
-    // TEK-KAYNAK: entity property adı = tsPropName(name) (model.emitter/entity-synthesis
-    // ile aynı). Ham 'Id' kullanmak findById'i entity'de olmayan kolona bağlardı.
+    // SINGLE SOURCE: entity property name = tsPropName(name) (same as model.emitter/entity-synthesis).
+    // Raw 'Id' would bind findById to non-existent column on entity.
     if (chosen) return { name: tsPropName(chosen.Name), tsType: scalarTsType(chosen.Type) };
     return { name: "id", tsType: "string" };
   }
@@ -228,9 +228,9 @@ function resolvePrimaryKey(entityNode: CodeNode | null): PrimaryKey {
     const byId = columns.find((c) => c.Name.toLowerCase() === "id");
     const flagged = columns.find((c) => c.IsPrimaryKey === true);
     const chosen = byId ?? flagged ?? columns[0];
-    // TEK-KAYNAK: entity property adı = tsPropName(col.Name) (entity-synthesis ile aynı,
-    // ör. "Id" -> "id", "CustomerId" -> "customerId"). Aksi halde findById var olmayan
-    // kolona sorgu atar (as-cast gizler, runtime patlar).
+    // SINGLE SOURCE: entity property name = tsPropName(col.Name) (same as entity-synthesis,
+    // e.g. "Id" -> "id", "CustomerId" -> "customerId"). Else findById queries non-existent
+    // column (as-cast hides, runtime fails).
     if (chosen) return { name: tsPropName(chosen.Name), tsType: scalarTsType(chosen.DataType) };
     return { name: "id", tsType: "string" };
   }
@@ -238,37 +238,37 @@ function resolvePrimaryKey(entityNode: CodeNode | null): PrimaryKey {
   return { name: "id", tsType: "string" };
 }
 
-/** renderCrudMethods çıktısı: üretilen satırlar + FindOptionsWhere import gerekiyor mu. */
+/** renderCrudMethods output: generated lines + whether FindOptionsWhere import needed. */
 interface CrudRender {
-  /** girintili CRUD metot satırları (her metot bir boş satır önek ile). */
+  /** indented CRUD method lines (blank line prefix per method). */
   lines: string[];
-  /** findById üretildiyse FindOptionsWhere import edilmeli (strict-safe cast). */
+  /** Import FindOptionsWhere when findById generated (strict-safe cast). */
   usesFindOptionsWhere: boolean;
 }
 
-/** Standart CRUD metot satırlarını (girintili) üretir. customNames ile çakışan
- *  her CRUD metodu ATLANIR. entityType "any" ise (kayıp entity) de gövdeler
- *  derlenebilir kalır (repo: Repository<any>). findById'in where argümanı strict
- *  altında derlenmek için FindOptionsWhere<Entity>'ye cast edilir (düz nesne
- *  literali FindOptionsWhere<Entity>'ye atanamaz; PK alanı dinamik). */
+/** Generate standard CRUD method lines (indented). CRUD method SKIPPED when
+ *  name collides with customNames. When entityType is "any" (missing entity)
+ *  bodies stay compilable (repo: Repository<any>). findById where arg cast to
+ *  FindOptionsWhere<Entity> to compile under strict (plain object literal not
+ *  assignable to FindOptionsWhere<Entity>; PK field dynamic). */
 function renderCrudMethods(
   entityType: string,
   pk: PrimaryKey,
   customNames: Set<string>,
 ): CrudRender {
   const idType = pk.tsType.length > 0 ? pk.tsType : "string";
-  // PK alan adını obje literali anahtarı olarak güvenli yaz (gerekiyorsa string'le).
+  // Write PK field name safely as object literal key (stringify if needed).
   const pkKey = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(pk.name) ? pk.name : JSON.stringify(pk.name);
 
   const blocks: Array<{ name: string; lines: string[] }> = [
     {
       name: "findById",
-      // findById entity'nin DOĞRUDAN ilişkilerini (relations) tek sorguda yükler —
-      // ilişki adları runtime entity-metadata'sından (cross-emitter hesap YOK; sentetik
-      // entity de dahil). Böylece çağıran `entity.<relation>`'a güvenle erişir (audit
-      // #12/#13: findById sonrası yüklenmemiş ilişkiye erişip undefined/crash). İlişkisiz
-      // entity'de relations=[] -> ek join yok. eager:false niyeti korunur (bu tek-entity
-      // aggregate fetch'i; eager-on-every-list değil).
+      // findById loads entity's DIRECT relations in one query —
+      // relation names from runtime entity-metadata (no cross-emitter calc; synthetic
+      // entity included). Caller can safely access `entity.<relation>` (audit
+      // #12/#13: accessing unloaded relation after findById undefined/crash). No relations ->
+      // relations=[] -> no extra join. eager:false intent preserved (single-entity
+      // aggregate fetch; not eager-on-every-list).
       lines: [
         `  async findById(id: ${idType}): Promise<${entityType} | null> {`,
         `    return this.repo.findOne({`,
@@ -307,7 +307,7 @@ function renderCrudMethods(
   const out: string[] = [];
   let usesFindOptionsWhere = false;
   for (const b of blocks) {
-    if (customNames.has(b.name)) continue; // kullanıcı CustomQuery'si kazanır
+    if (customNames.has(b.name)) continue; // user CustomQuery wins
     if (b.name === "findById") usesFindOptionsWhere = true;
     out.push("");
     out.push(...b.lines);
@@ -315,8 +315,8 @@ function renderCrudMethods(
   return { lines: out, usesFindOptionsWhere };
 }
 
-/** ReturnType'ı Promise ile sarar (zaten Promise<...> ise dokunmaz). Async
- *  metot daima Promise döner; determinizm için tek kurallı sarmalama. */
+/** Wrap ReturnType in Promise (unchanged if already Promise<...>). Async
+ *  method always returns Promise; single rule for determinism. */
 function wrapPromise(returnType: string): string {
   const t = returnType.trim();
   if (t.length === 0) return "Promise<void>";
@@ -324,10 +324,10 @@ function wrapPromise(returnType: string): string {
   return `Promise<${t}>`;
 }
 
-/** Bir CustomQuery param/return tip stringini GEÇERLİ TS'e çevirir:
- *  scalarTsType (UUID->string, int->number ...) + entity/DTO adı çözümü
- *  (resolveTypeRef -> import + sınıf). Çözülemeyen serbest ad olduğu gibi geçer.
- *  Aksi halde "User"/"UUID" gibi tanımsız semboller TS2304 ile derlemeyi kırardı. */
+/** Convert CustomQuery param/return type string to VALID TS:
+ *  scalarTsType (UUID->string, int->number ...) + entity/DTO name resolution
+ *  (resolveTypeRef -> import + class). Unresolved free name passes through.
+ *  Else undefined symbols like "User"/"UUID" break compile with TS2304. */
 function resolveQueryType(
   rawType: string,
   graph: CodeGraph,

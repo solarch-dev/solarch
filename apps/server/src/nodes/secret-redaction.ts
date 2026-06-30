@@ -1,7 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 import type { NodeKind } from "./schemas";
 
-/** Secret taşıyabilen tek node tipi. */
+/** Only node type that can hold secrets. */
 const SECRET_NODE_KIND = "EnvironmentVariable";
 
 function holdsPlaintextSecret(properties: Record<string, unknown> | undefined): boolean {
@@ -10,9 +10,9 @@ function holdsPlaintextSecret(properties: Record<string, unknown> | undefined): 
   return properties.IsSecret === true && typeof dv === "string" && dv.trim().length > 0;
 }
 
-/** Yazım koruması: `IsSecret=true` olan EnvironmentVariable'da düz-metin
- *  `DefaultValue` (gerçek secret) saklanmasını engeller. Tüm yazım yolları
- *  (HTTP create/update + AI create_node) NodesService üzerinden buraya uğrar. */
+/** Write guard: prevents storing plain-text `DefaultValue` (actual secret) on
+ *  EnvironmentVariable with `IsSecret=true`. All write paths (HTTP create/update +
+ *  AI create_node) reach here via NodesService. */
 export function assertNoPlaintextSecret(
   type: NodeKind | string,
   properties: Record<string, unknown> | undefined,
@@ -28,9 +28,8 @@ export function assertNoPlaintextSecret(
   }
 }
 
-/** Okuma koruması: secret EnvironmentVariable'ın `DefaultValue`'sini API/AI/codegen'e
- *  hiç döndürme (yazım guard'ından önce yazılmış legacy veride kalmış olabilir).
- *  Yeni nesne döner; girdi mutate edilmez. */
+/** Read guard: never return secret EnvironmentVariable `DefaultValue` to API/AI/codegen
+ *  (legacy data may remain from before the write guard). Returns a new object; input is not mutated. */
 export function redactNodeSecrets(
   type: NodeKind | string,
   properties: Record<string, unknown>,

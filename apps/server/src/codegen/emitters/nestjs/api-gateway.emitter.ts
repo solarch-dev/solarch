@@ -14,37 +14,37 @@ import type { APIGatewayNode } from "../../../nodes/schemas/api-gateway.schema";
 /* ────────────────────────────────────────────────────────────────────────
  * api-gateway.emitter.ts — APIGatewayNode -> <feature>/<base>.gateway.ts.
  *
- * MİMARİ KARAR (B2): Bir API Gateway, arkadaki provider'lara yönlendiren bir HTTP
- * GİRİŞ KATMANIDIR. Bunu GERÇEK bir NestJS @Controller olarak emit ediyoruz —
- * önceki @Injectable() gateway HİÇBİR feature module'e bağlanmıyordu (ölü kod) +
- * constructor'da Controller enjekte ediyordu (anti-pattern). Artık:
- *   - @Controller() sınıfı: her route bir HTTP dekoratörlü (@Get/@Post/...) metot
- *     olur -> NestJS routing'i otomatik bağlar (orphan KALMAZ; ir.ts feature-
- *     inference gateway'i feature'ın @Module.controllers'ına koyar).
- *   - DI YALNIZ Service'leri alır (Controller DEĞİL — anti-pattern düzeltildi).
- *     Hedefler: Routes[].TargetRef (Service) ∪ ROUTES_TO/CALLS edge'leri (Service).
- *     Bir route Controller'a işaret ediyorsa enjekte EDİLMEZ (controller'a HTTP ile
- *     gidilir, DI ile değil); metot yine üretilir, marker'da not bırakılır.
+ * ARCHITECTURE DECISION (B2): An API Gateway is an HTTP ENTRY LAYER routing to
+ * backend providers. We emit it as a REAL NestJS @Controller — the previous
+ * @Injectable() gateway was NEVER wired into any feature module (dead code) +
+ * injected Controllers in constructor (anti-pattern). Now:
+ *   - @Controller() class: each route becomes an HTTP-decorated (@Get/@Post/...)
+ *     method -> NestJS routing wires automatically (no orphan; ir.ts feature
+ *     inference puts gateway in feature's @Module.controllers).
+ *   - DI takes ONLY Services (NOT Controller — anti-pattern fixed).
+ *     Targets: Routes[].TargetRef (Service) ∪ ROUTES_TO/CALLS edges (Service).
+ *     If route points to Controller it is NOT injected (HTTP to controller, not DI);
+ *     method still generated, note left in marker.
  *
- * Şema (api-gateway.schema.ts) ile birebir property isimleri:
+ * Schema (api-gateway.schema.ts) property names verbatim:
  *   GatewayName, Description, Provider, AuthMode?, CorsEnabled?,
  *   Routes: { Path, TargetRef (→ Controller|Service Name), Methods[],
  *            AuthRequired, RateLimit? { Requests, WindowSeconds } }[]
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar sıralı, kayıp ref tolere edilir (THROW yok),
- * import'lar ImportCollector ile, timestamp/random yok, içerik tek "\n" ile biter.
+ * PURE + DETERMINISTIC: collections sorted, missing refs tolerated (no THROW),
+ * imports via ImportCollector, no timestamp/random, content ends with single "\n".
  * ──────────────────────────────────────────────────────────────────────── */
 
 type GatewayProps = APIGatewayNode["properties"];
 type GatewayRoute = GatewayProps["Routes"][number];
 
-/** Bu gateway'in DI ile aldığı, çözülmüş bir Service hedefi. */
+/** A resolved Service target this gateway receives via DI. */
 interface ResolvedService {
   /** constructor `this.<field>` */
   field: string;
-  /** enjekte edilen sınıf adı (pascalCase(name)) */
+  /** injected class name (pascalCase(name)) */
   className: string;
-  /** çözülen Service'in adı (route eşleştirme için) */
+  /** resolved Service name (for route matching) */
   name: string;
 }
 
@@ -57,8 +57,8 @@ const HTTP_DECORATOR: Record<string, string> = {
 };
 
 export const emitApiGateway: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
-  // APIGateway PropsByKind içinde DEĞİL -> propsOf KULLANILAMAZ; properties'i
-  // şema tipine cast et (DB zaten Zod-doğrulanmış; çalışma zamanı dönüşümü yok).
+  // APIGateway NOT in PropsByKind -> cannot use propsOf; cast properties to
+  // schema type (DB already Zod-validated; no runtime transform).
   const props = node.properties as GatewayProps;
   const graph = ctx.graph;
   const className = pascalCase(node.name);
@@ -67,26 +67,26 @@ export const emitApiGateway: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   const imports = new ImportCollector();
   imports.add("Controller", "@nestjs/common");
 
-  // ── Routes: şema sırasını KORU (kullanıcı niyeti) ama metot adı çakışmasını
-  //    deterministik tekilleştir. Her route bir HTTP-dekoratörlü metot üretir. ──
+  // ── Routes: preserve schema order (user intent) but dedupe method names
+  //    deterministically. Each route produces one HTTP-decorated method. ──
   const routes = props.Routes ?? [];
 
-  // ── DI hedefleri: SADECE Service'ler (Controller anti-pattern -> hariç).
-  //    Routes[].TargetRef ∪ ROUTES_TO ∪ CALLS. DEDUP + isme göre sıralı. ──
+  // ── DI targets: ONLY Services (Controller anti-pattern -> excluded).
+  //    Routes[].TargetRef ∪ ROUTES_TO ∪ CALLS. DEDUP + sorted by name. ──
   const services = collectServiceTargets(node, routes, graph, filePath, imports);
 
-  // ── Metot adı tekilleştirme sayacı (aynı isim -> "2", "3" ...). ──
+  // ── Method name dedupe counter (same name -> "2", "3" ...). ──
   const usedNames = new Map<string, number>();
   const methodBlocks: string[] = [];
   for (const route of routes) {
     methodBlocks.push(renderRoute(node, className, route, services, imports, usedNames));
   }
 
-  // ── Sınıf gövdesi ──
+  // ── Class body ──
   const lines: string[] = [];
   lines.push(gatewayDocComment(props));
-  // @Controller() — base prefix YOK; her route Path'ini olduğu gibi taşır
-  //   (Path'ler şemada tam yoldur; çift prefix riski olmasın).
+  // @Controller() — no base prefix; each route carries Path as-is
+  //   (Paths are full paths in schema; avoid double prefix risk).
   lines.push("@Controller()");
   lines.push(`export class ${className} {`);
 
@@ -118,11 +118,11 @@ export const emitApiGateway: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[
   return [file];
 };
 
-/* ── DI hedeflerini topla (SADECE Service) ───────────────────────────────── */
+/* ── Collect DI targets (Services ONLY) ───────────────────────────────── */
 
-/** Routes[].TargetRef (Service) ∪ ROUTES_TO/CALLS edge hedeflerinden (Service)
- *  DEDUP + isme göre sıralı ResolvedService listesi. Controller hedefleri DI'a
- *  ALINMAZ (anti-pattern); kayıp ref'ler atlanır. ASLA throw etmez. */
+/** DEDUP + name-sorted ResolvedService list from Routes[].TargetRef (Service)
+ *  ∪ ROUTES_TO/CALLS edge targets (Service). Controller targets NOT added to DI
+ *  (anti-pattern); missing refs skipped. Never throws. */
 function collectServiceTargets(
   node: CodeNode,
   routes: readonly GatewayRoute[],
@@ -132,17 +132,17 @@ function collectServiceTargets(
 ): ResolvedService[] {
   const byId = new Map<string, CodeNode>();
 
-  // (1) Routes[].TargetRef -> Service (Controller ise atla).
+  // (1) Routes[].TargetRef -> Service (skip Controller).
   for (const r of routes) {
     const resolved = graph.resolveRef("Service", r.TargetRef);
     if (resolved) byId.set(resolved.id, resolved);
   }
-  // (2) ROUTES_TO edge hedefleri (yalnız Service).
+  // (2) ROUTES_TO edge targets (Service only).
   for (const e of graph.outEdges(node.id, "ROUTES_TO")) {
     const tgt = graph.byId(e.targetNodeId);
     if (tgt && tgt.kindOf() === "Service") byId.set(tgt.id, tgt);
   }
-  // (3) CALLS edge hedefleri (yalnız Service).
+  // (3) CALLS edge targets (Service only).
   for (const e of graph.outEdges(node.id, "CALLS")) {
     const tgt = graph.byId(e.targetNodeId);
     if (tgt && tgt.kindOf() === "Service") byId.set(tgt.id, tgt);
@@ -160,10 +160,10 @@ function collectServiceTargets(
   return resolved;
 }
 
-/* ── Tek route -> HTTP-dekoratörlü metot ──────────────────────────────────── */
+/* ── Single route -> HTTP-decorated method ──────────────────────────────────── */
 
-/** Bir route'u @Get/@Post/... dekoratörlü, surgical-marker'lı bir metoda çevirir.
- *  TargetRef bir Service'e çözülürse delegasyon ipucu (this.<field>) marker'da. */
+/** Convert one route to @Get/@Post/... decorated method with surgical marker.
+ *  When TargetRef resolves to Service, delegation hint (this.<field>) in marker. */
 function renderRoute(
   node: CodeNode,
   className: string,
@@ -175,17 +175,17 @@ function renderRoute(
   const indent = "  ";
   const methodName = uniqueName(deriveRouteMethodName(route), usedNames);
 
-  // HTTP fiili dekoratörü (ilk method) + route path.
+  // HTTP verb decorator (first method) + route path.
   const verb = (route.Methods[0] ?? "GET").toUpperCase();
   const httpDecorator = HTTP_DECORATOR[verb] ?? "Get";
   imports.add(httpDecorator, "@nestjs/common");
   const routeArg = methodRouteArg(route.Path);
 
-  // Çözülen Service field'ı (DI listesinde camelCase(TargetRef) ile eşleşir).
+  // Resolved Service field (matches camelCase(TargetRef) in DI list).
   const targetField = camelCase(route.TargetRef);
   const delegate = services.find((s) => s.field === targetField);
 
-  // ── Marker açıklaması: route özeti + delegasyon + auth/rate-limit ipuçları. ──
+  // ── Marker description: route summary + delegation + auth/rate-limit hints. ──
   const descParts: string[] = [];
   descParts.push(`${route.Methods.join("/")} ${route.Path} -> ${route.TargetRef}`);
   if (delegate) {
@@ -218,9 +218,9 @@ function renderRoute(
   return lines.join("\n");
 }
 
-/* ── İsim/yardımcılar (DETERMİNİSTİK) ─────────────────────────────────────── */
+/* ── Naming/helpers (DETERMINISTIC) ─────────────────────────────────────── */
 
-/** Gateway sınıfı doc-comment'i: Description + Provider/Auth/CORS özeti. */
+/** Gateway class doc-comment: Description + Provider/Auth/CORS summary. */
 function gatewayDocComment(props: GatewayProps): string {
   const lines: string[] = ["/**"];
   if (props.Description) lines.push(` * ${props.Description}`);
@@ -231,8 +231,8 @@ function gatewayDocComment(props: GatewayProps): string {
   return lines.join("\n");
 }
 
-/** Route metot adı: ilk HTTP fiili + Path segmentleri (literal -> Pascal;
- *  ":param"/"{param}" -> "By Param"). Boş -> "dispatch". Örn:
+/** Route method name: first HTTP verb + Path segments (literal -> Pascal;
+ *  ":param"/"{param}" -> "By Param"). Empty -> "dispatch". E.g.
  *  GET /users/:id -> "dispatchGetUsersById". */
 function deriveRouteMethodName(route: GatewayRoute): string {
   const verb = (route.Methods[0] ?? "GET").toLowerCase();
@@ -251,8 +251,8 @@ function deriveRouteMethodName(route: GatewayRoute): string {
   return name.length > 0 ? name : "dispatch";
 }
 
-/** @Get/@Post(...) route argümanı. ":id"/"{id}" -> ":id" Nest biçimi; baş/son
- *  "/" temizlenir. Kök ("/" veya boş) -> argümansız. */
+/** @Get/@Post(...) route argument. ":id"/"{id}" -> ":id" Nest form; trim leading/trailing
+ *  "/". Root ("/" or empty) -> no argument. */
 function methodRouteArg(path: string): string {
   const norm = path
     .split("/")
@@ -262,10 +262,10 @@ function methodRouteArg(path: string): string {
   return norm.length > 0 ? JSON.stringify(norm) : "";
 }
 
-/** Bir path segmentini Pascal kelimelere böler (camelCase/kebab/snake destekli).
- *  Wildcard "*" -> "All" (route "/api/auth/*" -> "...ApiAuthAll"); identifier-DIŞI
- *  her karakter (*, +, vb.) AYRAÇ sayılır -> metot adına SIZMAZ. Aksi halde
- *  "dispatchGetApiAuth*" gibi GEÇERSİZ TS identifier'ı (TS1434/TS1003) üretilirdi. */
+/** Split path segment into Pascal words (camelCase/kebab/snake supported).
+ *  Wildcard "*" -> "All" (route "/api/auth/*" -> "...ApiAuthAll"); non-identifier
+ *  chars (*, +, etc.) treated as SEPARATORS -> do NOT leak into method name.
+ *  Else invalid TS identifier like "dispatchGetApiAuth*" (TS1434/TS1003). */
 function splitSeg(seg: string): string[] {
   return seg
     .replace(/\*/g, " All ")
@@ -275,8 +275,7 @@ function splitSeg(seg: string): string[] {
     .map(cap);
 }
 
-/** Aynı isim ikinci kez gelirse "2", "3" ... ekleyerek tekilleştirir
- *  (deterministik: route sırası korunur). */
+/** When same name appears again append "2", "3" ... (deterministic: route order preserved). */
 function uniqueName(base: string, used: Map<string, number>): string {
   const count = used.get(base) ?? 0;
   used.set(base, count + 1);

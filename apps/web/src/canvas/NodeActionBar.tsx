@@ -68,8 +68,7 @@ export function NodeActionBar() {
 
   const onRename = () => openNameEditor();
   const onEdit = () => { if (node) openEditor(node.id); };
-  // "Show Code" — TopBar listener gates + opens panel; detail.focusNodeId focuses
-  // on this node's generated file. If not entitled, TopBar redirects to /billing.
+  // "Show Code" — TopBar listener opens panel; detail.focusNodeId focuses this node's file.
   const onShowCode = () => {
     if (!node) return;
     window.dispatchEvent(

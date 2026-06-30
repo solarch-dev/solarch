@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const HOME_TAB = "22222222-2222-4222-8222-222222222222";
@@ -58,13 +58,13 @@ const GW = "11111111-1111-4111-8111-111111111111";
 const USERS_CTRL = "33333333-3333-4333-8333-333333333333";
 const AUTH_SVC = "44444444-4444-4444-8444-444444444444";
 
-/* ── Gateway fixture'ları ──────────────────────────────────────────────── */
+/* ── Gateway fixture'lari ──────────────────────────────────────────────── */
 function gatewayNode(props: Partial<Record<string, unknown>> = {}, id = GW): StoredNode {
   return node(
     "APIGateway",
     {
       GatewayName: "PublicApiGateway",
-      Description: "Genel API girişi",
+      Description: "Genel API girisi",
       Provider: "Kong",
       Routes: [],
       ...props,
@@ -76,39 +76,39 @@ function gatewayNode(props: Partial<Record<string, unknown>> = {}, id = GW): Sto
 function usersController(id = USERS_CTRL): StoredNode {
   return node(
     "Controller",
-    { ControllerName: "UsersController", Description: "Kullanıcı uçları", BaseRoute: "users", Endpoints: [] },
+    { ControllerName: "UsersController", Description: "User uclari", BaseRoute: "users", Endpoints: [] },
     id,
   );
 }
 
 describe("emitApiGateway", () => {
-  it("rol-tekrarsız .gateway.ts yolu (APIGateway eki düşer, base = Public)", () => {
-    // B2: Gateway gerçek bir @Controller -> Controller gibi KENDİ feature'ını
-    //   tohumlar (hedef çözülmese bile orphan kalmasın). "PublicApiGateway" en-
-    //   spesifik "APIGateway" ekiyle eşleşir -> base "Public" -> feature "public".
+  it("rol-tekrarsiz .gateway.ts yolu (APIGateway eki duser, base = Public)", () => {
+    // B2: Gateway gercek bir @Controller -> Controller gibi KENDI feature'ini
+    //   tohumlar (hedef cozulmese bile orphan kalmasin). "PublicApiGateway" en-
+    //   spesifik "APIGateway" ekiyle eslesir -> base "Public" -> feature "public".
     const gw = gatewayNode();
     const { ctx } = ctxFor([gw]);
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
     expect(file.path).toBe("public/public.gateway.ts");
   });
 
-  it("@Controller() sınıfı (Injectable DEĞİL) + Provider/Description doc-comment", () => {
-    // B2: Gateway artık GERÇEK bir @Controller'dır (orphan @Injectable değil) ->
-    //   feature module'ün controllers'ına girer; NestJS routing'i otomatik bağlar.
+  it("@Controller() sinifi (Injectable NOT) + Provider/Description doc-comment", () => {
+    // B2: Gateway artik GERCEK bir @Controller'dir (orphan @Injectable degil) ->
+    //   feature module'un controllers'ina girer; NestJS routing'i otomatik baglar.
     const gw = gatewayNode();
     const { ctx } = ctxFor([gw]);
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
     expect(file.content).toContain("@Controller()");
     expect(file.content).not.toContain("@Injectable()");
     expect(file.content).toContain("export class PublicApiGateway {");
-    expect(file.content).toContain(" * Genel API girişi");
+    expect(file.content).toContain(" * Genel API girisi");
     expect(file.content).toContain(" * API Gateway (Provider: Kong).");
     expect(file.content).toContain('import { Controller');
     expect(file.content).toContain('from "@nestjs/common";');
   });
 
-  it("Routes[].TargetRef Service'e çözülür -> DI + göreli import + @Get + delegasyon ipucu", () => {
-    // B2: Gateway YALNIZ Service enjekte eder (Controller anti-pattern -> DI'a alınmaz).
+  it("Routes[].TargetRef Service'e cozulur -> DI + goreli import + @Get + delegasyon ipucu", () => {
+    // B2: Gateway YALNIZ Service enjekte eder (Controller anti-pattern -> DI'a alinmaz).
     const gw = gatewayNode({
       Routes: [
         {
@@ -120,38 +120,38 @@ describe("emitApiGateway", () => {
       ],
     });
     const svc = node("Service", { ServiceName: "AuthService", Methods: [] }, AUTH_SVC);
-    // CALLS edge'i ile gateway, service'in feature'ına (auth) düşer.
+    // CALLS edge'i ile gateway, service'in feature'ina (auth) duser.
     const { ctx } = ctxFor([gw, svc], [edge("CALLS", GW, AUTH_SVC, "55555555-5555-4555-8555-555555555555")]);
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
     // DI: constructor'da AuthService (Service).
     expect(file.content).toContain("private readonly authService: AuthService,");
-    // göreli import (feature=auth; gateway de auth altında).
+    // goreli import (feature=auth; gateway de auth altinda).
     expect(file.content).toContain('import { AuthService } from "./auth.service";');
-    // HTTP dekoratörlü route metodu + delegasyon ipucu marker'da.
+    // HTTP dekoratorlu route metodu + delegasyon ipucu marker'da.
     expect(file.content).toContain('@Get("users/:id")');
     expect(file.content).toContain("async dispatchGetUsersById(): Promise<unknown> {");
     expect(file.content).toContain("// Delegation hint: this.authService.<?>(...).");
   });
 
-  it("wildcard route (api/auth/*) -> GEÇERLİ metot adı (`*` identifier'a sızmaz, TS1434/TS1003 önle)", () => {
-    // Gerçek bug: route Path "/api/auth/*" -> metot adı "dispatchGetApiAuth*" üretiliyordu;
-    // `*` geçersiz identifier -> sözdizimi hatası (derleme kırılır). Wildcard -> "All".
+  it("wildcard route (api/auth/*) -> GECERLI metot adi (`*` identifier'a sizmaz, TS1434/TS1003 onle)", () => {
+    // Gercek bug: route Path "/api/auth/*" -> metot adi "dispatchGetApiAuth*" uretiliyordu;
+    // `*` gecersiz identifier -> sozdizimi hatasi (derleme kirilir). Wildcard -> "All".
     const gw = gatewayNode({
       Routes: [{ Path: "/api/auth/*", TargetRef: "AuthService", Methods: ["GET"], AuthRequired: false }],
     });
     const svc = node("Service", { ServiceName: "AuthService", Methods: [] }, AUTH_SVC);
     const { ctx } = ctxFor([gw, svc], [edge("CALLS", GW, AUTH_SVC, "55555555-5555-4555-8555-555555555555")]);
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
-    // Metot adında `*` (veya başka identifier-dışı karakter) YOK.
+    // Metot adinda `*` (veya baska identifier-disi karakter) NONE.
     expect(file.content).not.toMatch(/async dispatch\w*[^A-Za-z0-9(]/);
     expect(file.content).toContain("async dispatchGetApiAuthAll(): Promise<unknown> {");
-    // Route argümanı `*`'ı KORUR (Express wildcard'ı runtime'da geçerli).
+    // Route argumani `*`'i KORUR (Express wildcard'i runtime'da gecerli).
     expect(file.content).toContain('@Get("api/auth/*")');
   });
 
-  it("Controller hedefi DI'a ALINMAZ (anti-pattern); metot yine üretilir + marker'da not", () => {
-    // B2: Bir route Controller'a işaret ederse DI ile enjekte edilmez (controller'a
-    //   HTTP ile gidilir). Constructor boştur; route metodu marker'da not taşır.
+  it("Controller hedefi DI'a ALINMAZ (anti-pattern); metot yine uretilir + marker'da not", () => {
+    // B2: Bir route Controller'a isaret ederse DI ile enjekte edilmez (controller'a
+    //   HTTP ile gidilir). Constructor bostur; route metodu marker'da not tasir.
     const gw = gatewayNode({
       Routes: [
         { Path: "/users/:id", TargetRef: "UsersController", Methods: ["GET"], AuthRequired: false },
@@ -166,7 +166,7 @@ describe("emitApiGateway", () => {
     expect(file.content).toContain("async dispatchGetUsersById(): Promise<unknown> {");
   });
 
-  it("her route bir surgical-marker'lı @-dekoratörlü metot + NOT_IMPLEMENTED gövdesi", () => {
+  it("her route bir surgical-marker'li @-dekoratorlu metot + NOT_IMPLEMENTED govdesi", () => {
     const gw = gatewayNode({
       Routes: [
         { Path: "/login", TargetRef: "AuthService", Methods: ["POST"], AuthRequired: false },
@@ -182,7 +182,7 @@ describe("emitApiGateway", () => {
     expect(file.content).toContain("private readonly authService: AuthService,");
   });
 
-  it("AuthRequired + RateLimit ipuçları marker açıklamasında", () => {
+  it("AuthRequired + RateLimit ipuclari marker aciklamasinda", () => {
     const gw = gatewayNode({
       Routes: [
         {
@@ -201,7 +201,7 @@ describe("emitApiGateway", () => {
     expect(file.content).toContain("// Rate limit: 100 requests / 60s.");
   });
 
-  it("kayıp TargetRef -> THROW yok, DI yok, marker'da TODO ipucu", () => {
+  it("kayip TargetRef -> THROW yok, DI yok, marker'da TODO ipucu", () => {
     const gw = gatewayNode({
       Routes: [
         { Path: "/ghost", TargetRef: "GhostService", Methods: ["GET"], AuthRequired: false },
@@ -215,7 +215,7 @@ describe("emitApiGateway", () => {
     expect(file.content).toContain("async dispatchGetGhost(): Promise<unknown> {");
   });
 
-  it("aynı dispatch adı -> deterministik tekilleştirme (2, 3)", () => {
+  it("ayni dispatch adi -> deterministik tekillestirme (2, 3)", () => {
     const gw = gatewayNode({
       Routes: [
         { Path: "/users", TargetRef: "AuthService", Methods: ["GET"], AuthRequired: false },
@@ -229,7 +229,7 @@ describe("emitApiGateway", () => {
     expect(file.content).toContain("async dispatchGetUsers2(): Promise<unknown> {");
   });
 
-  it("DI hedefleri SADECE Service + DEDUP + isme göre sıralı (Routes ∪ ROUTES_TO ∪ CALLS)", () => {
+  it("DI hedefleri SADECE Service + DEDUP + isme gore sirali (Routes ∪ ROUTES_TO ∪ CALLS)", () => {
     const gw = gatewayNode({
       Routes: [
         { Path: "/a", TargetRef: "BillingService", Methods: ["GET"], AuthRequired: false },
@@ -238,13 +238,13 @@ describe("emitApiGateway", () => {
     });
     const auth = node("Service", { ServiceName: "AuthService", Methods: [] }, AUTH_SVC);
     const billing = node("Service", { ServiceName: "BillingService", Methods: [] }, "88888888-8888-4888-8888-888888888888");
-    // CALLS ayrıca AuthService'e -> DEDUP (tek alan kalmalı).
+    // CALLS ayrica AuthService'e -> DEDUP (tek alan kalmali).
     const { ctx } = ctxFor(
       [gw, auth, billing],
       [edge("CALLS", GW, AUTH_SVC, "77777777-7777-4777-8777-777777777777")],
     );
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
-    // İsme göre sıralı: AuthService önce, BillingService sonra.
+    // Isme gore sirali: AuthService once, BillingService sonra.
     const authIdx = file.content.indexOf("authService: AuthService");
     const billingIdx = file.content.indexOf("billingService: BillingService");
     expect(authIdx).toBeGreaterThan(-1);
@@ -253,9 +253,9 @@ describe("emitApiGateway", () => {
     expect(file.content.match(/authService: AuthService/g)?.length).toBe(1);
   });
 
-  it("rol eki adın tamamıysa orijinal ad korunur (Gateway -> gateway/gateway.gateway.ts)", () => {
-    // B2: Hedefsiz gateway de kendi feature'ını tohumlar (orphan değil). Rol eki
-    //   ("Gateway") adın tamamı -> base "gateway" -> feature "gateway".
+  it("rol eki adin tamamiysa orijinal ad korunur (Gateway -> gateway/gateway.gateway.ts)", () => {
+    // B2: Hedefsiz gateway de kendi feature'ini tohumlar (orphan degil). Rol eki
+    //   ("Gateway") adin tamami -> base "gateway" -> feature "gateway".
     const gw = gatewayNode({ GatewayName: "Gateway" });
     const { ctx } = ctxFor([gw]);
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
@@ -263,7 +263,7 @@ describe("emitApiGateway", () => {
     expect(file.content).toContain("export class Gateway {");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const gw = gatewayNode();
     const { ctx } = ctxFor([gw]);
     const [file] = emitApiGateway(ctx.graph.byId(GW)!, ctx);
@@ -271,7 +271,7 @@ describe("emitApiGateway", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const gw = gatewayNode({
       Routes: [
         { Path: "/users/:id", TargetRef: "UsersController", Methods: ["GET"], AuthRequired: false },

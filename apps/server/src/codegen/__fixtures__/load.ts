@@ -7,26 +7,26 @@ import type { StoredNode } from "../../nodes/nodes.repository";
 import type { StoredEdge } from "../../edges/edges.repository";
 
 /* ────────────────────────────────────────────────────────────────────────
- * __fixtures__/load.ts — DOĞRULAMA GEÇİTLERİNİN ortak fixture yükleyicisi.
+ * __fixtures__/load.ts — shared fixture loader for VERIFICATION GATES.
  *
- * realistic-graph.json: gerçekçi bir graf (61 node / 82 edge — restaurant
- * uygulaması), kanvasın ürettiği biçimden alınıp StoredNode/StoredEdge'e normalize
- * edilmiş. Hem hızlı seam testi (codegen-assembly.spec) hem bütün-proje tsc geçidi
- * (codegen-tsc.gate) bunu TEK KAYNAK olarak kullanır.
+ * realistic-graph.json: realistic graph (61 nodes / 82 edges — restaurant
+ * app), taken from canvas output format and normalized to StoredNode/StoredEdge.
+ * Both fast seam test (codegen-assembly.spec) and whole-project tsc gate
+ * (codegen-tsc.gate) use this as SINGLE SOURCE.
  * ──────────────────────────────────────────────────────────────────────── */
 
 export function loadRealisticGraph(): { nodes: StoredNode[]; edges: StoredEdge[] } {
   return JSON.parse(readFileSync(join(__dirname, "realistic-graph.json"), "utf8"));
 }
 
-/** Gerçekçi grafı DB'siz assemble eder ve TÜM projeyi (files + warnings + summary) döndürür. */
+/** Assemble realistic graph without DB and return FULL project (files + warnings + summary). */
 export function assembleRealisticProject(): GeneratedProject {
   const { nodes, edges } = loadRealisticGraph();
   const graph = buildCodeGraph(nodes, edges);
   return CodegenService.prototype.assemble.call({} as CodegenService, graph, "nestjs");
 }
 
-/** Gerçekçi grafı DB'siz assemble eder ve üretilen dosyaları döndürür. */
+/** Assemble realistic graph without DB and return generated files. */
 export function assembleRealisticFixture(): GeneratedFile[] {
   return assembleRealisticProject().files;
 }

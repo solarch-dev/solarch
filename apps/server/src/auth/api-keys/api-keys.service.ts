@@ -4,7 +4,7 @@ import { ApiKeysRepository, type StoredApiKey } from "./api-keys.repository";
 
 export const API_KEY_PREFIX = "slk_";
 const MAX_KEYS_PER_USER = 10;
-/** lastUsedAt'i her istekte değil, en erken 5 dakikada bir güncelle (yazma gürültüsü). */
+/** Update lastUsedAt at most once every 5 minutes, not on every request (write noise). */
 const TOUCH_INTERVAL_MS = 5 * 60_000;
 
 function hashKey(rawKey: string): string {
@@ -13,12 +13,12 @@ function hashKey(rawKey: string): string {
 
 @Injectable()
 export class ApiKeysService {
-  /** keyId → son touch zamanı (process-içi; çok instance'ta en kötü durumda birkaç fazla yazma). */
+  /** keyId → last touch time (in-process; multi-instance worst case: a few extra writes). */
   private readonly lastTouch = new Map<string, number>();
 
   constructor(private readonly repo: ApiKeysRepository) {}
 
-  /** Yeni anahtar üret — düz anahtar YALNIZ bu yanıtla döner, bir daha gösterilmez. */
+  /** Create new key — plaintext key returned ONLY in this response, never shown again. */
   async create(userId: string, name: string): Promise<{ key: string; record: StoredApiKey }> {
     const existing = await this.repo.listByUser(userId);
     if (existing.length >= MAX_KEYS_PER_USER) {
@@ -49,7 +49,7 @@ export class ApiKeysService {
     return this.repo.deleteOwned(id, userId);
   }
 
-  /** Bearer slk_... doğrulaması — geçerliyse anahtar sahibinin kimliği döner. */
+  /** Bearer slk_... validation — returns key owner's identity when valid. */
   async verify(rawKey: string): Promise<{ userId: string } | null> {
     if (!rawKey.startsWith(API_KEY_PREFIX)) return null;
     const found = await this.repo.findByHash(hashKey(rawKey));

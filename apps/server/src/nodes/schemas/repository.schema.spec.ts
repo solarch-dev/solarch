@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   RepositoryName: "UserRepository",
-  Description: "Kullanıcı veri erişim katmanı",
+  Description: "User data access layer",
   EntityReference: "User",
   CustomQueries: [
     { QueryName: "findByEmail", QueryType: "findOne" as const, Parameters: [{ Name: "email", Type: "string" }], ReturnType: "User" },
@@ -22,7 +22,7 @@ const parse = (properties: unknown) =>
   RepositoryNodeSchema.parse({ ...validBase, type: "Repository", properties });
 
 describe("RepositoryNodeSchema (enriched)", () => {
-  it("geçerli Repository'yi parse eder", () => {
+  it("parses valid Repository", () => {
     const node = parse(validProperties);
     expect(node.properties.CustomQueries[0].QueryName).toBe("findByEmail");
   });
@@ -34,22 +34,22 @@ describe("RepositoryNodeSchema (enriched)", () => {
     expect(node.properties.CustomQueries[0].Parameters).toEqual([]);
   });
 
-  it("BaseClass + IsCached kabul eder", () => {
+  it("accepts BaseClass + IsCached", () => {
     const node = parse({ ...validProperties, BaseClass: "TypeOrmRepository", IsCached: true });
     expect(node.properties.BaseClass).toBe("TypeOrmRepository");
     expect(node.properties.IsCached).toBe(true);
   });
 
-  it("eski string[] CustomQueries formatını reddeder", () => {
+  it("rejects legacy string[] CustomQueries format", () => {
     expect(() => parse({ ...validProperties, CustomQueries: ["findByEmail"] })).toThrow();
   });
 
-  it("EntityReference zorunlu", () => {
+  it("EntityReference is required", () => {
     const { EntityReference, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("CustomQueries default boş array", () => {
+  it("defaults CustomQueries to empty array", () => {
     const { CustomQueries, ...partial } = validProperties;
     expect(parse(partial).properties.CustomQueries).toEqual([]);
   });

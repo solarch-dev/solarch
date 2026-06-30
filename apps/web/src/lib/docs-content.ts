@@ -344,7 +344,7 @@ export const NODE_DOCS: NodeDoc[] = [
     whereUsed: [
       "Payment systems (Stripe, iyzico)",
       "Email/SMS gateway (SendGrid, Twilio)",
-      "Auth providers (Auth0, Clerk)",
+      "Auth providers (Auth0, Okta)",
       "Third-party AI APIs (OpenAI, Anthropic)",
     ],
     examples: [

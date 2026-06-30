@@ -25,8 +25,8 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
       neo4j.auth.basic(this.config.user, this.config.password),
       {
         disableLosslessIntegers: true,
-        // ?? default'lar: {uri,user,password} ile çağıran migration/seed/test
-        // call-site'ları (pool config geçmez) kırılmadan makul varsayılan alır.
+// ?? defaults: migration/seed/test calling with {uri,user,password}
+// call-sites (does not pass pool config) take reasonable default without breaking.
         maxConnectionPoolSize: this.config.maxConnectionPoolSize ?? 50,
         connectionAcquisitionTimeout: this.config.connectionAcquisitionTimeout ?? 60_000,
         connectionTimeout: this.config.connectionTimeout ?? 30_000,
@@ -41,8 +41,8 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     await this.driver?.close();
   }
 
-  /** Readiness kontrolü — havuzdan gerçek bir session+query alır (RETURN 1).
-   *  DB erişilemezse fırlatır (çağıran 503'e çevirir). verifyConnectivity'den daha temsili. */
+/** Readiness check — retrieves an actual session+query from the pool (RETURN 1).
+* Throws (caller casts 503) if DB is unreachable. More representative than verifyConnectivity. */
   async ping(): Promise<void> {
     await this.run("RETURN 1 AS ok");
   }

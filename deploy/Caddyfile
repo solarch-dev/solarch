@@ -1,6 +1,5 @@
 # Single-origin front door for the self-host bundle.
-# Everything is served from one origin (:3000) so the Clerk __session httpOnly cookie
-# set by the backend reaches the SPA and the API alike.
+# Production Docker uses deploy/Caddyfile.base + web-entrypoint.sh (optional Basic Auth).
 :3000 {
 	encode zstd gzip
 

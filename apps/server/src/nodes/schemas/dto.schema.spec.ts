@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   Name: "CreateUserRequestDTO",
-  Description: "Yeni kullanıcı kayıt isteği",
+  Description: "New user registration request",
   Fields: [
     { Name: "email", DataType: "string", IsRequired: true, IsArray: false, ValidationRules: [{ Rule: "Email" }] },
     { Name: "age", DataType: "number", IsRequired: false, IsArray: false },
@@ -22,12 +22,12 @@ const parse = (properties: unknown) =>
   DTONodeSchema.parse({ ...validBase, type: "DTO", properties });
 
 describe("DTONodeSchema (enriched)", () => {
-  it("geçerli DTO'yu parse eder", () => {
+  it("parses valid DTO", () => {
     const node = parse(validProperties);
     expect(node.properties.Fields).toHaveLength(2);
   });
 
-  it("ValidationRules verilmezse default boş array", () => {
+  it("defaults ValidationRules to empty array when omitted", () => {
     const node = parse(validProperties);
     expect(node.properties.Fields[1].ValidationRules).toEqual([]);
   });
@@ -40,14 +40,14 @@ describe("DTONodeSchema (enriched)", () => {
     expect(node.properties.Fields[0].ValidationRules[0].Value).toBe("8");
   });
 
-  it("geçersiz validation rule reddeder", () => {
+  it("rejects invalid validation rule", () => {
     expect(() => parse({
       ...validProperties,
       Fields: [{ Name: "x", DataType: "string", IsRequired: true, IsArray: false, ValidationRules: [{ Rule: "Bogus" }] }],
     })).toThrow();
   });
 
-  it("NestedDTORef ve EnumRef kabul eder", () => {
+  it("accepts NestedDTORef and EnumRef", () => {
     const node = parse({
       ...validProperties,
       Fields: [
@@ -59,20 +59,20 @@ describe("DTONodeSchema (enriched)", () => {
     expect(node.properties.Fields[1].EnumRef).toBe("OrderStatus");
   });
 
-  it("Description eksikse fırlatır", () => {
+  it("throws when Description is missing", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Fields boşsa fırlatır", () => {
+  it("throws when Fields is empty", () => {
     expect(() => parse({ ...validProperties, Fields: [] })).toThrow();
   });
 
-  it("IsRequired boolean değilse fırlatır", () => {
+  it("throws when IsRequired is not boolean", () => {
     expect(() => parse({ ...validProperties, Fields: [{ Name: "x", DataType: "string", IsRequired: "yes", IsArray: false }] })).toThrow();
   });
 
-  it("eski ValidationRule (string) alanını reddeder (strict)", () => {
+  it("rejects legacy ValidationRule (string) field (strict)", () => {
     expect(() => parse({
       ...validProperties,
       Fields: [{ Name: "x", DataType: "string", IsRequired: true, IsArray: false, ValidationRule: "Email" }],

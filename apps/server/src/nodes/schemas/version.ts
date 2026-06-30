@@ -1,5 +1,5 @@
-/** Node properties şema sürümü. Enrichment fazlarında bump edilir.
- *  v1 = Phase 1 temel şemalar. v2 = Faz A (Veri ailesi codegen-ready).
- *  v3 = Faz B (İş Mantığı + Erişim codegen-ready).
- *  v4 = Faz C (Altyapı/İstemci/Güvenlik/Konfig/Yapı codegen-ready). */
+/** Node properties schema version. Bumped during enrichment phases.
+ *  v1 = Phase 1 base schemas. v2 = Phase A (Data family codegen-ready).
+ *  v3 = Phase B (Business Logic + Access codegen-ready).
+ *  v4 = Phase C (Infrastructure/Client/Security/Config/Structure codegen-ready). */
 export const GRAPH_SCHEMA_VERSION = 4;

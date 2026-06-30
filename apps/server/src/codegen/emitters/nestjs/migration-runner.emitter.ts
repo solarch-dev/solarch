@@ -3,38 +3,38 @@ import { pascalCase } from "../../naming";
 import { countSurgicalMarkers } from "../../surgical";
 
 /* ────────────────────────────────────────────────────────────────────────
- * migration-runner.emitter.ts — ham SQL migration'larından ÇALIŞTIRILABİLİR
- * TypeORM TS migration sınıfları üretir (H5).
+ * migration-runner.emitter.ts — produce RUNNABLE TypeORM TS migration classes
+ * from raw SQL migrations (H5).
  *
- * Sorun: table.emitter / view.emitter `migrations/NNN_create_<x>.sql` üretir;
- * bunlar OKUNAKLI ama TypeORM CLI tarafından çalıştırılamaz. Bu üretici, montaj
- * sırasında toplanan SQL dosyalarını alır ve her biri için bir
- * `src/migrations/NNN-Create<X>.ts` (MigrationInterface) üretir:
- *   - up(queryRunner)   -> SQL ifadelerini sırayla çalıştırır
- *   - down(queryRunner) -> tabloyu/view'ı DROP eder (ters işlem)
- * data-source.ts `dist/migrations/*.js` glob'u bunlara bakar -> `npm run db:migrate`
- * şemayı uygulayabilir. synchronize:false korunur.
+ * Problem: table.emitter / view.emitter produce `migrations/NNN_create_<x>.sql`;
+ * these are READABLE but not runnable by TypeORM CLI. This emitter takes SQL files
+ * collected at assembly and for each produces
+ * `src/migrations/NNN-Create<X>.ts` (MigrationInterface):
+ *   - up(queryRunner)   -> runs SQL statements in order
+ *   - down(queryRunner) -> DROP table/view (reverse)
+ * data-source.ts `dist/migrations/*.js` glob picks these up -> `npm run db:migrate`
+ * can apply schema. synchronize:false preserved.
  *
- * SAF + DETERMİNİSTİK: girdi yalnız SQL dosyaları (sıralı verilir); timestamp/
- * random YOK. SQL ham metni template literal içine GÜVENLİ kaçışla gömülür.
- * Bu bir scaffold/orchestrator yardımcısıdır; node'a bağlı DEĞİLDİR (nodeId yok).
+ * PURE + DETERMINISTIC: input is SQL files only (given sorted); no timestamp/
+ * random. SQL raw text embedded in template literal with SAFE escaping.
+ * Scaffold/orchestrator helper; NOT node-bound (no nodeId).
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Tek bir toplanmış SQL migration dosyası (montajdan; path "migrations/...sql"). */
+/** One collected SQL migration file (from assembly; path "migrations/...sql"). */
 export interface SqlMigrationFile {
-  /** ör. "migrations/001_create_users.sql". */
+  /** e.g. "migrations/001_create_users.sql". */
   path: string;
-  /** Ham SQL içeriği (table/view emitter çıktısı). */
+  /** Raw SQL content (table/view emitter output). */
   content: string;
 }
 
-/** Sıralı SQL migration dosyalarından TypeORM TS migration sınıfları üretir.
- *  Dosyalar AYNI sırada (NNN'e göre) verilmelidir. TypeORM, sınıf adının SON 13
- *  KARAKTERİNİ JS-milisaniye zaman damgası olarak ayrıştırır (MigrationExecutor:
- *  parseInt(name.substr(-13))) ve migration'ları buna göre sıralar; salt "001"
- *  soneki NaN verir ve CLI fırlatır. Bu yüzden NNN'den DETERMİNİSTİK bir 13-haneli
- *  zaman damgası türetiriz (BASE_TS + seq) ve sınıf adının SONUNA ekleriz ->
- *  substr(-13) tam o 13 haneyi döndürür, sıra NNN ile artar, timestamp/random YOK. */
+/** Produce TypeORM TS migration classes from sorted SQL migration files.
+ *  Files must be given in SAME order (by NNN). TypeORM parses LAST 13 CHARACTERS
+ *  of class name as JS-millisecond timestamp (MigrationExecutor:
+ *  parseInt(name.substr(-13))) and sorts migrations by it; plain "001"
+ *  suffix yields NaN and CLI throws. So we derive DETERMINISTIC 13-digit
+ *  timestamp from NNN (BASE_TS + seq) and append to class name END ->
+ *  substr(-13) returns exactly those 13 digits, order increases with NNN, no timestamp/random. */
 export function emitMigrationRunners(sqlFiles: SqlMigrationFile[]): GeneratedFile[] {
   const out: GeneratedFile[] = [];
   for (const sql of sqlFiles) {
@@ -44,7 +44,7 @@ export function emitMigrationRunners(sqlFiles: SqlMigrationFile[]): GeneratedFil
 
     const isView = looksLikeView(sql.content);
     const ts = syntheticTimestamp(seq);
-    // Sınıf adı <Name><ts> ile biter -> TypeORM substr(-13) == ts (saf 13 hane).
+    // Class name ends with <Name><ts> -> TypeORM substr(-13) == ts (pure 13 digits).
     const className = `Create${pascalCase(tableName)}${ts}`;
     const statements = splitSqlStatements(sql.content);
     out.push(buildMigrationFile(seq, ts, tableName, className, statements, isView));
@@ -52,16 +52,16 @@ export function emitMigrationRunners(sqlFiles: SqlMigrationFile[]): GeneratedFil
   return out;
 }
 
-/** NNN dizisinden TypeORM-uyumlu DETERMİNİSTİK 13-haneli zaman damgası üretir.
- *  TypeORM yalnız son 13 haneyi parseInt eder ve timestamp'e göre sıralar; gerçek
- *  zaman gerekmez, yalnız monoton-artan 13-haneli bir sayı yeter. BASE_TS sabit
- *  (2023-11-14) + seq -> seq arttıkça timestamp artar; aynı graph -> byte-identical. */
+/** Produce TypeORM-compatible DETERMINISTIC 13-digit timestamp from NNN sequence.
+ *  TypeORM only parseInts last 13 digits and sorts by timestamp; real time not
+ *  needed, only monotonically increasing 13-digit number. Fixed BASE_TS
+ *  (2023-11-14) + seq -> timestamp increases with seq; same graph -> byte-identical. */
 function syntheticTimestamp(seq: string): string {
-  const BASE_TS = 1_700_000_000_000; // sabit 13-haneli taban (UTC ~2023-11-14)
+  const BASE_TS = 1_700_000_000_000; // fixed 13-digit base (UTC ~2023-11-14)
   return String(BASE_TS + Number(seq));
 }
 
-/* ── Bir migration dosyasını üretir ─────────────────────────────────────── */
+/* ── Produce one migration file ─────────────────────────────────────── */
 function buildMigrationFile(
   seq: string,
   ts: string,
@@ -93,8 +93,8 @@ ${upLines.join("\n")}
 `;
 
   return {
-    // TypeORM geleneği: <timestamp>-<Name>.ts. Glob (dist/migrations/*.js) bunları
-    //   bulur; dosya adındaki ts dosya sırasını da NNN ile hizalar.
+    // TypeORM convention: <timestamp>-<Name>.ts. Glob (dist/migrations/*.js) finds these;
+    //   filename ts also aligns file order with NNN.
     path: `src/migrations/${ts}-Create${pascalCase(tableName)}.ts`,
     content: body,
     language: "typescript",
@@ -102,18 +102,18 @@ ${upLines.join("\n")}
   };
 }
 
-/* ── SQL ayrıştırma (deterministik; yorum-farkında değil ama yorumları
- *    ifadelerle birlikte taşır) ─────────────────────────────────────────── */
+/* ── SQL parsing (deterministic; not comment-aware but carries comments
+ *    with statements) ─────────────────────────────────────────── */
 
-/** Ham SQL'i ";" ile biten ifadelere böler. Yorum satırları (-- ...) bir
- *  sonraki ifadeye iliştirilir; üst düzey FK ALTER ve CREATE INDEX ayrı ifade
- *  olur. Tek satır sonu normalize edilir. */
+/** Split raw SQL into ";" terminated statements. Comment lines (-- ...) attach
+ *  to next statement; top-level FK ALTER and CREATE INDEX are separate statements.
+ *  Single line ending normalized. */
 function splitSqlStatements(sql: string): string[] {
   const statements: string[] = [];
   let buf = "";
   for (const rawLine of sql.split("\n")) {
     buf += (buf.length > 0 ? "\n" : "") + rawLine;
-    // Bir ifade ";" ile biter (satır sonu boşlukları yok sayılır).
+    // Statement ends with ";" (trailing whitespace ignored).
     if (/;\s*$/.test(rawLine)) {
       const stmt = buf.trim();
       if (stmt.length > 0) statements.push(stmt.replace(/;\s*$/, ""));
@@ -122,11 +122,11 @@ function splitSqlStatements(sql: string): string[] {
   }
   const tail = buf.trim();
   if (tail.length > 0) statements.push(tail.replace(/;\s*$/, ""));
-  // Tümüyle yorum olan parçaları (yalnız "-- ...") at — çalıştırılamaz.
+  // Drop all-comment chunks (only "-- ...") — not executable.
   return statements.filter((s) => s.split("\n").some((l) => l.trim().length > 0 && !l.trim().startsWith("--")));
 }
 
-/** Bir CREATE VIEW / MATERIALIZED VIEW mı? (down() DROP VIEW seçimi için.) */
+/** Is this CREATE VIEW / MATERIALIZED VIEW? (for down() DROP VIEW choice.) */
 function looksLikeView(sql: string): boolean {
   return /\bCREATE\s+(MATERIALIZED\s+)?VIEW\b/i.test(sql);
 }
@@ -137,21 +137,21 @@ function seqOf(path: string): string | null {
   return m ? m[1] : null;
 }
 
-/** "migrations/001_create_users.sql" -> "users" (fiziksel ad). */
+/** "migrations/001_create_users.sql" -> "users" (physical name). */
 function tableNameOf(path: string): string {
   const m = path.match(/_create_(.+)\.sql$/);
   return m ? m[1] : "";
 }
 
-/** Bir SQL ifadesini güvenli bir TS template literal'e gömer (backtick + ${}
- *  + backslash kaçışlanır). Deterministik. */
+/** Embed SQL statement in safe TS template literal (escape backtick + ${}
+ *  + backslash). Deterministic. */
 function tsTemplate(sql: string): string {
   const escaped = sql.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
-  // Çok satırlı SQL'ler okunaklı kalsın diye template literal kullanılır.
+  // Template literal for readable multi-line SQL.
   return `\`${escaped}\``;
 }
 
-/** Postgres kimlik alıntılama (table.emitter ile aynı). */
+/** Postgres identifier quoting (same as table.emitter). */
 function quoteIdent(ident: string): string {
   return `"${ident.replace(/"/g, '""')}"`;
 }

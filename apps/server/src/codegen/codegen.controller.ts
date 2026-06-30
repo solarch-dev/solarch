@@ -16,10 +16,11 @@ import {
 import { from, type Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, type OpenAPIObject } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { ProjectAccessGuard } from "../auth/project-access.guard";
+import { env } from "../config/env";
 import { CurrentAuth } from "../auth/current-auth.decorator";
 import type { AuthContext } from "../auth/auth.types";
-import { BillingService } from "../billing/billing.service";
 import { ProjectsRepository } from "../projects/projects.repository";
 import { CodegenService } from "./codegen.service";
 import type { SystemMapDTO, SimpleSketchModel } from "./simple-projection";
@@ -32,7 +33,7 @@ import { ok } from "../common/envelope";
 import type { SuccessEnvelope } from "../common/envelope";
 import type { GeneratedProject } from "./types";
 
-/** PaymentRequiredException/HttpException gövdesinden code+message çıkar (SSE error event'i). */
+/** Extract code+message from HttpException body (SSE error event). */
 function errBody(e: unknown): { code?: string; message: string } {
   const resp = (e as { getResponse?: () => unknown }).getResponse?.();
   if (resp && typeof resp === "object") {
@@ -42,25 +43,25 @@ function errBody(e: unknown): { code?: string; message: string } {
   return { message: (e as Error)?.message ?? "Error" };
 }
 
-/** Constructor sürüm durumu + diyagram drift'i — frontend "Codebase improved" /
- *  "diagram changed" rozetlerini buradan kurar. */
+/** Constructor version status + diagram drift — frontend builds "Codebase improved" /
+ *  "diagram changed" badges from this. */
 export interface CodegenStatus {
-  /** Mevcut Constructor sürümü (CODEGEN_VERSION). */
+  /** Current Constructor version (CODEGEN_VERSION). */
   current: number;
-  /** Projeye damgalı sürüm; hiç üretilmemişse null. */
+  /** Version stamped on the project; null if never generated. */
   generated: number | null;
-  /** generated != null && generated < current -> daha iyi bir iskelet var. */
+  /** generated != null && generated < current -> a better scaffold exists. */
   updateAvailable: boolean;
-  /** Projenin şu anki yapısal graf revizyonu (node/edge değişimlerinde artar). */
+  /** Project's current structural graph revision (increments on node/edge changes). */
   graphRevision: number;
-  /** Üretim anında damgalanan graf revizyonu; hiç üretilmemişse null. */
+  /** Graph revision stamped at generation time; null if never generated. */
   generatedGraphRevision: number | null;
-  /** DİYAGRAM DRIFT'i: diyagram üretimden bu yana yapısal olarak değişti mi
+  /** DIAGRAM DRIFT: has the diagram structurally changed since generation
    *  (generatedGraphRevision != null && graphRevision > generatedGraphRevision).
-   *  NOT: bu, kod↔diyagram AST-drift'i DEĞİL (o lokal kodu gerektirir, CLI'da) —
-   *  "üretilen kod güncel diyagramdan geride" sinyali; "regenerate" hatırlatır. */
+   *  NOTE: this is NOT code↔diagram AST drift (that requires local code, in CLI) —
+   *  signals "generated code lags the current diagram"; reminds user to regenerate. */
   diagramDrifted: boolean;
-  /** Üretimden bu yana yapısal değişiklik sayısı (diagramDrifted ise > 0). */
+  /** Count of structural changes since generation ( > 0 when diagramDrifted). */
   driftCount: number;
 }
 
@@ -70,16 +71,15 @@ export interface CodegenStatus {
 export class CodegenController {
   constructor(
     private readonly service: CodegenService,
-    private readonly billing: BillingService,
     private readonly projects: ProjectsRepository,
     private readonly fill: CodegenFillService,
     private readonly fills: SurgicalFillRepository,
     private readonly imports: ImportResolverService,
   ) {}
 
-  /** Revert — TEK bir bölgenin saklı (AI/insan) gövdesini sil. Sonraki generate o
-   *  bölgeyi NOT_IMPLEMENTED iskeletine döndürür. İdempotent (yoksa 200). Frontend
-   *  rail'deki "Revert to stub" aksiyonu bunu çağırır + ardından yeniden üretir. */
+  /** Revert — delete stored (AI/human) body for ONE region. Next generate restores that
+   *  region to NOT_IMPLEMENTED stub. Idempotent (200 if already absent). Frontend
+   *  rail "Revert to stub" calls this then re-generates. */
   @Delete("fill/:nodeId/:member")
   @HttpCode(200)
   @ApiOperation({ summary: "Revert a filled surgical region back to its stub" })
@@ -94,10 +94,9 @@ export class CodegenController {
     return ok({ reverted: true });
   }
 
-  /** Basit Görünüm — yazılımcı-OLMAYANlar için mimari grafın READ-ONLY projeksiyonu:
-   *  feature haritası (kutular + "kullanır"/"tetikler" okları) + her feature'ın
-   *  capability kartları + mantık şeması. Kod ÜRETMEZ, AI yok → ücretsiz, billing-gate
-   *  yok (canvas görüntülemek gibi). Aynı graf → aynı çıktı (Mermaid export'un kardeşi). */
+  /** Simple View — READ-ONLY projection of the architecture graph for non-developers:
+   *  feature map (boxes + "uses"/"triggers" arrows) + per-feature capability cards +
+ *  logic diagram. Does NOT generate code, no AI (like viewing the canvas). Same graph → same output (sibling of Mermaid export). */
   @Get("simple-view")
   @ApiOperation({
     summary: "Non-developer 'Simple View' projection of the architecture graph",
@@ -145,8 +144,7 @@ export class CodegenController {
 
   /** Regenerate the Simple-View model — bypass the per-project cache and re-run the AI refine.
    *  Powers the "Regenerate" button: when a previous run fell back to deterministic (an AI hiccup)
-   *  and the graph hasn't changed, this forces a fresh attempt instead of returning the cached one.
-   *  Free, no billing gate (like the Simple View — no code is generated). */
+   *  and the graph hasn't changed, this forces a fresh attempt instead of returning the cached one. */
   @Post("simple-sketch-model/regenerate")
   @HttpCode(200)
   @ApiOperation({ summary: "Regenerate the Simple-View model (bypass cache, re-run the AI refine)" })
@@ -163,7 +161,7 @@ export class CodegenController {
    *  `?stage=baseline` returns the instant deterministic doc (no AI); otherwise the persisted
    *  AI-enriched doc is served while the graph is unchanged, falling back to the deterministic baseline
    *  when the AI is off or fails. The AI only annotates EXISTING operations/schemas (prose + examples) —
-   *  it never invents paths. Free, no billing gate (like the Simple View — no code is generated). */
+   *  it never invents paths. */
   @Get("openapi.json")
   @ApiOperation({
     summary: "OpenAPI 3.1 document for the architecture graph (Scalar-rendered, AI-documentized, cached)",
@@ -182,8 +180,7 @@ export class CodegenController {
   /** AI Documentize — bypass the per-project cache and re-run the AI enrichment over the OpenAPI doc.
    *  Powers the "AI Documentize" button: forces a fresh prose/example pass even when the graph hasn't
    *  changed (e.g. a previous run fell back to deterministic on an AI hiccup). The structure stays
-   *  graph-true; only descriptions/examples on existing operations/schemas change.
-   *  Free, no billing gate (like the Simple View — no code is generated). */
+   *  graph-true; only descriptions/examples on existing operations/schemas change. */
   @Post("openapi/documentize")
   @HttpCode(200)
   @ApiOperation({ summary: "AI Documentize the OpenAPI doc (bypass cache, re-run the grounded enrichment)" })
@@ -205,47 +202,35 @@ export class CodegenController {
       "code scaffold **without AI**. The backend chain (Module/Controller/Service/Repository/DTO/Model/" +
       "Table/Enum/Exception) is fully generated; the other 12 types become stubs with surgical markers. " +
       "Method bodies are marked with `@solarch:surgical` markers (the algorithm area — " +
-      "the SURGICAL AI that fills these is separate/future, Code tier `canCodegen`). " +
-      "The same graph -> byte-identical output.\n\n" +
-      "**Build+ generates unlimited.** guest/free/draw get **one free preview per 4h** " +
-      "(deterministic, no AI cost — value-before-paywall); once used, 402 ERR_PLAN_METER.",
+      "the SURGICAL AI that fills these is separate/future). " +
+      "The same graph -> byte-identical output.\n\n",
   })
   @ApiParam({ name: "projectId", description: "Project UUID" })
   @ApiResponse({ status: 200, description: "`data: { target, files[], summary }`." })
-  @ApiResponse({ status: 402, description: "`ERR_PLAN_METER` — free preview used (Build for unlimited)." })
   @ApiResponse({ status: 404, description: "`ERR_PROJECT_NOT_FOUND`." })
   async generate(
     @Param("projectId") projectId: string,
     @Body() body: CodegenRequestDto,
-    @CurrentAuth() auth: AuthContext,
+    @CurrentAuth() _auth: AuthContext,
   ): Promise<SuccessEnvelope<GeneratedProject>> {
-    // Build+ sınırsız; guest/free/draw 4h'de 1 ücretsiz önizleme (402 ERR_PLAN_METER dolunca).
-    await this.billing.assertCanGenerateOrFreePass(auth.userId);
     const target = (body as { target?: "nestjs" }).target ?? "nestjs";
-    try {
-      const project = await this.service.generate(projectId, target);
-      // SINIR: AI=algoritma, sistem=import. generate kayıtlı GÖVDELERİ re-inject eder ama
-      // import'ları (owned tip/operatör) eklemez → "Cannot find name". Dolu bölge varsa
-      // import'ları deterministik çöz (best-effort; hata olursa proje aynen döner). Dolu
-      // bölge yoksa (taze iskelet zaten import'lu) atla → temp-dir maliyeti ödenmez.
-      if (project.files.some((f) => f.content.includes("@solarch:filled"))) {
-        project.files = await this.imports.resolveImports(project.files);
-      }
-      // DAMGALAMA: başarılı üretim sonrası projeye mevcut Constructor sürümünü yaz.
-      // (service.generate proje yoksa zaten 404 atar -> buraya yalnız var olan proje gelir.)
-      await this.projects.setCodegenVersion(projectId, CODEGEN_VERSION);
-      return ok(project);
-    } catch (e) {
-      // Ücretsiz-önizleme metresi tüketildiyse hata durumunda iade et (proje-bulunamadı vb.
-      // kullanıcının tek hakkını yakmasın). Paid'de consume olmadığından refund no-op (0'da kenetli).
-      await this.billing.refund(auth.userId, "codegen").catch(() => {});
-      throw e;
+    const project = await this.service.generate(projectId, target);
+    // BOUNDARY: AI=algorithm, system=imports. generate re-injects stored BODIES but does not
+    // add imports (owned types/operators) → "Cannot find name". When filled regions exist,
+    // resolve imports deterministically (best-effort; on error return project unchanged). When
+    // no filled regions (fresh scaffold already has imports) skip → avoid temp-dir cost.
+    if (project.files.some((f) => f.content.includes("@solarch:filled"))) {
+      project.files = await this.imports.resolveImports(project.files);
     }
+    // STAMPING: after successful generation write current Constructor version on project.
+    await this.projects.setCodegenVersion(projectId, CODEGEN_VERSION);
+    return ok(project);
   }
 
   @Sse("fill/stream")
+  @Throttle({ default: { ttl: 60_000, limit: env.CODEGEN_FILL_THROTTLE_LIMIT } })
   @ApiOperation({
-    summary: "Surgical AI — fill the @solarch:surgical bodies (SSE, Code plan)",
+    summary: "Surgical AI — fill the @solarch:surgical bodies (SSE)",
     description:
       "Opens an EventSource. Generates the deterministic skeleton, then fills every `@solarch:surgical` " +
       "method body in parallel with the verification-driven fill agent (grounding + contract + declared-throws + " +
@@ -257,8 +242,7 @@ export class CodegenController {
       "- `event: phase` — { kind: verify|repair|imports|tests, … } the live tsc/repair loop\n" +
       "- `event: report` — { filled, violations, errors, typecheck?, tests? }\n" +
       "- `event: files` — { files[] } the full filled project\n" +
-      "- `event: error` — { code, message }\n\n" +
-      "**Requires the Code plan** (402 `ERR_PLAN_CODEGEN`). Consumes one `generations` unit; refunded if nothing fills.",
+      "- `event: error` — { code, message }",
   })
   @ApiParam({ name: "projectId", description: "Project UUID" })
   fillStream(
@@ -268,8 +252,8 @@ export class CodegenController {
     @Query("target") targetQ?: string,
     @Query("jest") jestQ?: string,
   ): Observable<MessageEvent> {
-    const target = targetQ === "nestjs" ? "nestjs" : "nestjs"; // şimdilik tek hedef
-    // jest ("derin doğrula") opsiyonel: tsc her zaman döngüde; jest yavaş+maliyetli → toggle.
+    const target = targetQ === "nestjs" ? "nestjs" : "nestjs"; // single target for now
+    // jest ("deep verify") optional: tsc always in loop; jest is slow+costly → toggle.
     const withTests = jestQ === "true" || jestQ === "1";
     const ac = new AbortController();
     req.on("close", () => ac.abort());
@@ -277,35 +261,12 @@ export class CodegenController {
 
     async function* guarded(): AsyncGenerator<FillEvent> {
       try {
-        await self.billing.assertCanCodegen(auth.userId); // 402 ERR_PLAN_CODEGEN (Code tier)
-      } catch (e) {
-        yield { event: "error", ...errBody(e) };
-        return;
-      }
-      try {
-        await self.billing.consume(auth.userId, "generations"); // kota (4h pencere)
-      } catch (e) {
-        yield { event: "error", ...errBody(e) };
-        return;
-      }
-      // Metre LLM'den ÖNCE tüketildi. Hiçbir bölge dolmadan başarısızsa iade et — hata
-      // bir THROW olabilir ya da stream içinde bir `error` event'i (ör. ERR_FILL_UNVERIFIED).
-      let filledAny = false;
-      let hadError = false;
-      try {
         for await (const ev of self.fill.fill(projectId, target, ac.signal, { withTests })) {
-          if (ev.event === "error") hadError = true;
-          if (ev.event === "region" && ev.status === "filled") filledAny = true;
-          if (ev.event === "report" && ev.filled > 0) filledAny = true;
           yield ev;
         }
-        if (!hadError) await self.projects.setCodegenVersion(projectId, CODEGEN_VERSION).catch(() => {});
+        await self.projects.setCodegenVersion(projectId, CODEGEN_VERSION).catch(() => {});
       } catch (e) {
-        hadError = true;
         yield { event: "error", ...errBody(e) };
-      } finally {
-        // Hata (throw veya error-event) + hiç dolum yok → tüketilen generation'ı iade et.
-        if (hadError && !filledAny) await self.billing.refund(auth.userId, "generations").catch(() => {});
       }
     }
 
@@ -336,7 +297,7 @@ export class CodegenController {
     }
     const current = CODEGEN_VERSION;
     const updateAvailable = generated !== null && generated < current;
-    // Diyagram drift'i: üretim anındaki graphRevision ile şimdiki fark (kaç yapısal değişiklik).
+    // Diagram drift: difference between graphRevision at generation vs now (structural change count).
     const graphRevision = await this.projects.getGraphRevision(projectId);
     const generatedGraphRevision = await this.projects.getCodegenGraphRevision(projectId);
     const diagramDrifted = generatedGraphRevision !== null && graphRevision > generatedGraphRevision;

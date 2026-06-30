@@ -1,11 +1,11 @@
 import { Neo4jService } from "../../neo4j.service";
 import { env } from "../../../config/env";
 
-/** Faz B veri migration'ı: İş Mantığı + Erişim node'larını (Service/Worker/
- *  EventHandler/Orchestrator/Controller/MessageQueue/APIGateway) v3 şemaya taşır.
+/** Phase B data migration: moves Business Logic + Access nodes (Service/Worker/
+ *  EventHandler/Orchestrator/Controller/MessageQueue/APIGateway) to v3 schema.
  *
- *  Idempotent — kırıcı yeniden adlandırmaları dönüştürür, eksik dizileri default'lar.
- *  Tekrar çalıştırmak güvenlidir (zaten dönüşmüş alanlar no-op). */
+ *  Idempotent — converts breaking renames, defaults missing arrays.
+ *  Safe to re-run (already-migrated fields are no-op). */
 async function main(): Promise<void> {
   const svc = new Neo4jService({
     uri: env.NEO4J_URI,
@@ -59,7 +59,7 @@ function enrich(kind: string, p: any): any {
     return { IsEnabled: true, ...p, RetryPolicy: rp };
   }
   if (kind === "EventHandler") {
-    return { ...p }; // yeni alanlar tümü opsiyonel — dönüşüm gerekmez
+    return { ...p }; // new fields all optional — no transform needed
   }
   if (kind === "Orchestrator") {
     return { ...p, Steps: p.Steps ?? [] };

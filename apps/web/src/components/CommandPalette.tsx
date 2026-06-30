@@ -89,8 +89,7 @@ export function CommandPalette({ open, onOpenChange, onOpenDocs }: Props) {
       run: () => canvasCmds.arrange?.(), available: !!canvasCmds.arrange,
     },
     {
-      // Gating + panel opening in TopBar (solarch:codegen-open listener);
-      // if not entitled, redirects to /billing from there.
+      // Gating + panel opening in TopBar (solarch:codegen-open listener).
       id: "act-codegen", label: "Generate Code — NestJS skeleton", icon: <Code2 size={14} />,
       run: () => window.dispatchEvent(new CustomEvent("solarch:codegen-open")),
       available: !!projectId,

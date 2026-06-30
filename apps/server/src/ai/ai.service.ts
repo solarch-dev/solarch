@@ -37,7 +37,7 @@ import type { ChatResult, StreamEvent } from "./dto/chat-response.dto";
 
 const MAX_ATTEMPTS = 5;
 
-/** Structured output şeması — apply girdisi ({nodes, edges}) + Türkçe özet. */
+/** Structured output schema — apply input ({nodes, edges}) + summary. */
 const GenerationSchema = z.object({
   summary: z.string().optional(),
   nodes: ApplyArchitectureArgsSchema.shape.nodes,
@@ -61,7 +61,7 @@ function safeJson(text: string): unknown {
   }
 }
 
-/** json_object çıktısından ilk geçerli JSON nesnesini ayıkla (markdown fence vb. tolere et). */
+/** Extract first valid JSON object from json_object output (tolerates markdown fences etc.). */
 function extractJson(text: string): string {
   let t = text.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -71,17 +71,17 @@ function extractJson(text: string): string {
   return start >= 0 && end > start ? t.slice(start, end + 1) : t;
 }
 
-/** json mode: tool YOK → şemayı prompt'a göm + 'json' kelimesi (DeepSeek şartı). */
+/** json mode: no tools → embed schema in prompt + 'json' keyword (DeepSeek requirement). */
 const JSON_DIRECTIVE = `
 
-## ÇIKTI BİÇİMİ (ZORUNLU)
-Bu modda fonksiyon/tool YOKTUR. Yanıtını SADECE geçerli JSON olarak ver (markdown, backtick, ek açıklama YOK). JSON şeması:
+## OUTPUT FORMAT (REQUIRED)
+In this mode there are NO functions/tools. Reply with ONLY valid JSON (no markdown, backticks, or extra text). JSON schema:
 {
   "summary": "short summary (respond in English — the product UI is English)",
   "nodes": [{ "tempId": "temp_x", "type": "Controller", "properties": { ... } }],
-  "edges": [{ "sourceTempId": "temp_x", "targetTempId": "temp_y", "edgeType": "CALLS", "label": "opsiyonel" }]
+  "edges": [{ "sourceTempId": "temp_x", "targetTempId": "temp_y", "edgeType": "CALLS", "label": "optional" }]
 }
-Her node tempId taşımalı; edge'ler bu tempId'leri referanslar.`;
+Every node must carry tempId; edges reference those tempIds.`;
 
 @Injectable()
 export class AiService {
@@ -109,7 +109,7 @@ export class AiService {
 
     const { nodes, edges } = await this.projectsRepo.getGraph(projectId);
 
-    // GraphRAG: en yakın kanonik desenleri getir (embedding yoksa degrade → boş).
+    // GraphRAG: fetch nearest canonical patterns (degrades to empty when no embedding).
     let patternHits: PatternSearchHit[] = [];
     try {
       patternHits = await this.patterns.search(input.message, env.EMBED_TOP_K, env.EMBED_MIN_SCORE);
@@ -119,14 +119,14 @@ export class AiService {
 
     const systemPrompt =
       buildSystemPrompt(
-        // graphRevision prompt bağlamında kullanılmaz — placeholder 0.
+        // graphRevision unused in prompt context — placeholder 0.
         { project: { id: projectId } as any, nodes, edges, counts: { nodes: nodes.length, edges: edges.length }, graphRevision: 0 },
         patternHits,
       ) + JSON_DIRECTIVE;
 
-    // json_object mode: provider'ı geçerli JSON'a zorlar (tool-args bozulması yok).
-    // Parse'ı kendimiz yaparız (langchain'in katı parser'ı yerine → tam kontrol + tolerans).
-    const llm = getGenerationChat(); // response_format json_object factory'de modelKwargs'ta
+    // json_object mode: forces provider to valid JSON (no tool-args corruption).
+    // We parse ourselves (instead of langchain strict parser → full control + tolerance).
+    const llm = getGenerationChat(); // response_format json_object in factory modelKwargs
 
     const messages: BaseMessage[] = [
       new SystemMessage(systemPrompt),
@@ -141,11 +141,11 @@ export class AiService {
         const raw = textOf(ai);
         const parsed = GenerationSchema.safeParse(safeJson(extractJson(raw)));
         if (!parsed.success) {
-          // JSON bozuk/eksik → düzeltme isteyip retry.
+          // Malformed/incomplete JSON → ask for fix and retry.
           this.logger.warn(`Could not parse output, retry (${attempts + 1}/${MAX_ATTEMPTS}).`);
           if (attempts >= MAX_ATTEMPTS) break;
           messages.push(new AIMessage(raw.slice(0, 500)));
-          messages.push(new HumanMessage("Çıktın geçerli/tam JSON değildi. SADECE belirtilen şemada eksiksiz JSON üret."));
+          messages.push(new HumanMessage("Your output was not valid/complete JSON. Produce ONLY complete JSON in the specified schema."));
           attempts++;
           continue;
         }
@@ -165,13 +165,13 @@ export class AiService {
           };
         }
 
-        // Kural ihlali → self-correction: ihlalleri geri ver, düzeltilmiş JSON iste.
+        // Rule violation → self-correction: return violations, request fixed JSON.
         if (attempts > MAX_ATTEMPTS) break;
         messages.push(new AIMessage(JSON.stringify({ nodes: out.nodes, edges: out.edges })));
         messages.push(
           new HumanMessage(
-            `Bu taslak Solarch kurallarını ihlal etti:\n${JSON.stringify(result.violations).slice(0, 1000)}\n` +
-              "Önerileri (suggestion) uygula, düzeltilmiş TAM JSON'ı tekrar üret.",
+            `This draft violated Solarch rules:\n${JSON.stringify(result.violations).slice(0, 1000)}\n` +
+              "Apply the suggestions, then produce the complete fixed JSON again.",
           ),
         );
       }
@@ -194,8 +194,8 @@ export class AiService {
     }
   }
 
-  /** Mode dispatcher — agent (tool calling) veya instruct (text stream).
-   *  `signal`: client koparsa in-flight LLM çağrısı + DB yazımı durur. */
+  /** Mode dispatcher — agent (tool calling) or instruct (text stream).
+   *  `signal`: when client disconnects, in-flight LLM call + DB writes stop. */
   async *chatStream(projectId: string, input: ChatInput, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
     if (input.mode === "instruct") {
       yield* this.chatStreamInstruct(projectId, input, signal);
@@ -204,9 +204,9 @@ export class AiService {
     yield* this.chatStreamAgent(projectId, input, signal);
   }
 
-  /** Instruct mode — proje hakkında sohbet. Tool yok; LLM token-by-token text döner.
-   *  System prompt'a graph snapshot ve [[node:ID|name]] markup talimatı verilir.
-   *  Frontend chunk'ları typewriter ile render eder, marker'ları NodeChip'e çevirir. */
+  /** Instruct mode — chat about the project. No tools; LLM returns text token-by-token.
+   *  System prompt includes graph snapshot and [[node:ID|name]] markup instructions.
+   *  Frontend renders chunks with typewriter effect, converts markers to NodeChips. */
   async *chatStreamInstruct(projectId: string, input: ChatInput, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
     if (!isGenerationConfigured()) {
       yield { type: "error", code: "ERR_AI_NOT_CONFIGURED", message: "AI agent is not configured." };
@@ -238,7 +238,7 @@ export class AiService {
       const stream = await llm.stream(messages, { signal });
       let fullText = "";
       for await (const chunk of stream) {
-        if (signal?.aborted) return; // client koptu → sessizce dur
+        if (signal?.aborted) return; // client disconnected → stop silently
         const delta = typeof chunk.content === "string" ? chunk.content
           : Array.isArray(chunk.content)
             ? chunk.content.map((c) => (typeof c === "string" ? c : "text" in c ? (c as any).text : "")).join("")
@@ -255,7 +255,7 @@ export class AiService {
       };
     } catch (err) {
       if (signal?.aborted) {
-        this.logger.log("Instruct stream iptal edildi (client koptu).");
+        this.logger.log("Instruct stream cancelled (client disconnected).");
         return;
       }
       const msg = (err as Error)?.message ?? "";
@@ -264,21 +264,21 @@ export class AiService {
     }
   }
 
-  /** Üretilen projenin SÖZLEŞME boşluklarını döndürür (codegen contract-lint'i
-   *  yeniden kullanır): gövde-alan write endpoint'i input DTO'su olmadan, rol-ama-
-   *  auth'suz, route-param eşleşmeyen, dangling DTO/entity ref. Üretim-anı düzeltme
-   *  döngüsü için. Domain Node/Edge → codegen IR girdisi: yalnız type/properties/id
-   *  okunur (pozisyon önemsiz), bu yüzden sınır cast'i güvenli. */
+  /** Returns CONTRACT gaps in the generated project (reuses codegen contract-lint):
+   *  body-field write endpoint without input DTO, role-required-but-no-auth, route-param
+   *  mismatch, dangling DTO/entity ref. For production-time correction loop.
+   *  Domain Node/Edge → codegen IR input: only type/properties/id are read (position
+   *  irrelevant), so boundary cast is safe. */
   private async contractGaps(projectId: string): Promise<string[]> {
     const [nodes, edges] = await Promise.all([this.nodes.list(projectId), this.edges.list(projectId)]);
     return lintContracts(buildCodeGraph(nodes as unknown as StoredNode[], edges as unknown as StoredEdge[]));
   }
 
   /** Streaming agent loop — atomic create_node/create_edge tool calling.
-   *  Her tool execute sonrası StreamEvent yield eder; SSE'ye encode edilir.
-   *  Hata yönetimi: HttpException response body'leri ToolMessage olarak LLM'e
-   *  geri verilir → LLM kendini düzeltir (ReAct). Frontend hatayı görmez,
-   *  sadece final node/edge'leri görür. */
+   *  Yields StreamEvent after each tool execute; encoded to SSE.
+   *  Error handling: HttpException response bodies go back to LLM as ToolMessage
+   *  → LLM self-corrects (ReAct). Frontend never sees errors,
+   *  only final nodes/edges. */
   async *chatStreamAgent(projectId: string, input: ChatInput, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
     if (!isGenerationConfigured()) {
       yield {
@@ -305,7 +305,7 @@ export class AiService {
 
     const systemPrompt =
       buildSystemPrompt(
-        // graphRevision prompt bağlamında kullanılmaz — placeholder 0.
+        // graphRevision unused in prompt context — placeholder 0.
         { project: { id: projectId } as any, nodes, edges, counts: { nodes: nodes.length, edges: edges.length }, graphRevision: 0 },
         patternHits,
       ) + STREAMING_DIRECTIVE;
@@ -315,7 +315,7 @@ export class AiService {
     const llmWithTools = llm.bindTools!([
       { name: CREATE_NODE_TOOL_NAME, description: CREATE_NODE_DESCRIPTION, schema: CreateNodeArgsSchema },
       { name: CREATE_EDGE_TOOL_NAME, description: CREATE_EDGE_DESCRIPTION, schema: CreateEdgeArgsSchema },
-      // Refactor araçları — mevcut grafı değiştirmek (append-only değil).
+      // Refactor tools — modify existing graph (not append-only).
       { name: GET_NODE_TOOL_NAME, description: GET_NODE_DESCRIPTION, schema: GetNodeArgsSchema },
       { name: UPDATE_NODE_TOOL_NAME, description: UPDATE_NODE_DESCRIPTION, schema: UpdateNodeArgsSchema },
       { name: DELETE_NODE_TOOL_NAME, description: DELETE_NODE_DESCRIPTION, schema: DeleteNodeArgsSchema },
@@ -327,30 +327,30 @@ export class AiService {
       ...input.history.map((h) => (h.role === "user" ? new HumanMessage(h.content) : new AIMessage(h.content))),
       new HumanMessage(input.message),
     ];
-    // "Devam et": önceki üretim adım limitine takılıp duraklatıldı. Agent yukarıda
-    // 'Mevcut Mimari' olarak verilen grafı görüyor → var olanı TEKRAR YARATMA,
-    // yalnız eksikleri tamamla + orphan'ları bağla.
+    // "Continue": previous run paused at step limit. Agent sees the graph above as
+    // 'Current Architecture' → do NOT recreate existing nodes,
+    // only fill gaps + connect orphans.
     if (input.continueRun) {
       messages.push(new HumanMessage(
-        "DEVAM MODU: Önceki üretim adım limitine takıldı, mimari yarım kaldı. Yukarıda verilen MEVCUT graf bu projede ZATEN VAR — o node/edge'leri TEKRAR YARATMA. Yalnızca eksik kalan node/edge'leri ekle ve bağlantısız (orphan) node'ları uygun şekilde bağla. Tamamlayınca kısa bir özet yaz.",
+        "CONTINUE MODE: The previous run hit the step limit and the architecture is incomplete. The CURRENT graph above ALREADY EXISTS in this project — do NOT recreate those nodes/edges. Only add missing nodes/edges and connect orphaned nodes appropriately. When done, write a brief summary.",
       ));
     }
 
-    const MAX_TURNS = env.AI_MAX_TURNS; // güvenlik tavanı (env, default 250). Batching ile tipik üretim çok daha az turda biter.
-    const MAX_CORRECTION_ROUNDS = 2; // orphan check yeniden tetiklemesi
-    const MAX_CONTRACT_ROUNDS = 2; // sözleşme-bütünlüğü (contract-lint) yeniden tetiklemesi
+    const MAX_TURNS = env.AI_MAX_TURNS; // safety ceiling (env, default 250). With batching, typical runs finish in far fewer turns.
+    const MAX_CORRECTION_ROUNDS = 2; // orphan check re-trigger
+    const MAX_CONTRACT_ROUNDS = 2; // contract-integrity (contract-lint) re-trigger
     let attempts = 0;
     let nodeCount = 0;
     let edgeCount = 0;
     let correctionRounds = 0;
     let contractRounds = 0;
-    // Session içinde yaratılan node'lar (orphan check için)
+    // Nodes created in this session (for orphan check)
     const createdNodes = new Map<string, { id: string; type: string; name: string }>();
-    // Edge'lerde geçen node endpoint'leri (source+target birleşik)
+    // Node endpoints appearing in edges (source+target combined)
     const edgeEndpoints = new Set<string>();
-    // DEVRE KESİCİ: imkânsız/tekrarlayan edge denemeleri MAX_TURNS'e kadar thrash edip
-    // token yakmasın. Aynı (source|target|kind) bir kez reddedilince tekrar DENENMEZ;
-    // ardışık (8) veya toplam (40) başarısızlık aşılınca agent durur (stuck).
+    // CIRCUIT BREAKER: impossible/repeated edge attempts must not thrash until MAX_TURNS
+    // and burn tokens. Same (source|target|kind) once rejected is NEVER retried;
+    // agent stops when consecutive (8) or total (40) failures exceeded (stuck).
     const failedEdgeSigs = new Set<string>();
     let totalToolFailures = 0;
     let consecutiveFailures = 0;
@@ -358,10 +358,10 @@ export class AiService {
     const MAX_CONSECUTIVE_FAILURES = 8;
     const MAX_TOTAL_FAILURES = 40;
 
-    // Terminal başarısızlıkta (MAX_TURNS / exception / correction limit) yaratılıp
-    // HÂLÂ orphan kalan node'ları sil → yarım graf kalmasın; bağlı alt-grafik korunur.
-    // `self` çünkü inline generator'da `this` bağlanmaz. Her delete ayrı try/catch:
-    // biri patlasa stream akmaya devam etsin (catch-içi delegation güvenli kalır).
+    // On terminal failure (MAX_TURNS / exception / correction limit), delete nodes
+    // still orphaned → no half-finished graph; connected subgraph preserved.
+    // `self` because `this` is not bound in inline generator. Each delete in try/catch:
+    // if one fails, stream keeps flowing (catch-inner delegation stays safe).
     const self = this;
     async function* cleanupOrphans(reason: string): AsyncGenerator<StreamEvent> {
       const orphans = [...createdNodes.values()].filter((n) => !edgeEndpoints.has(n.id));
@@ -369,8 +369,8 @@ export class AiService {
         try {
           await self.nodes.delete(projectId, o.id);
         } catch (e) {
-          // Silme başarısız → state'i BOZMA (removed yield etme, count düşürme):
-          // frontend cache'ten kaldırırsa DB'de duran node 'hayalet' olur.
+          // Delete failed → do NOT corrupt state (no removed yield, no count decrement):
+          // removing from frontend cache while node remains in DB creates a 'ghost'.
           self.logger.warn(`[orphan-cleanup] deletion skipped ${o.id}: ${(e as Error).message}`);
           continue;
         }
@@ -382,67 +382,66 @@ export class AiService {
 
     try {
       while (attempts < MAX_TURNS) {
-        if (signal?.aborted) return; // client koptu → yeni LLM turu açma
+        if (signal?.aborted) return; // client disconnected → do not start new LLM turn
         attempts++;
         const ai = (await llmWithTools.invoke(messages, { signal })) as AIMessage;
         const toolCalls = (ai.tool_calls ?? []) as Array<{ id?: string; name: string; args: Record<string, unknown> }>;
 
         if (toolCalls.length === 0) {
-          // LLM tool çağırmayı durdurdu → orphan check (rule-based safety net)
+          // LLM stopped calling tools → orphan check (rule-based safety net)
           const orphans = [...createdNodes.values()].filter((n) => !edgeEndpoints.has(n.id));
           if (orphans.length > 0 && correctionRounds < MAX_CORRECTION_ROUNDS) {
             correctionRounds++;
             this.logger.log(
-              `[orphan-check] ${orphans.length} yetim node tespit edildi (round ${correctionRounds}/${MAX_CORRECTION_ROUNDS}). LLM'e geri bildiriliyor.`,
+              `[orphan-check] ${orphans.length} orphan nodes detected (round ${correctionRounds}/${MAX_CORRECTION_ROUNDS}). Feeding back to LLM.`,
             );
             const orphanContext = buildOrphanContext(orphans);
-            messages.push(ai); // önceki "done" denemesi history'ye
+            messages.push(ai); // previous "done" attempt into history
             messages.push(new HumanMessage(
-              `**ORPHAN_CHECK FAIL** — henüz tamamlanmadı.\n\n` +
-                `Aşağıdaki ${orphans.length} node bağlantısız (orphan) durumda. ` +
-                `Yetim node yasağı gereği her birini uygun bir node ile create_edge ile bağlamalısın:\n\n` +
+              `**ORPHAN_CHECK FAIL** — not complete yet.\n\n` +
+                `The following ${orphans.length} nodes are disconnected (orphan). ` +
+                `Orphan-node rule requires connecting each to an appropriate node via create_edge:\n\n` +
                 orphanContext +
-                `\n\nBu bağlantıları kur. ÖNEMLİ: bir node mimari kurallara göre HİÇBİR şekilde bağlanamıyorsa (edge sürekli ERR_NOT_WHITELISTED/ERR_EDGE_ALREADY_REJECTED veriyorsa) o node'u BAĞLAMADAN bırak ve özetine geç — aynı reddedilen edge'i ASLA tekrar deneme. Tamamladıysan kısa bir özet yaz.`,
+                `\n\nCreate these connections. IMPORTANT: if a node cannot be connected under architecture rules (edge keeps returning ERR_NOT_WHITELISTED/ERR_EDGE_ALREADY_REJECTED), leave it UNCONNECTED and move to your summary — NEVER retry the same rejected edge. If done, write a brief summary.`,
             ));
-            continue; // agent loop devam, LLM tekrar tool çağıracak
+            continue; // agent loop continues, LLM will call tools again
           }
 
-          // Correction limit sonrası hâlâ orphan varsa temizle (yarım graf kalmasın).
+          // Still orphans after correction limit → clean up (no half-finished graph).
           if (orphans.length > 0) {
             this.logger.warn(
-              `[orphan-check] ${MAX_CORRECTION_ROUNDS} round sonrası hala ${orphans.length} orphan var — temizleniyor.`,
+              `[orphan-check] still ${orphans.length} orphans after ${MAX_CORRECTION_ROUNDS} rounds — cleaning up.`,
             );
             yield* cleanupOrphans("orphan-after-correction-limit");
           }
 
-          // ── SÖZLEŞME BÜTÜNLÜĞÜ (orphan-prevention deseni — saf prompt yetersiz):
-          //    üretilen graf contract-lint boşluğu taşıyorsa (gövde-alan write endpoint'i
-          //    input DTO'su olmadan, rol-ama-auth'suz, route-param eşleşmeyen, dangling
-          //    ref) LLM'e GERİ BİLDİR → eksik DTO'yu yarat + endpoint'e bağla. Diyagram-AI'ın
-          //    eksik sözleşme üretmesini ÜRETİM-ANINDA kapatır (codegen yine zarif degrade
-          //    eder ama bu, tipli sözleşmeyi diyagrama koydurur). ──
+          // ── CONTRACT INTEGRITY (orphan-prevention pattern — prompt alone insufficient):
+          //    if generated graph has contract-lint gaps (body-field write endpoint
+          //    without input DTO, role-required-but-no-auth, route-param mismatch, dangling
+          //    ref) FEED BACK to LLM → create missing DTO + wire to endpoint. Closes
+          //    diagram-AI incomplete-contract at production time (codegen still degrades
+          //    gracefully but this puts typed contract on the diagram). ──
           if (contractRounds < MAX_CONTRACT_ROUNDS) {
             let gaps: string[] = [];
             try {
               gaps = await this.contractGaps(projectId);
             } catch (e) {
-              this.logger.warn(`[contract-check] atlandı: ${(e as Error).message}`);
+              this.logger.warn(`[contract-check] skipped: ${(e as Error).message}`);
             }
             if (gaps.length > 0) {
               contractRounds++;
               this.logger.log(
-                `[contract-check] ${gaps.length} sözleşme boşluğu (round ${contractRounds}/${MAX_CONTRACT_ROUNDS}). LLM'e geri bildiriliyor.`,
+                `[contract-check] ${gaps.length} contract gaps (round ${contractRounds}/${MAX_CONTRACT_ROUNDS}). Feeding back to LLM.`,
               );
               messages.push(ai);
               messages.push(new HumanMessage(
-                `**CONTRACT_CHECK FAIL** — mimari sözleşmesi eksik:\n\n` +
+                `**CONTRACT_CHECK FAIL** — architecture contract incomplete:\n\n` +
                   gaps.map((g) => `- ${g}`).join("\n") +
-                  `\n\nHer boşluğu düzelt. Gövde-alan write endpoint'i (POST/PUT/PATCH) input DTO'su olmadan ise: uygun alanları taşıyan ` +
-                  `bir DTO node'u create_node ile yarat, sonra get_node ile Controller'ı oku ve update_node ile TAM Endpoints dizisini gönder — ` +
-                  `ilgili endpoint'in RequestDTORef'ini yeni DTO'nun Name'ine ayarla. Rol gerektirip auth gerektirmeyen endpoint'te RequiresAuth'u aç. ` +
-                  `Düzeltemediğin bir boşluk varsa olduğu gibi bırak ve kısa bir özet yaz.`,
+                  `\n\nFix each gap. If a body-field write endpoint (POST/PUT/PATCH) lacks an input DTO: create a DTO node with appropriate fields via create_node, then read the Controller with get_node and send the FULL Endpoints array via update_node — ` +
+                  `set the endpoint's RequestDTORef to the new DTO's Name. For endpoints requiring a role but not auth, enable RequiresAuth. ` +
+                  `If you cannot fix a gap, leave it and write a brief summary.`,
               ));
-              continue; // agent loop devam → LLM düzeltsin
+              continue; // agent loop continues → LLM fixes
             }
           }
 
@@ -457,10 +456,10 @@ export class AiService {
 
         messages.push(ai);
 
-        if (signal?.aborted) return; // client koptu → tool execute = boş DB yazımı, atla
+        if (signal?.aborted) return; // client disconnected → skip tool execute = empty DB writes
 
         for (const call of toolCalls) {
-          if (signal?.aborted) return; // tur ortasında abort → kalan tool yazımlarını da durdur
+          if (signal?.aborted) return; // mid-turn abort → stop remaining tool writes
           const callId = call.id ?? `call_${attempts}`;
           try {
             if (call.name === CREATE_NODE_TOOL_NAME) {
@@ -468,7 +467,7 @@ export class AiService {
               const node = await this.nodes.create(projectId, {
                 type: args.type as NodeKind,
                 projectId,
-                position: { x: 0, y: 0 }, // frontend arrange ile gerçek konuma yazar
+                position: { x: 0, y: 0 }, // frontend arrange writes real position
                 properties: args.properties,
                 homeTabId,
               } as any);
@@ -485,8 +484,8 @@ export class AiService {
             } else if (call.name === CREATE_EDGE_TOOL_NAME) {
               const args = CreateEdgeArgsSchema.parse(call.args);
               const sig = `${args.sourceNodeId}|${args.targetNodeId}|${args.kind}`;
-              // Daha önce REDDEDİLEN birebir aynı edge → DB/Rules eval'e HİÇ gitme;
-              // LLM'e kesin dille "tekrar deneme" de + başarısızlık say (token tasarrufu).
+              // Previously REJECTED identical edge → do NOT hit DB/Rules eval;
+              // tell LLM firmly "do not retry" + count failure (token savings).
               if (failedEdgeSigs.has(sig)) {
                 totalToolFailures++; consecutiveFailures++;
                 messages.push(new ToolMessage({
@@ -513,7 +512,7 @@ export class AiService {
                 tool_call_id: callId,
               }));
             } else if (call.name === GET_NODE_TOOL_NAME) {
-              // Read-only — düzenlemeden önce mevcut properties'i göster.
+              // Read-only — show current properties before editing.
               const args = GetNodeArgsSchema.parse(call.args);
               const node = await this.nodes.getById(projectId, args.nodeId);
               consecutiveFailures = 0;
@@ -522,15 +521,15 @@ export class AiService {
                 tool_call_id: callId,
               }));
             } else if (call.name === UPDATE_NODE_TOOL_NAME) {
-              // Mevcut node'u değiştir (rename / alan / dizi). Merge + tam doğrulama serviste.
+              // Modify existing node (rename / field / array). Merge + full validation in service.
               const args = UpdateNodeArgsSchema.parse(call.args);
               const node = await this.nodes.applyPropertiesPatch(projectId, args.nodeId, args.properties);
               consecutiveFailures = 0;
-              // Session'da yaratılmış bir node güncellendiyse isim takibini tazele.
+              // Refresh name tracking if a session-created node was updated.
               if (createdNodes.has(node.id)) {
                 createdNodes.set(node.id, { id: node.id, type: node.type, name: extractNodeName(node.type, node.properties as Record<string, unknown>) });
               }
-              yield { type: "node", data: node }; // frontend node'u upsert eder
+              yield { type: "node", data: node }; // frontend upserts node
               messages.push(new ToolMessage({
                 content: JSON.stringify({ ok: true, id: node.id, version: node.version }),
                 tool_call_id: callId,
@@ -564,14 +563,14 @@ export class AiService {
               }));
             }
           } catch (err) {
-            // ALTYAPI TERMİNAL HATASI: Neo4j sürücüsü kapanmışsa (hot-reload / deploy
-            // SIGTERM → driver.close) bu hata LLM TARAFINDAN DÜZELTİLEMEZ — havuz kapalı.
-            // Onu ERR_INTERNAL retry'ı sayıp "düzelt" demek 8-12 LLM turu + token yakar,
-            // sonra circuit-breaker'a düşer; cleanup da aynı kapalı havuza yazamaz. Anında,
-            // temiz dur: kısmi graf korunur (abort sözleşmesiyle aynı), beyhude cleanup yok.
+            // INFRA TERMINAL ERROR: if Neo4j driver closed (hot-reload / deploy
+            // SIGTERM → driver.close) this error CANNOT be fixed by LLM — pool closed.
+            // Counting it as ERR_INTERNAL retry and saying "fix" burns 8-12 LLM turns + tokens,
+            // then hits circuit-breaker; cleanup also cannot write to same closed pool. Stop
+            // immediately, cleanly: partial graph preserved (same as abort contract), no futile cleanup.
             if (isBackendUnavailable(err)) {
               this.logger.warn(
-                `[backend-unavailable] ${call.name} sırasında veritabanı erişilemez (kapanıyor olabilir) — agent anında durduruldu; kısmi graf korundu.`,
+                `[backend-unavailable] database unreachable during ${call.name} (may be shutting down) — agent stopped immediately; partial graph preserved.`,
               );
               yield {
                 type: "error",
@@ -584,7 +583,7 @@ export class AiService {
             // HttpException → response body'i LLM'e geri ver (ReAct self-correct)
             const errBody = httpExceptionBody(err);
             totalToolFailures++; consecutiveFailures++;
-            // Reddedilen edge imzasını kaydet → aynı edge bir daha DB/Rules'a gitmesin.
+            // Record rejected edge signature → same edge never hits DB/Rules again.
             if (call.name === CREATE_EDGE_TOOL_NAME) {
               const a = call.args as { sourceNodeId?: string; targetNodeId?: string; kind?: string };
               if (a.sourceNodeId && a.targetNodeId && a.kind) failedEdgeSigs.add(`${a.sourceNodeId}|${a.targetNodeId}|${a.kind}`);
@@ -597,11 +596,11 @@ export class AiService {
           }
         }
 
-        // DEVRE KESİCİ: çok fazla (ardışık veya toplam) kural-ihlali/başarısızlık →
-        // imkânsız orphan'ı MAX_TURNS'e kadar deneme; dur, geçerli grafiği koru.
+        // CIRCUIT BREAKER: too many (consecutive or total) rule violations/failures →
+        // do not keep trying impossible orphans until MAX_TURNS; stop, preserve valid graph.
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES || totalToolFailures >= MAX_TOTAL_FAILURES) {
           this.logger.warn(
-            `[circuit-breaker] ${totalToolFailures} tool başarısızlığı (ardışık ${consecutiveFailures}) — agent durduruluyor (stuck).`,
+            `[circuit-breaker] ${totalToolFailures} tool failures (consecutive ${consecutiveFailures}) — stopping agent (stuck).`,
           );
           stuck = true;
           break;
@@ -609,8 +608,8 @@ export class AiService {
       }
 
       if (stuck) {
-        // Kural-ihlali bütçesi (illegal edge thrash): devam etmek tekrar thrash eder →
-        // orphan'ları temizle + graceful done (devam ETTİRİLMEZ).
+        // Rule-violation budget (illegal edge thrash): continuing would thrash again →
+        // clean orphans + graceful done (NOT resumable).
         yield* cleanupOrphans("rule-failure-budget");
         yield {
           type: "done",
@@ -620,9 +619,9 @@ export class AiService {
         };
         return;
       }
-      // ADIM LİMİTİ (MAX_TURNS): iş bitmedi ama tavan doldu. Orphan'ları TEMİZLEME —
-      // kısmi mimari korunur; "Devam et" (continueRun) ile agent mevcut grafı görüp
-      // kaldığı yerden sürer. paused event'i frontend'e "Devam et" butonu gösterir.
+      // STEP LIMIT (MAX_TURNS): work unfinished but ceiling reached. Do NOT clean orphans —
+      // partial architecture preserved; "Continue" (continueRun) lets agent see current graph and
+      // resume. paused event shows "Continue" button in frontend.
       yield {
         type: "paused",
         code: "MAX_TURNS_REACHED",
@@ -635,11 +634,11 @@ export class AiService {
         this.logger.log("Agent stream aborted (client disconnected) — the partial graph remains saved.");
         return;
       }
-      // Altyapı terminal hatası (kapalı havuz) burada da yakalanabilir (örn. LLM-dışı bir
-      // Neo4j çağrısı). Cleanup beyhude (havuz kapalı) → DENEME; net sinyal ver, kısmi graf kalsın.
+      // Infra terminal error (closed pool) may also be caught here (e.g. non-LLM
+      // Neo4j call). Cleanup futile (pool closed) → DO NOT attempt; clear signal, keep partial graph.
       if (isBackendUnavailable(err)) {
         this.logger.warn(
-          "[backend-unavailable] agent stream — veritabanı erişilemez (kapanıyor olabilir); kısmi graf korundu, cleanup atlandı.",
+          "[backend-unavailable] agent stream — database unreachable (may be shutting down); partial graph preserved, cleanup skipped.",
         );
         yield {
           type: "error",
@@ -651,9 +650,9 @@ export class AiService {
       }
       const msg = (err as Error)?.message ?? "";
       this.logger.error(`Stream generation error: ${msg.slice(0, 200)}`);
-      // Yarım graf kalmasın — orphan'ları temizle. cleanupOrphans kendi içinde her
-      // delete'i yutuyor; yine de defensif try/catch (ikinci exception error event'ini
-      // engellemesin).
+      // No half-finished graph — clean orphans. cleanupOrphans swallows each
+      // delete internally; still defensive try/catch (second exception must not
+      // block error event).
       try {
         yield* cleanupOrphans("agent-exception");
       } catch (e) {
@@ -668,52 +667,52 @@ export class AiService {
   }
 }
 
-/** chatStream için sistem prompt eki — agent loop davranışını şekillendirir. */
+/** System prompt appendix for chatStream — shapes agent loop behavior. */
 const STREAMING_DIRECTIVE = `
 
-## STREAMING AGENT DAVRANIŞI (ZORUNLU)
-Bu modda mimari **toplu turlarla** üretilir. Verimli ol: her tur mümkün olduğunca çok iş yap.
-1. **AYNI TURDA BİRDEN ÇOK TOOL ÇAĞIR (batch — ÇOK ÖNEMLİ).** İlgili node'ları tek turda, paralel create_node çağrılarıyla yarat (ör. bir turda 8-12 node). Dönen ID'leri sakla. Tek-tek çağırma; bu hem yavaştır hem tur tavanını (limit) tüketir.
-2. Node'lar yaratılıp ID'leri elindeyken, edge'leri de **toplu** yarat: bir turda olabildiğince çok create_edge çağır. (Her edge'in source+target node'u önceden yaratılmış olmalı → edge'ler, ait oldukları node'lardan SONRAKİ turlarda gelir.)
-3. Tool sana { ok: false, code, message, suggestion } dönerse: öneriyi (suggestion) oku, düzelt, **aynı tool'u tekrar dene**.
-4. Tüm gerekli node ve edge'ler yaratıldıktan sonra kullanıcıya kısa bir özet yaz (1-2 cümle, respond in English — the product UI is English) — bu son mesaj tool çağrısı OLMAMALI, sadece metin.
-5. Position belirtme; backend default verir, frontend otomatik yerleşim yapar.
+## STREAMING AGENT BEHAVIOR (REQUIRED)
+In this mode the architecture is produced in **batched turns**. Be efficient: do as much work per turn as possible.
+1. **CALL MULTIPLE TOOLS IN THE SAME TURN (batch — VERY IMPORTANT).** Create related nodes in one turn via parallel create_node calls (e.g. 8-12 nodes per turn). Save returned IDs. Do not call one-by-one; that is slow and burns the turn limit.
+2. Once nodes exist with IDs in hand, create edges **in bulk** too: call as many create_edge as possible in one turn. (Each edge's source+target must already exist → edges come in turns AFTER their nodes.)
+3. If a tool returns { ok: false, code, message, suggestion }: read the suggestion, fix, **retry the same tool**.
+4. After all required nodes and edges are created, write a brief summary for the user (1-2 sentences, respond in English — the product UI is English) — this final message must NOT be a tool call, text only.
+5. Do not specify position; backend defaults, frontend auto-layouts.
 
-## MEVCUT GRAFI DEĞİŞTİRME (REFACTOR)
-'Mevcut Kanvas Durumu'nda listelenen node/edge'ler ZATEN VAR. Kullanıcı bir DEĞİŞİKLİK istediyse (yeniden adlandır, sil, bir alanı/diziyi değiştir, bağlantıyı değiştir) bunları YENİDEN YARATMA — şu araçları kullan:
-- **update_node(nodeId, properties)** — mevcut bir node'u değiştir (yeniden adlandırma, açıklama/flag, bir diziyi değiştirme). Yalnız değişen üst-düzey alanları gönder; mevcut properties üzerine merge edilir. Bir DİZİ alanını (Columns/Endpoints/Methods/Fields) düzenleyeceksen ÖNCE \`get_node\` ile tamamını oku, sonra TAM diziyi gönder (diziler replace edilir, append edilmez).
-- **get_node(nodeId)** — düzenlemeden önce bir node'un tam properties'ini oku.
-- **delete_node(nodeId)** — bir node'u (ve edge'lerini) sil.
-- **delete_edge(edgeId)** — bir bağlantıyı sil. Bir bağlantıyı YENİDEN YÖNLENDİRMEK için: \`delete_edge(eskiId)\` + \`create_edge(yeni uçlar)\`.
-Node id'leri ve edge id'leri 'Mevcut Kanvas Durumu'nda verilmiştir — onları kullan, uydurma. Değişiklik bittiğinde tool çağırmadan kısa bir özet yaz.
+## MODIFY EXISTING GRAPH (REFACTOR)
+Nodes/edges listed in 'Current Canvas State' ALREADY EXIST. If the user wants a CHANGE (rename, delete, edit a field/array, rewire) do NOT recreate them — use these tools:
+- **update_node(nodeId, properties)** — modify an existing node (rename, description/flag, edit an array). Send only changed top-level fields; merged onto existing properties. To edit an ARRAY field (Columns/Endpoints/Methods/Fields) FIRST read the full array with \`get_node\`, then send the FULL array (arrays are replaced, not appended).
+- **get_node(nodeId)** — read a node's full properties before editing.
+- **delete_node(nodeId)** — delete a node (and its edges).
+- **delete_edge(edgeId)** — delete a connection. To REROUTE a connection: \`delete_edge(oldId)\` + \`create_edge(new endpoints)\`.
+Node ids and edge ids are given in 'Current Canvas State' — use them, do not invent. When done, write a brief summary without tool calls.
 
-## YETIM NODE YASAĞI (ÇOK ÖNEMLİ)
-**HİÇBİR node bağlantısız (orphan) kalmamalı.** Yarattığın her node en az bir edge ile başka bir node'a bağlı olmalı. Yarattığın node ID'lerini takip et — her birinin için en az bir create_edge çağırmadan "done" deme.
+## ORPHAN NODE RULE (VERY IMPORTANT)
+**NO node may remain disconnected (orphan).** Every node you create must connect to at least one other node via an edge. Track created node IDs — do not say "done" until each has at least one create_edge.
 
-### Node tipine göre DOĞRU YÖNLÜ bağlantı paternleri (pasif node = edge HEDEFİ, kaynağı değil):
-- **DTO** (hedef): \`create_edge(source=Controller|Service, target=DTO, kind=USES)\` — request/response payload. DTO yalnız \`DTO→HAS→DTO\` (nested) ve \`DTO→USES→Enum\`'da kaynak olur.
-- **Enum** (hedef): \`create_edge(source=Model|DTO|Table, target=Enum, kind=USES)\`. Enum asla kaynak DEĞİLDİR.
-- **Exception** (hedef): \`create_edge(source=Service|Controller|Repository, target=Exception, kind=THROWS)\`.
-- **EnvironmentVariable** (hedef): \`create_edge(source=Service, target=EnvironmentVariable, kind=READS_CONFIG)\`.
-- **Cache** (hedef): \`create_edge(source=Service, target=Cache, kind=CACHES_IN)\`.
-- **View** (hedef): \`create_edge(source=Repository, target=View, kind=QUERIES)\`.
-- **UIComponent** (hedef): \`create_edge(source=FrontendApp, target=UIComponent, kind=HAS)\`.
-- **Middleware** (kaynak): \`create_edge(source=Middleware, target=Controller, kind=ROUTES_TO)\`.
-- **Repository**: hedef → \`create_edge(source=Service, target=Repository, kind=CALLS)\`; kaynak → \`(source=Repository, target=Table, kind=QUERIES|WRITES)\`, \`(source=Repository, target=Model, kind=USES|RETURNS)\`.
-- **Model**: hedef → \`create_edge(source=Service, target=Model, kind=USES)\`; kaynak → \`Model→USES→Table\`, \`Model→USES→Enum\`, \`Model→HAS|EXTENDS→Model\`.
+### Correct-direction connection patterns by node type (passive node = edge TARGET, not source):
+- **DTO** (target): \`create_edge(source=Controller|Service, target=DTO, kind=USES)\` — request/response payload. DTO is source only in \`DTO→HAS→DTO\` (nested) and \`DTO→USES→Enum\`.
+- **Enum** (target): \`create_edge(source=Model|DTO|Table, target=Enum, kind=USES)\`. Enum is NEVER a source.
+- **Exception** (target): \`create_edge(source=Service|Controller|Repository, target=Exception, kind=THROWS)\`.
+- **EnvironmentVariable** (target): \`create_edge(source=Service, target=EnvironmentVariable, kind=READS_CONFIG)\`.
+- **Cache** (target): \`create_edge(source=Service, target=Cache, kind=CACHES_IN)\`.
+- **View** (target): \`create_edge(source=Repository, target=View, kind=QUERIES)\`.
+- **UIComponent** (target): \`create_edge(source=FrontendApp, target=UIComponent, kind=HAS)\`.
+- **Middleware** (source): \`create_edge(source=Middleware, target=Controller, kind=ROUTES_TO)\`.
+- **Repository**: target → \`create_edge(source=Service, target=Repository, kind=CALLS)\`; source → \`(source=Repository, target=Table, kind=QUERIES|WRITES)\`, \`(source=Repository, target=Model, kind=USES|RETURNS)\`.
+- **Model**: target → \`create_edge(source=Service, target=Model, kind=USES)\`; source → \`Model→USES→Table\`, \`Model→USES→Enum\`, \`Model→HAS|EXTENDS→Model\`.
 
-Bu paternleri DOĞRU YÖNDE uygulamazsan edge \`ERR_NOT_WHITELISTED\` ile reddedilir.
+If you apply these patterns in the WRONG direction the edge is rejected with \`ERR_NOT_WHITELISTED\`.
 
-### SON KONTROL (zorunlu)
-"done" mesajı yazmadan önce şu kontrolü yap: yarattığın her node ID'si için en az bir create_edge çağrısı yaptın mı? Hayır ise → eksik edge'leri şimdi yarat.
+### FINAL CHECK (required)
+Before writing "done": for every node ID you created, did you call at least one create_edge? If not → create missing edges now.
 
-## TOOL RESPONSE'TAKİ WARNINGS (SÜREKLİ TAKİP ET)
-create_node ve create_edge tool sonuçlarında \`warnings\` field'ı dönebilir:
+## WARNINGS IN TOOL RESPONSES (TRACK CONTINUOUSLY)
+create_node and create_edge results may include a \`warnings\` field:
 \`\`\`json
 {
   "ok": true, "id": "...", "type": "DTO",
   "warnings": {
-    "status": "8 node, 5 edge — 3 node henüz orphan. Yapılacaklar listene ekle, fırsat buldukça bağla.",
+    "status": "8 node, 5 edge — 3 nodes still orphan. Add to your todo list, connect when you can.",
     "pendingOrphans": [
       { "id": "abc-123", "type": "Middleware", "name": "JwtAuth", "hint": "create_edge(source=Middleware, target=Controller, kind=ROUTES_TO)" },
       ...
@@ -722,17 +721,17 @@ create_node ve create_edge tool sonuçlarında \`warnings\` field'ı dönebilir:
 }
 \`\`\`
 
-**Bu warnings'i her tool çağrısından sonra mutlaka oku.** \`pendingOrphans\` listesindeki node'ları yapılacaklar listenin başına ekle. Sonraki uygun fırsatta (yeni ilgili node yarattığında veya doğrudan) bu orphan'ları bağla. Yeni node yaratmaya devam ederken eski orphan'ları unutma — onlar **öncelikli**.`;
+**Read these warnings after every tool call.** Put \`pendingOrphans\` at the top of your todo list. Connect them at the next opportunity (when you create a related node or directly). Do not forget old orphans while creating new nodes — they are **priority**.`;
 
-/** Neo4j sürücüsü kapandığında (deploy SIGTERM / dev hot-reload → driver.close) atılan
- *  hata sınıfı. Bu hata RETRY edilemez ve LLM tarafından DÜZELTİLEMEZ — havuz kapalı.
- *  Tool döngüsü bunu görünce "düzelt" turlarıyla token yakmak yerine anında durmalı. */
+/** Thrown when Neo4j driver closed (deploy SIGTERM / dev hot-reload → driver.close).
+ *  This error is NOT retryable and CANNOT be fixed by LLM — pool closed.
+ *  Tool loop must stop immediately instead of burning tokens on "fix" turns. */
 function isBackendUnavailable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /pool is closed|driver is closed|connection pool is closed|driver has been closed/i.test(msg);
 }
 
-/** NestJS HttpException'dan response body'i (code, message, suggestion, ...) çıkarır. */
+/** Extract response body (code, message, suggestion, ...) from NestJS HttpException. */
 function httpExceptionBody(err: unknown): Record<string, unknown> {
   if (err instanceof HttpException) {
     const resp = err.getResponse();
@@ -743,7 +742,7 @@ function httpExceptionBody(err: unknown): Record<string, unknown> {
   return { code: "ERR_UNKNOWN", message: String(err) };
 }
 
-/** Node tipinden name field key'i — frontend nameOf ile aynı NAME_KEYS sırası. */
+/** Name field key from node type — same NAME_KEYS order as frontend nameOf. */
 const NAME_KEYS_BY_TYPE: Partial<Record<string, string>> = {
   Table: "TableName", DTO: "Name", Model: "ClassName", Enum: "Name", View: "ViewName",
   Service: "ServiceName", Worker: "WorkerName", EventHandler: "HandlerName",
@@ -766,32 +765,32 @@ function extractNodeName(type: string, properties: Record<string, unknown>): str
   return `(${type})`;
 }
 
-/** Orphan node listesi için LLM'e gönderilecek context — tipe göre bağlantı pattern'ı önerir. */
-// Pasif node'lar edge'in HEDEFİdir — hint'ler whitelist yönüyle BİREBİR (ters yön
-// ERR_NOT_WHITELISTED verir). source/target açıkça belirtilir.
+/** Context sent to LLM for orphan node list — suggests connection pattern by type. */
+// Passive nodes are edge TARGETs — hints match whitelist direction exactly (reverse
+// direction yields ERR_NOT_WHITELISTED). source/target explicitly stated.
 const ORPHAN_HINTS: Partial<Record<string, string>> = {
-  DTO: "DTO HEDEFTİR: create_edge(source=Controller veya Service, target=DTO, kind=USES). DTO kaynak olabildiği tek yer: DTO→USES→Enum, DTO→HAS→DTO.",
-  Middleware: "Middleware KAYNAKTIR: create_edge(source=Middleware, target=Controller, kind=ROUTES_TO).",
-  Enum: "Enum HEDEFTİR (asla kaynak): create_edge(source=Model veya DTO veya Table, target=Enum, kind=USES).",
-  Exception: "Exception HEDEFTİR: create_edge(source=Service veya Controller veya Repository, target=Exception, kind=THROWS).",
-  EnvironmentVariable: "EnvironmentVariable HEDEFTİR: create_edge(source=Service, target=EnvironmentVariable, kind=READS_CONFIG).",
-  Cache: "Cache HEDEFTİR: create_edge(source=Service, target=Cache, kind=CACHES_IN).",
-  Repository: "Repository HEM hedef HEM kaynak: create_edge(source=Service, target=Repository, kind=CALLS) + create_edge(source=Repository, target=Table, kind=QUERIES veya WRITES).",
-  UIComponent: "UIComponent HEDEFTİR: create_edge(source=FrontendApp, target=UIComponent, kind=HAS).",
-  Model: "Model: create_edge(source=Service, target=Model, kind=USES) (Model hedef) + Model→USES→Table, Model→USES→Enum (Model kaynak).",
-  View: "View HEDEFTİR: create_edge(source=Repository, target=View, kind=QUERIES).",
+  DTO: "DTO is TARGET: create_edge(source=Controller or Service, target=DTO, kind=USES). DTO is source only in DTO→USES→Enum, DTO→HAS→DTO.",
+  Middleware: "Middleware is SOURCE: create_edge(source=Middleware, target=Controller, kind=ROUTES_TO).",
+  Enum: "Enum is TARGET (never source): create_edge(source=Model or DTO or Table, target=Enum, kind=USES).",
+  Exception: "Exception is TARGET: create_edge(source=Service or Controller or Repository, target=Exception, kind=THROWS).",
+  EnvironmentVariable: "EnvironmentVariable is TARGET: create_edge(source=Service, target=EnvironmentVariable, kind=READS_CONFIG).",
+  Cache: "Cache is TARGET: create_edge(source=Service, target=Cache, kind=CACHES_IN).",
+  Repository: "Repository is BOTH target AND source: create_edge(source=Service, target=Repository, kind=CALLS) + create_edge(source=Repository, target=Table, kind=QUERIES or WRITES).",
+  UIComponent: "UIComponent is TARGET: create_edge(source=FrontendApp, target=UIComponent, kind=HAS).",
+  Model: "Model: create_edge(source=Service, target=Model, kind=USES) (Model target) + Model→USES→Table, Model→USES→Enum (Model source).",
+  View: "View is TARGET: create_edge(source=Repository, target=View, kind=QUERIES).",
 };
 
 function buildOrphanContext(orphans: Array<{ id: string; type: string; name: string }>): string {
   return orphans
     .map((o) => {
-      const hint = ORPHAN_HINTS[o.type] ?? "Mantıklı bir node ile bir edge yarat (CALLS, USES, HAS, vb.).";
+      const hint = ORPHAN_HINTS[o.type] ?? "Create an edge to a sensible node (CALLS, USES, HAS, etc.).";
       return `- **${o.type}** "${o.name}" (id: ${o.id}) → ${hint}`;
     })
     .join("\n");
 }
 
-/** Instruct mode system prompt — graph snapshot + markup talimatı. */
+/** Instruct mode system prompt — graph snapshot + markup instructions. */
 function buildInstructPrompt(
   nodes: Array<{ id: string; type: string; properties?: Record<string, unknown> }>,
   edges: Array<{ id: string; sourceNodeId: string; targetNodeId: string; kind: string }>,
@@ -808,40 +807,40 @@ function buildInstructPrompt(
     target: e.targetNodeId,
   }));
 
-  return `Sen Solarch'ın baş yazılım mimarısın. Kullanıcının mevcut mimari grafiği hakkında sorulara açık, profesyonel, kısa cevaplar verirsin (respond in English — the product UI is English).
+  return `You are Solarch's lead software architect. You answer questions about the user's current architecture graph clearly, professionally, and concisely (respond in English — the product UI is English).
 
-**KESİNLİKLE NODE YARATMA / DEĞİŞTİRME.** Sadece mevcut grafiği açıklayıp, kullanıcıya rehberlik et.
+**NEVER CREATE OR MODIFY NODES.** Only explain the existing graph and guide the user.
 
-## NODE/EDGE REFERANS MARKUP'I (ZORUNLU)
-Bir node'tan bahsederken bu formatı kullan: \`[[node:NODE_ID|Görünen İsim]]\`
-Örnekler:
-- "[[node:abc-12345|Users tablosu]] kullanıcı verilerini tutar."
-- "İstek önce [[node:def-67890|AuthController]]'a düşer, sonra [[node:ghi-13579|AuthService]]'e geçer."
+## NODE/EDGE REFERENCE MARKUP (REQUIRED)
+When referring to a node use this format: \`[[node:NODE_ID|Display Name]]\`
+Examples:
+- "[[node:abc-12345|Users table]] stores user data."
+- "The request first hits [[node:def-67890|AuthController]], then [[node:ghi-13579|AuthService]]."
 
-Bir edge'den bahsederken: \`[[edge:EDGE_ID|kısa açıklama]]\`
-Örnek: "[[edge:xyz-456|CALLS bağlantısı]] üzerinden çağrılır."
+When referring to an edge: \`[[edge:EDGE_ID|short description]]\`
+Example: "Called via [[edge:xyz-456|CALLS connection]]."
 
-**ID'ler aşağıdaki snapshot'ta verilmiştir — ASLA uydurma, mutlaka bu ID'leri kullan.** Düz isim yazmak yerine her zaman markup kullan ki frontend chip'e dönüştürüp canvas'ta vurgulayabilsin.
+**IDs are given in the snapshot below — NEVER invent them, always use these IDs.** Always use markup instead of plain names so the frontend can convert to chips and highlight on the canvas.
 
-## MEVCUT MİMARİ SNAPSHOT'I
+## CURRENT ARCHITECTURE SNAPSHOT
 
-### Node'lar (${nodes.length})
+### Nodes (${nodes.length})
 ${JSON.stringify(nodeSnapshot, null, 2)}
 
-### Edge'ler (${edges.length})
+### Edges (${edges.length})
 ${JSON.stringify(edgeSnapshot, null, 2)}
 
-## TARZ
-- Kısa, net, jargonsuz (respond in English — the product UI is English).
-- Markdown başlık/listeler kullanabilirsin ama abartma.
-- Cevabın akıcı olmalı, marker'lar metni bölmemeli (chip'ler inline görünür).`;
+## STYLE
+- Short, clear, no jargon (respond in English — the product UI is English).
+- You may use markdown headings/lists but don't overdo it.
+- Your answer should flow; markers must not break the text (chips appear inline).`;
 }
 
-/** Project warning — her tool result'a eklenir. LLM bunu okuyup TODO list'ine
- *  öncelikli ekler. Reactive değil proactive: orphan biriktirmek yerine her
- *  adımda durum farkındalığı sağlar. */
+/** Project warning — appended to each tool result. LLM reads this and adds to TODO list
+ *  with priority. Proactive not reactive: situational awareness each step instead of
+ *  accumulating orphans. */
 interface ProjectWarnings {
-  status: string; // "10 node, 6 edge — 4 orphan kalıyor"
+  status: string; // "10 node, 6 edge — 4 orphans remaining"
   pendingOrphans: Array<{ id: string; type: string; name: string; hint: string }>;
 }
 
@@ -855,20 +854,20 @@ function computeProjectWarnings(
   const orphans = [...createdNodes.values()].filter((n) => !edgeEndpoints.has(n.id));
 
   if (orphans.length === 0) {
-    // Tüm node'lar bağlı — sadece kısa status bilgisi (LLM "iyi gidiyorum" der)
+    // All nodes connected — brief status only (LLM knows it's going well)
     return {
-      status: `${nodeCount} node, ${edgeCount} edge — tüm node'lar bağlı, iyi gidiyorsun.`,
+      status: `${nodeCount} node, ${edgeCount} edge — all nodes connected, looking good.`,
       pendingOrphans: [],
     };
   }
 
   return {
-    status: `${nodeCount} node, ${edgeCount} edge — ${orphans.length} node henüz orphan. Yapılacaklar listene ekle, fırsat buldukça bağla.`,
+    status: `${nodeCount} node, ${edgeCount} edge — ${orphans.length} nodes still orphan. Add to your todo list, connect when you can.`,
     pendingOrphans: orphans.map((o) => ({
       id: o.id,
       type: o.type,
       name: o.name,
-      hint: ORPHAN_HINTS[o.type] ?? "Mantıklı bir node ile edge yarat (CALLS, USES, HAS, vb.).",
+      hint: ORPHAN_HINTS[o.type] ?? "Create an edge to a sensible node (CALLS, USES, HAS, etc.).",
     })),
   };
 }

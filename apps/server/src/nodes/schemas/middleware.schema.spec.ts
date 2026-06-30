@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   MiddlewareName: "RateLimiterMiddleware",
-  Description: "İstek hız sınırlandırma",
+  Description: "Request rate limiting",
   AppliesTo: "Global" as const,
   ExecutionOrder: 1,
 };
@@ -20,13 +20,13 @@ const parse = (properties: unknown) =>
   MiddlewareNodeSchema.parse({ ...validBase, type: "Middleware", properties });
 
 describe("MiddlewareNodeSchema (enriched)", () => {
-  it("geçerli Middleware'i parse eder (Config default boş)", () => {
+  it("parses valid Middleware (Config default empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.ExecutionOrder).toBe(1);
     expect(node.properties.Config).toEqual([]);
   });
 
-  it("MiddlewareType + Config kabul eder", () => {
+  it("accepts MiddlewareType + Config", () => {
     const node = parse({
       ...validProperties,
       MiddlewareType: "RateLimit",
@@ -36,15 +36,15 @@ describe("MiddlewareNodeSchema (enriched)", () => {
     expect(node.properties.Config).toHaveLength(2);
   });
 
-  it("geçersiz MiddlewareType reddeder", () => {
+  it("rejects invalid MiddlewareType", () => {
     expect(() => parse({ ...validProperties, MiddlewareType: "Caching" })).toThrow();
   });
 
-  it("Bilinmeyen AppliesTo reddeder", () => {
+  it("rejects unknown AppliesTo", () => {
     expect(() => parse({ ...validProperties, AppliesTo: "Module" })).toThrow();
   });
 
-  it("ExecutionOrder negatif olamaz", () => {
+  it("ExecutionOrder cannot be negative", () => {
     expect(() => parse({ ...validProperties, ExecutionOrder: -1 })).toThrow();
   });
 });

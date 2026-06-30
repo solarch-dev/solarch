@@ -11,8 +11,8 @@ export class ConflictFilter implements ExceptionFilter {
     const code = typeof res === "object" && res.code ? res.code : "ERR_CONFLICT";
     const message = typeof res === "object" && res.message ? res.message : "Conflict.";
     const envelope = err(code, message);
-    // Rules Engine reddinin çekirdek değeri (suggestion/ruleViolated/docLink) ve
-    // version conflict'in currentVersion'ı düşmesin — envelope'a taşı (PaymentRequiredFilter deseni).
+    // Preserve Rules Engine rejection core (suggestion/ruleViolated/docLink) and
+    // version conflict currentVersion on the envelope (PaymentRequiredFilter pattern).
     if (typeof res === "object") {
       const e = envelope.error as Record<string, unknown>;
       if (res.suggestion) e.suggestion = res.suggestion;

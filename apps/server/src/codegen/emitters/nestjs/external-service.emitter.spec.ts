@@ -5,7 +5,7 @@ import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT_ID = "00000000-0000-4000-8000-000000000000";
 const TAB_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -67,10 +67,10 @@ function ctxFor(nodes: StoredNode[], edges: StoredEdge[] = []): { ctx: EmitterCo
   return { ctx: { graph, target: "nestjs" } };
 }
 
-/** Tipik dış servis: Stripe-benzeri Bearer auth + iki endpoint. */
+/** Tipik dis servis: Stripe-benzeri Bearer auth + iki endpoint. */
 const STRIPE = {
   ServiceName: "StripeClient",
-  Description: "Stripe ödeme API istemcisi",
+  Description: "Stripe odeme API istemcisi",
   BaseURL: "https://api.stripe.com",
   AuthType: "Bearer",
   TimeoutSeconds: 30,
@@ -81,7 +81,7 @@ const STRIPE = {
 };
 
 describe("emitExternalService", () => {
-  it("@Injectable HTTP client snapshot (gerçek kod, stub değil)", () => {
+  it("@Injectable HTTP client snapshot (gercek kod, stub degil)", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
@@ -91,7 +91,7 @@ describe("emitExternalService", () => {
       import { Injectable } from "@nestjs/common";
       import { ConfigService } from "@nestjs/config";
 
-      /** Stripe ödeme API istemcisi */
+      /** Stripe odeme API istemcisi */
       @Injectable()
       export class StripeClient {
         private readonly baseUrl: string;
@@ -137,7 +137,7 @@ describe("emitExternalService", () => {
     `);
   });
 
-  it("sınıf adı gerçek (pascalCase), Stub eki YOK", () => {
+  it("sinif adi gercek (pascalCase), Stub eki NONE", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
@@ -160,16 +160,16 @@ describe("emitExternalService", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
-    // baseNameOf("StripeClient") -> "Stripe"; referrer'sız standalone node
-    // feature-inference'ta "common"a düşer (bir Service CALLS etmiyor).
+    // baseNameOf("StripeClient") -> "Stripe"; referrer'siz standalone node
+    // feature-inference'ta "common"a duser (bir Service CALLS etmiyor).
     expect(file.path).toBe("common/stripe.client.ts");
     expect(file.path.endsWith(".client.ts")).toBe(true);
   });
 
-  it("feature ataması: bir Service CALLS ederse o feature klasörüne yazılır", () => {
+  it("feature atamasi: bir Service CALLS ederse o feature klasorune yazilir", () => {
     const ext = extNode({
       ServiceName: "StableDiffusionApi",
-      Description: "Görsel üretimi",
+      Description: "Gorsel uretimi",
       BaseURL: "https://sd.example.com",
       AuthType: "API_Key",
       TimeoutSeconds: 60,
@@ -177,22 +177,22 @@ describe("emitExternalService", () => {
     });
     const svc = serviceNode({
       ServiceName: "ImageGenerationService",
-      Description: "Görsel üreten servis",
+      Description: "Gorsel ureten servis",
       Methods: [],
       Dependencies: [],
     });
     const { ctx } = ctxFor([ext, svc], [callsEdge(svc.id, ext.id)]);
     const [file] = emitExternalService(ctx.graph.byId(ext.id)!, ctx);
     // baseNameOf("StableDiffusionApi") -> "StableDiffusion"; CALLS eden servis
-    // "image-generation" feature'ında -> ext de aynı feature'a düşer.
+    // "image-generation" feature'inda -> ext de ayni feature'a duser.
     expect(file.path).toBe("image-generation/stable-diffusion.client.ts");
     expect(file.content).toContain("export class StableDiffusionApi {");
   });
 
-  it("Endpoint yoksa tek generic request<T> metodu üretir", () => {
+  it("Endpoint yoksa tek generic request<T> metodu uretir", () => {
     const node = extNode({
       ServiceName: "MailService",
-      Description: "E-posta gönderimi",
+      Description: "E-posta gonderimi",
       BaseURL: "https://mail.example.com",
       AuthType: "None",
       TimeoutSeconds: 10,
@@ -204,15 +204,15 @@ describe("emitExternalService", () => {
       "async request<T = unknown>(method: string, path: string, payload?: unknown): Promise<T> {",
     );
     expect(file.content).toContain("NOT_IMPLEMENTED: MailService.request");
-    // baseNameOf("MailService") -> "Mail" (Service eki düşer); standalone ->
-    // common feature klasörü.
+    // baseNameOf("MailService") -> "Mail" (Service eki duser); standalone ->
+    // common feature klasoru.
     expect(file.path).toBe("common/mail.client.ts");
   });
 
-  it("Endpoint metotları Name'e göre deterministik sıralı (Zebra önce mi sonra mı)", () => {
+  it("Endpoint metotlari Name'e gore deterministik sirali (Zebra once mi sonra mi)", () => {
     const node = extNode({
       ServiceName: "MultiApi",
-      Description: "çok uçlu",
+      Description: "cok uclu",
       BaseURL: "https://m.example.com",
       AuthType: "None",
       TimeoutSeconds: 5,
@@ -232,7 +232,7 @@ describe("emitExternalService", () => {
     expect(idxMango).toBeLessThan(idxZebra);
   });
 
-  it("HTTP fiili HttpService metoduna eşlenir (this.http.<verb>)", () => {
+  it("HTTP fiili HttpService metoduna eslenir (this.http.<verb>)", () => {
     const node = extNode({
       ServiceName: "VerbApi",
       Description: "fiiller",
@@ -250,7 +250,7 @@ describe("emitExternalService", () => {
     expect(file.content).toContain("this.http.delete");
   });
 
-  it("AuthType=None -> authHeaders helper'ı ÜRETİLMEZ", () => {
+  it("AuthType=None -> authHeaders helper'i URETILMEZ", () => {
     const node = extNode({
       ServiceName: "OpenApi",
       Description: "auth yok",
@@ -264,7 +264,7 @@ describe("emitExternalService", () => {
     expect(file.content).not.toContain("authHeaders");
   });
 
-  it("API_Key auth -> ENV binding ile API_KEY, RAW secret koda gömülmez", () => {
+  it("API_Key auth -> ENV binding ile API_KEY, RAW secret koda gomulmez", () => {
     const node = extNode({
       ServiceName: "KeyedApi",
       Description: "api key",
@@ -277,22 +277,22 @@ describe("emitExternalService", () => {
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
     expect(file.content).toContain("private authHeaders(): Record<string, string> {");
     expect(file.content).toContain("KEYED_API_API_KEY");
-    // BaseURL bir literal olarak koda gömülmemeli (ENV binding ile okunur).
+    // BaseURL bir literal olarak koda gomulmemeli (ENV binding ile okunur).
     expect(file.content).not.toContain("https://k.example.com");
   });
 
-  it("BaseURL/Timeout ConfigService env-var binding ile okunur (literal gömülmez)", () => {
+  it("BaseURL/Timeout ConfigService env-var binding ile okunur (literal gomulmez)", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
     expect(file.content).toContain('this.config.get<string>("STRIPE_CLIENT_BASE_URL")');
     expect(file.content).toContain('this.config.get<number>("STRIPE_CLIENT_TIMEOUT_SECONDS")');
     expect(file.content).not.toContain("https://api.stripe.com");
-    // Fallback olarak schema TimeoutSeconds kullanılır.
+    // Fallback olarak schema TimeoutSeconds kullanilir.
     expect(file.content).toContain("?? 30) * 1000");
   });
 
-  it("surgicalMarkers gövde gerektiren her metotta sayılır", () => {
+  it("surgicalMarkers govde gerektiren her metotta sayilir", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
@@ -301,7 +301,7 @@ describe("emitExternalService", () => {
     expect(file.content).toContain("@solarch:surgical");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const [file] = emitExternalService(ctx.graph.byId(node.id)!, ctx);
@@ -309,7 +309,7 @@ describe("emitExternalService", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const node = extNode(STRIPE);
     const { ctx } = ctxFor([node]);
     const a = emitExternalService(ctx.graph.byId(node.id)!, ctx)[0].content;

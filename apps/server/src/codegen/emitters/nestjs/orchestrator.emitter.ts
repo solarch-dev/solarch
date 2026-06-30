@@ -14,43 +14,43 @@ import type { OrchestratorNode } from "../../../nodes/schemas/orchestrator.schem
 /* ────────────────────────────────────────────────────────────────────────
  * orchestrator.emitter.ts — OrchestratorNode -> <feature>/<base>.orchestrator.ts.
  *
- * Bir Orchestrator, birden çok Service'i bir İŞ AKIŞINA (Saga / state machine /
- * process manager) bağlayan @Injectable() koordinatördür. Kendi iş mantığı
- * yoktur — KOORDİNE eder: enjekte ettiği Service'lerin metotlarını sıralı (veya
- * telafili) çağırır.
+ * Bir Orchestrator, birden cok Service'i bir IS AKISINA (Saga / state machine /
+ * process manager) baglayan @Injectable() koordinatordur. Kendi is mantigi
+ * yoktur — KOORDINE eder: enjekte ettigi Service'lerin metotlarini sirali (veya
+ * telafili) cagirir.
  *
- * DI alanları (constructor):
- *   - Steps[].ServiceRef ile adlanan her Service node BİRLEŞİM
+ * DI alanlari (constructor):
+ *   - Steps[].ServiceRef ile adlanan her Service node BIRLESIM
  *     graph.outEdges(id, "CALLS") hedeflerinden Service olanlar. DEDUP edilir,
- *     isme göre sıralanır, `private readonly <camelCaseRef>: <ClassName>` olarak
- *     enjekte edilir. Çözülebilen ref'ler için import eklenir; çözülemeyen ref'ler
- *     ham Ref isminden sınıf adı türetir (import atlanır → ASLA throw).
+ *     isme gore siralanir, `private readonly <camelCaseRef>: <ClassName>` olarak
+ *     enjekte edilir. Cozulebilen ref'ler icin import eklenir; cozulemeyen ref'ler
+ *     ham Ref isminden sinif adi turetir (import atlanir → ASLA throw).
  *
  * Metotlar:
- *   - execute(): orchestrator giriş noktası (tüm akışı yürütür). Surgical gövde;
- *     deps = enjekte edilen tüm Service'ler.
- *   - Her Step için bir metot (kebab/camel StepName). Surgical gövde; deps = o
- *     adımı yürüten Service (ServiceRef). Description = "Action" (+ OnFailure /
- *     CompensationAction notları).
+ *   - execute(): orchestrator giris noktasi (tum akisi yurutur). Surgical govde;
+ *     deps = enjekte edilen tum Service'ler.
+ *   - Her Step icin bir metot (kebab/camel StepName). Surgical govde; deps = o
+ *     adimi yuruten Service (ServiceRef). Description = "Action" (+ OnFailure /
+ *     CompensationAction notlari).
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar sıralı (deps isme, metotlar Step sırasında),
- * import'lar ImportCollector ile, timestamp/random yok, içerik tek "\n" ile biter.
+ * SAF + DETERMINISTIC: koleksiyonlar sirali (deps isme, metotlar Step sirasinda),
+ * import'lar ImportCollector ile, timestamp/random yok, icerik tek "\n" ile biter.
  *
- * NOT: Orchestrator PropsByKind içinde DEĞİL — propsOf<...> KULLANILMAZ.
- * properties OrchestratorNode["properties"] olarak tipli okunur (DB Zod-doğrulanmış).
+ * NOT: Orchestrator PropsByKind icinde NOT — propsOf<...> KULLANILMAZ.
+ * properties OrchestratorNode["properties"] olarak tipli okunur (DB Zod-dogrulanmis).
  * ──────────────────────────────────────────────────────────────────────── */
 
 type OrchestratorProps = OrchestratorNode["properties"];
 type OrchestratorStep = OrchestratorProps["Steps"][number];
 
-/** Çözülmüş bir bağımlılık (enjekte edilen Service): DI alanı + sınıf tipi +
+/** Cozulmus bir bagimlilik (enjekte edilen Service): DI alani + sinif tipi +
  *  (varsa) import yolu. */
 interface ResolvedServiceDep {
   /** constructor / this.<field> */
   field: string;
-  /** enjekte edilen sınıf tipi (pascalCase(name)) */
+  /** enjekte edilen sinif tipi (pascalCase(name)) */
   className: string;
-  /** çözülen node'un dosya yolu (import için); çözülemezse null. */
+  /** cozulen node'un dosya yolu (import icin); cozulemezse null. */
   filePath: string | null;
 }
 
@@ -63,10 +63,10 @@ export const emitOrchestrator: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   const imports = new ImportCollector();
   imports.add("Injectable", "@nestjs/common");
 
-  // ── DI bağımlılıkları: Steps[].ServiceRef ∪ CALLS hedefleri (Service) ──────
-  // DEDUP (çözülen node.name veya ham ref) + isme göre sıralı. Her step'in hangi
-  // service alanına karşılık geldiğini metot gövdesinde işaretleyebilmek için
-  // ref -> field eşlemesini de tutarız.
+  // ── DI bagimliliklari: Steps[].ServiceRef ∪ CALLS hedefleri (Service) ──────
+  // DEDUP (cozulen node.name veya ham ref) + isme gore sirali. Her step'in hangi
+  // service alanina karsilik geldigini metot govdesinde isaretleyebilmek icin
+  // ref -> field eslemesini de tutariz.
   const { deps, fieldByRef } = collectServiceDeps(node, props, graph);
   for (const dep of deps) {
     if (dep.filePath) {
@@ -76,14 +76,14 @@ export const emitOrchestrator: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   const allDepFields = deps.map((d) => `this.${d.field}`);
 
   // ── Metotlar ──────────────────────────────────────────────────────────────
-  // (1) execute(): tüm akışın giriş noktası (deps = tümü).
-  // (2) Her Step için bir metot (deps = o adımın service'i).
+  // (1) execute(): tum akisin giris noktasi (deps = tumu).
+  // (2) Her Step icin bir metot (deps = o adimin service'i).
   const methodBlocks: string[] = [renderExecute(node, className, props, allDepFields)];
   for (const step of props.Steps ?? []) {
     methodBlocks.push(renderStep(node, className, step, fieldByRef));
   }
 
-  // ── Sınıf gövdesi ───────────────────────────────────────────────────────────
+  // ── Sinif govdesi ───────────────────────────────────────────────────────────
   const lines: string[] = [];
   if (props.Description) lines.push(`/** ${props.Description} */`);
   lines.push("@Injectable()");
@@ -117,25 +117,25 @@ export const emitOrchestrator: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   return [file];
 };
 
-/** Steps[].ServiceRef ∪ CALLS edge hedeflerini (Service) DEDUP edip isme göre
- *  sıralanmış ResolvedServiceDep listesi + ref->field eşlemesi döndürür.
- *  Çözülemeyen ServiceRef'ler ham isimden sınıf adı türetir (filePath=null →
- *  import atlanır). Asla throw etmez. */
+/** Steps[].ServiceRef ∪ CALLS edge hedeflerini (Service) DEDUP edip isme gore
+ *  siralanmis ResolvedServiceDep listesi + ref->field eslemesi dondurur.
+ *  Cozulemeyen ServiceRef'ler ham isimden sinif adi turetir (filePath=null →
+ *  import atlanir). Asla throw etmez. */
 function collectServiceDeps(
   node: CodeNode,
   props: OrchestratorProps,
   graph: CodeGraph,
 ): { deps: ResolvedServiceDep[]; fieldByRef: Map<string, string> } {
-  // refName (çözülen node.name veya ham ref) -> ResolvedServiceDep (DEDUP).
+  // refName (cozulen node.name veya ham ref) -> ResolvedServiceDep (DEDUP).
   const byKey = new Map<string, ResolvedServiceDep>();
-  // Her ham ServiceRef ismini -> DI alan adına eşler (step gövdesi için).
+  // Her ham ServiceRef ismini -> DI alan adina esler (step govdesi icin).
   const fieldByRef = new Map<string, string>();
 
   const register = (resolved: CodeNode | null, rawRef: string): string => {
     const refName = resolved ? resolved.name : rawRef;
     let entry = byKey.get(refName);
     if (entry) {
-      // Mevcut çözülmemiş + gelen çözülmüş -> yükselt (import kaybını önle).
+      // Mevcut cozulmemis + gelen cozulmus -> yukselt (import kaybini onle).
       if (entry.filePath === null && resolved) {
         entry.filePath = filePathFor(resolved, graph);
         entry.className = pascalCase(resolved.name);
@@ -151,17 +151,17 @@ function collectServiceDeps(
     return entry.field;
   };
 
-  // (1) Steps[].ServiceRef — her adımı yürüten Service.
+  // (1) Steps[].ServiceRef — her adimi yuruten Service.
   for (const step of props.Steps ?? []) {
     const ref = step.ServiceRef;
     if (!ref) continue;
     const resolved = graph.resolveRef("Service", ref);
     const field = register(resolved, ref);
-    // Ham ServiceRef -> field (step gövdesi this.<field> işaretler).
+    // Ham ServiceRef -> field (step govdesi this.<field> isaretler).
     if (!fieldByRef.has(ref)) fieldByRef.set(ref, field);
   }
 
-  // (2) CALLS edge hedefleri — Service olanlar (Steps'te geçmeyenler de DI'ya girer).
+  // (2) CALLS edge hedefleri — Service olanlar (Steps'te gecmeyenler de DI'ya girer).
   for (const e of graph.outEdges(node.id, "CALLS")) {
     const tgt = graph.byId(e.targetNodeId);
     if (!tgt || tgt.kindOf() !== "Service") continue;
@@ -173,8 +173,8 @@ function collectServiceDeps(
   return { deps, fieldByRef };
 }
 
-/** execute() — orchestrator giriş noktası. Tüm akışı (Steps sırasıyla) yürütür.
- *  deps = enjekte edilen TÜM service alanları. Surgical gövde. */
+/** execute() — orchestrator giris noktasi. Tum akisi (Steps sirasiyla) yurutur.
+ *  deps = enjekte edilen TUM service alanlari. Surgical govde. */
 function renderExecute(
   node: CodeNode,
   className: string,
@@ -202,8 +202,8 @@ function renderExecute(
   return lines.join("\n");
 }
 
-/** Tek bir Step'i bir metoda çevirir (imza + surgical gövde). Metot adı StepName'
- *  den camelCase türetilir; deps = o adımı yürüten Service alanı (varsa). */
+/** Tek bir Step'i bir metoda cevirir (imza + surgical govde). Metot adi StepName'
+ *  den camelCase turetilir; deps = o adimi yuruten Service alani (varsa). */
 function renderStep(
   node: CodeNode,
   className: string,
@@ -213,12 +213,12 @@ function renderStep(
   const indent = "  ";
   const method = stepMethodName(step.StepName);
 
-  // Bu adımı yürüten service alanı (ServiceRef -> field).
+  // Bu adimi yuruten service alani (ServiceRef -> field).
   const depFields: string[] = [];
   const field = step.ServiceRef ? fieldByRef.get(step.ServiceRef) : undefined;
   if (field) depFields.push(`this.${field}`);
 
-  // Açıklama: Action + OnFailure + (varsa) CompensationAction.
+  // Aciklama: Action + OnFailure + (varsa) CompensationAction.
   const descParts: string[] = [];
   if (step.Action) descParts.push(step.Action);
   descParts.push(`onFailure: ${step.OnFailure}`);
@@ -239,13 +239,13 @@ function renderStep(
   return lines.join("\n");
 }
 
-/** Bir StepName'i geçerli bir TS metot adına çevirir: camelCase; boşsa "step". */
+/** Bir StepName'i gecerli bir TS metot adina cevirir: camelCase; bossa "step". */
 function stepMethodName(stepName: string): string {
   const camel = camelCase(stepName);
   return camel.length > 0 ? camel : "step";
 }
 
-/** Deterministik string karşılaştırması. */
+/** Deterministik string karsilastirmasi. */
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }

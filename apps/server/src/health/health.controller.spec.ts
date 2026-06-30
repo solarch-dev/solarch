@@ -5,7 +5,7 @@ import { HealthController } from "./health.controller";
 const make = (ping: () => Promise<void>) => new HealthController({ ping } as never);
 
 describe("HealthController", () => {
-  it("liveness: status ok döner (DB'ye dokunmaz)", () => {
+  it("liveness: returns status ok (does not touch DB)", () => {
     const controller = make(async () => {});
     const result = controller.check();
     expect(result.success).toBe(true);

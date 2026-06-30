@@ -101,8 +101,8 @@ export class EdgesService {
     // Rules Engine — full node fetch + evaluate
     const sourceNode = await this.nodesRepo.getById(urlProjectId, input.sourceNodeId);
     const targetNode = await this.nodesRepo.getById(urlProjectId, input.targetNodeId);
-    // Bloklamayan uyarı (örn. WARN_COND_001 boş-tablo) — edge yine yaratılır ama
-    // response'a iliştirilip kullanıcıya gösterilir (sessizce yutulmasın).
+    // Non-blocking warning (e.g. WARN_COND_001 empty-tab) — edge still created but
+    // attached to response for user display (not silently swallowed).
     let warning: EdgeWarning | undefined;
     if (sourceNode && targetNode) {
       const evaluation = await this.rulesEngine.evaluate({
@@ -138,7 +138,7 @@ export class EdgesService {
       properties: input.properties,
     };
     // repo.create idempotent (apoc.merge) + endpoint'leri atomik MATCH eder.
-    // null → endpoint(ler) bu an silinmiş (check ile create arası race).
+    // null -> endpoint(s) deleted between check and create (race).
     const persisted = await this.repo.create(stored);
     if (!persisted) {
       throw new NotFoundException({

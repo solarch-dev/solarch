@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 import globals from "globals";
 
 // Flat config (ESLint 9). Syntactic recommended + TS recommended; type-aware (parserOptions.
-// project) KAPALI → hızlı + mevcut kodu patlatmadan yeşil gate. Sertleşmesi sonra.
+//project) OFF → fast + green gate without blowing up existing code. After hardening.
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage"] },
   js.configs.recommended,
@@ -13,7 +13,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
-      // `const self = this` SSE/async-generator closure'larında bilinçli (arrow generator olamaz).
+// `const self = this` is intentional in SSE/async-generator closures (cannot be an arrow generator).
       "@typescript-eslint/no-this-alias": "warn",
     },
   },

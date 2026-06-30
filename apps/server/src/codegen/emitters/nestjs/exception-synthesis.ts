@@ -3,36 +3,36 @@ import { propsOf, type CodeGraph } from "../../ir";
 import { kebabCase, pascalCase, splitWords } from "../../naming";
 
 /* ────────────────────────────────────────────────────────────────────────
- * exception-synthesis.ts — BİLDİRİLMİŞ-AMA-TANIMSIZ Throws için exception SENTEZİ.
+ * exception-synthesis.ts — exception SYNTHESIS for declared-but-undefined Throws.
  *
- * Dikiş (entity-synthesis ile aynı aile): bir Service metodu `Throws=[X]` bildirir
- * ama grafta X adında Exception node'u YOKTUR. service.emitter bunu surgical
- * marker'a yazar (`// throws: X`), fill'in checkContract'ı X'i FIRLATMAYA zorlar
- * (declared-throws realization) → fill `throw new X(...)` üretir → ama sınıf ne
- * üretilmiş ne import edilmiş → TS2304. Yani fill SÖZLEŞMEYE UYUYOR; Constructor
- * olmayan bir exception'ı fırlatmasını söylüyor.
+ * Stitch (same family as entity-synthesis): a Service method declares `Throws=[X]`
+ * but no Exception node named X exists in the graph. service.emitter writes a surgical
+ * marker (`// throws: X`); fill's checkContract forces throwing X
+ * (declared-throws realization) → fill emits `throw new X(...)` → but the class is
+ * neither generated nor imported → TS2304. So fill HONORS the contract; it is told
+ * to throw an exception with no Constructor.
  *
- * Çözüm: bildirilmiş-ama-tanımsız her Throws için minimal bir HttpException
- * alt-sınıfı üret (gerçek exception.emitter çıktısıyla aynı şekil: code+message+
- * status). Böylece kontrat DERLENİR. Sınıf adı/yolu TEK KAYNAK (synthException*)
- * — service.emitter import'u ve bu emitter AYNI sembole/dosyaya bağlanır.
+ * Fix: for each declared-but-undefined Throws entry, emit a minimal HttpException
+ * subclass (same shape as real exception.emitter output: code+message+
+ * status). Then the contract COMPILES. Class name/path is SINGLE SOURCE (synthException*)
+ * — service.emitter imports and this emitter bind to the SAME symbol/file.
  *
- * SAF + DETERMİNİSTİK: yalnız graf okuması, isme göre sıralı, yan etki yok.
+ * PURE + DETERMINISTIC: graph read only, sorted by name, no side effects.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Sentezlenen exception'ın export sınıf adı (pascalCase) — TEK KAYNAK. */
+/** Export class name for synthesized exception (pascalCase) — SINGLE SOURCE. */
 export function synthExceptionClassName(name: string): string {
   return pascalCase(name);
 }
 
-/** Sentezlenen exception'ın proje-köküne göreli dosya yolu — TEK KAYNAK.
- *  Gerçek exception.emitter (common feature) ile aynı kalıp: "Exception"/"Error"
- *  son-eki atılır, kebab + common/exceptions/<base>.exception.ts. */
+/** Project-relative file path for synthesized exception — SINGLE SOURCE.
+ *  Same pattern as real exception.emitter (common feature): strip "Exception"/"Error"
+ *  suffix, kebab + common/exceptions/<base>.exception.ts. */
 export function synthExceptionFilePath(name: string): string {
   return `common/exceptions/${kebabCase(stripExceptionSuffix(name))}.exception.ts`;
 }
 
-/** "CartEmptyException"/"FooError" -> gövde adı ("CartEmpty"/"Foo"); son-ek yoksa olduğu gibi. */
+/** "CartEmptyException"/"FooError" -> body name ("CartEmpty"/"Foo"); unchanged if no suffix. */
 function stripExceptionSuffix(name: string): string {
   for (const suf of ["Exception", "Error"]) {
     if (name.length > suf.length && name.toLowerCase().endsWith(suf.toLowerCase())) {
@@ -42,16 +42,16 @@ function stripExceptionSuffix(name: string): string {
   return name;
 }
 
-/** Bir Service metodunun Throws'unda bildirilmiş ama HİÇBİR Exception node'una
- *  çözülmeyen exception adları (DEDUP + isme göre sıralı). Bunlar için sentetik
- *  sınıf üretilir; aksi halde fill kontratı (declared-throws) derlenmez. */
+/** Exception names declared in a Service method's Throws but not resolved to ANY
+ *  Exception node (DEDUP + sorted by name). Synthetic classes are emitted for these;
+ *  otherwise the fill contract (declared-throws) will not compile. */
 export function undefinedThrownExceptions(graph: CodeGraph): string[] {
   const names = new Set<string>();
   for (const svc of graph.allOf("Service")) {
     for (const m of propsOf<"Service">(svc).Methods ?? []) {
       for (const exName of m.Throws ?? []) {
         if (typeof exName !== "string" || exName.length === 0) continue;
-        if (graph.resolveRef("Exception", exName)) continue; // gerçek node var → emitter üretir
+        if (graph.resolveRef("Exception", exName)) continue; // real node exists → emitter produces it
         names.add(exName);
       }
     }
@@ -59,9 +59,9 @@ export function undefinedThrownExceptions(graph: CodeGraph): string[] {
   return [...names].sort();
 }
 
-/** Tek bir sentetik exception sınıfı dosyası üretir (HttpException alt-sınıfı,
- *  BAD_REQUEST varsayılan; opsiyonel message). Gerçek exception.emitter şekliyle
- *  uyumlu — diyagrama bir Exception node'u eklenince doğal olarak onunla değişir. */
+/** Emit a single synthetic exception class file (HttpException subclass,
+ *  BAD_REQUEST default; optional message). Compatible with real exception.emitter shape —
+ *  adding an Exception node to the diagram naturally replaces this. */
 export function emitSyntheticException(name: string): GeneratedFile {
   const className = synthExceptionClassName(name);
   const code = splitWords(stripExceptionSuffix(name)).map((w) => w.toUpperCase()).join("_") || "ERROR";

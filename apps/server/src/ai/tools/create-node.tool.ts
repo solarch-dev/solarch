@@ -1,13 +1,12 @@
 import { z } from "zod";
 import { NODE_KINDS } from "../../nodes/schemas";
 
-/** Atomic create_node tool — streaming agent loop'unda LLM tek node yaratır,
- *  backend gerçek node ID'sini tool result olarak döner. Bir sonraki turn'de
- *  LLM bu ID'yi create_edge'de kullanabilir.
+/** Atomic create_node tool — in streaming agent loop LLM creates one node,
+ *  backend returns real node ID as tool result. Next turn LLM uses this ID in create_edge.
  *
- *  apply-architecture-graph (monolithic) yerine kullanılır. Atomic args
- *  (~1-2K char) tool-call payload bozulma eşiğinin (10K) çok altında —
- *  v4-flash + non-thinking + tools deterministik çalışır. */
+ *  Used instead of apply-architecture-graph (monolithic). Atomic args
+ *  (~1-2K char) well below tool-call payload corruption threshold (10K) —
+ *  v4-flash + non-thinking + tools run deterministically. */
 
 export const CREATE_NODE_TOOL_NAME = "create_node";
 

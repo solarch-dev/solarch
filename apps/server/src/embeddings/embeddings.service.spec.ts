@@ -6,7 +6,7 @@ describe("EmbeddingsService", () => {
     expect(new EmbeddingsService().isConfigured()).toBe(true);
   });
 
-  it("embed, lokal extractor çıktısını number[]'e çevirir", async () => {
+it("embed converts local extractor output to number[]", async () => {
     const svc = new EmbeddingsService();
     (svc as any).extractorPromise = Promise.resolve(
       async () => ({ data: new Float32Array([0.1, 0.2, 0.3]) }),

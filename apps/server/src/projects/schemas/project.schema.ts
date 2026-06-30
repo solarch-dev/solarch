@@ -6,11 +6,11 @@ export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 export const ProjectSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
-  description: z.string(), // boş olabilir
+  description: z.string(), // may be empty
   status: ProjectStatusSchema,
-  // ── Sahiplik / çok-kiracılık (Clerk) ──
-  ownerId: z.string(), // projeyi oluşturan Clerk user id
-  orgId: z.string().nullable(), // aktif Clerk org (workspace) id; kişisel projede null
+  // Ownership / multi-tenancy (ownerId from LocalAuthGuard or API key)
+  ownerId: z.string(),
+  orgId: z.string().nullable(), // reserved for workspace scoping; null in OSS edition
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).strict();

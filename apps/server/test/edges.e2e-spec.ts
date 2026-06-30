@@ -97,7 +97,7 @@ describe("Edges E2E (apoc.merge dedup)", () => {
     expect(got.body.data.targetNodeId).toBe(tgt);
   });
 
-  it("aynı (source,target,kind) ikinci kez → 409, çift edge oluşmaz", async () => {
+it("same (source,target,kind) second time → 409, double edge does not occur", async () => {
     const src = await createNode(modelPayload);
     const tgt = await createNode(enumPayload);
     const body = { projectId, sourceNodeId: src, targetNodeId: tgt, kind: "USES", properties: { IsAsync: false } };
@@ -109,7 +109,7 @@ describe("Edges E2E (apoc.merge dedup)", () => {
     const list = await request(app.getHttpServer()).get(`/api/v1/projects/${projectId}/edges`).expect(200);
     expect(list.body.data.total).toBe(1); // MERGE → tek edge
 
-    // DB seviyesinde de tek ilişki olduğunu doğrula
+// Verify that there is only one relationship at the DB level
     const rels = await neo4j.run("MATCH ()-[r:USES]->() RETURN count(r) AS c");
     expect(Number(rels.records[0].get("c"))).toBe(1);
   });

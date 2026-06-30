@@ -7,20 +7,16 @@
  *  central Fill button lives in FillChat's empty state.
  *
  *  Business logic PRESERVED: generate once on first open (triggeredRef), regenSeq explicit
- *  re-generation, entitlement gate (no Code plan → /billing), download zip, copy prompt. Morph:
- *  body layer, scale+fade based on active (opens/closes over the canvas).
- *
- *  Error: useGenerateCode 402 → global mutationCache.onError (/billing) — no local toast here. */
+ *  re-generation, download zip, copy prompt. Morph:
+ *  body layer, scale+fade based on active (opens/closes over the canvas). */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { useWorkspaceView } from "@/state/workspace-view";
 import { X, Loader2, AlertCircle, Boxes } from "lucide-react";
 import { Z_LAYERS } from "../../lib/z-layers";
 import { cn } from "@/lib/utils";
 import { useGenerateCode, useFillStream, type GeneratedProject } from "../../api/codegen";
-import { useSubscription } from "../../api/billing";
 import { FillChat } from "./FillChat";
 import { SimpleEditor } from "./SimpleEditor";
 import { useCodegenCommands } from "./codegen-commands";
@@ -43,9 +39,6 @@ export function CodegenPanel({ projectId, active }: CodegenPanelProps) {
   const onClose = useCallback(() => setView("canvas"), [setView]);
   const gen = useGenerateCode(projectId);
   const fill = useFillStream(projectId);
-  const { data: sub } = useSubscription();
-  const canCodegen = sub?.entitlements.canCodegen ?? false;
-  const navigate = useNavigate();
 
   // Base = deterministic skeleton. Once Fill finishes, overlay the filled files (same path).
   const baseResult = gen.isSuccess ? gen.data : undefined;
@@ -177,14 +170,9 @@ export function CodegenPanel({ projectId, active }: CodegenPanelProps) {
     }
   };
 
-  /** Surgical AI — fill @solarch:surgical bodies on the server (Code plan). No entitlement → /billing. */
+  /** Surgical AI — fill @solarch:surgical bodies on the server. */
   const onFill = () => {
     if (fill.status === "streaming") return;
-    if (!canCodegen) {
-      onClose();
-      navigate("/billing");
-      return;
-    }
     fill.start({ jest: deepVerify });
   };
 
@@ -212,7 +200,7 @@ export function CodegenPanel({ projectId, active }: CodegenPanelProps) {
       toggleDeepVerify: () => setDeepVerify((v) => !v),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasFiles, fill.status, surgicalCount, fillProcessed, fill.filled, fillDenom, promptFile, zipping, deepVerify, canCodegen]);
+  }, [hasFiles, fill.status, surgicalCount, fillProcessed, fill.filled, fillDenom, promptFile, zipping, deepVerify]);
   // Unmount: don't leave a stale handler (fresh remount when the project changes).
   useEffect(() => () => setCodegenCmd({ active: false, status: "idle", fill: null, download: null, copyPrompt: null, toggleDeepVerify: null }), [setCodegenCmd]);
 

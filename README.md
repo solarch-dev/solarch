@@ -12,14 +12,18 @@
 
 [![Try it](https://img.shields.io/badge/Try%20it-app.solarch.dev-ff6b1a?style=flat-square)](https://app.solarch.dev)
 [![Website](https://img.shields.io/badge/Website-solarch.dev-0f0f0e?style=flat-square)](https://solarch.dev)
+[![Self-Host](https://img.shields.io/badge/Self--Host-docker%20compose-666?style=flat-square)](docs/getting-started.md)
 [![License](https://img.shields.io/badge/License-PolyForm%20NC%201.0-orange.svg?style=flat-square)](./LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/solarch-dev/solarch?style=flat-square)](https://github.com/solarch-dev/solarch/stargazers)
 [![Last Commit](https://img.shields.io/github/last-commit/solarch-dev/solarch?style=flat-square)](https://github.com/solarch-dev/solarch/commits/main)
-[![Status](https://img.shields.io/badge/status-early%20access-ff6b1a?style=flat-square)](https://app.solarch.dev)
 
 <br />
 
-### ▶ &nbsp; Try it live — no install — at **[app.solarch.dev](https://app.solarch.dev)** &nbsp; · &nbsp; Learn more at **[solarch.dev](https://solarch.dev)**
+### ▶ &nbsp; Try it live — **[app.solarch.dev](https://app.solarch.dev)** &nbsp; · &nbsp; Learn more at **[solarch.dev](https://solarch.dev)** &nbsp; · &nbsp; Or [**self-host**](#-self-hosting) this repo
+
+<br />
+
+*No install, no Docker — open the app and start drawing. Self-host below if you want your own box.*
 
 <br />
 
@@ -27,7 +31,7 @@
 
 <br />
 
-[**Why Solarch?**](#-why-solarch) &nbsp; • &nbsp; [**Gallery**](#-gallery) &nbsp; • &nbsp; [**Features**](#-features) &nbsp; • &nbsp; [**Philosophy**](#-the-philosophy) &nbsp; • &nbsp; [**Self-Hosting**](#-self-hosting) &nbsp; • &nbsp; [**Get Involved**](#-get-involved)
+[**Why Solarch?**](#-why-solarch) &nbsp; • &nbsp; [**Gallery**](#-gallery) &nbsp; • &nbsp; [**Features**](#-features) &nbsp; • &nbsp; [**Philosophy**](#-the-philosophy) &nbsp; • &nbsp; [**Try it**](#-try-it) &nbsp; • &nbsp; [**Self-Hosting**](#-self-hosting) &nbsp; • &nbsp; [**Docs**](#-documentation) &nbsp; • &nbsp; [**Get Involved**](#-get-involved)
 
 </div>
 
@@ -45,6 +49,8 @@ It generates **architecture first** — grounded in a library of canonical patte
 *   **AI Architect grounded in GraphRAG:** an agentic LLM pipeline pulls from a vector-indexed pattern library. It never starts from a blank context, never invents an API surface.
 *   **Rules Engine that refuses to lie:** 32 whitelist rules, 7 anti-patterns, 3 conditional checks. Frontends can't talk to tables. Controllers can't reach repositories. Period.
 *   **Self-correcting loop:** Rules rejection feeds back into the agent; the AI revises and tries again until the graph is clean — or never commits.
+*   **Diagram → NestJS code:** deterministic codegen scaffold from the graph, plus optional Surgical AI for method bodies.
+*   **Four surfaces, one project:** Canvas, Code, API, and Docs — switch from the top bar without losing context.
 *   **Live Instruct Mode:** Switch modes and chat with your design. Every answer cites the exact nodes; chips focus the canvas in real time.
 *   **Single-home + reference tabs:** Each node lives in one tab. Other tabs *import* it as a reference, not a copy. One source of truth, multiple views.
 *   **Type-safe from DB to button:** Zod schemas at the backend, OpenAPI in the middle, `openapi-fetch` on the frontend. The API contract is a compile-time check.
@@ -115,6 +121,7 @@ It generates **architecture first** — grounded in a library of canonical patte
         <li><b>Local embeddings:</b> compact multilingual sentence-transformer, on-box, 384-d</li>
         <li><b>21 node families:</b> Table, DTO, Model, Service, Worker, Controller, Repository, Cache, Middleware, and more</li>
         <li><b>16 semantic edges:</b> <code>CALLS</code>, <code>QUERIES</code>, <code>WRITES</code>, <code>PUBLISHES</code>, <code>SUBSCRIBES</code>, <code>THROWS</code>...</li>
+        <li><b>NestJS codegen:</b> deterministic scaffold + optional Surgical AI fill</li>
       </ul>
     </td>
     <td width="50%" valign="top">
@@ -128,6 +135,7 @@ It generates **architecture first** — grounded in a library of canonical patte
         <li><b>Edge bundling &amp; routing:</b> obstacle-aware bezier and elbow paths</li>
         <li><b>Type-safe API client:</b> Zod → OpenAPI → <code>openapi-fetch</code> + <code>openapi-typescript</code></li>
         <li><b>Light Blueprint design:</b> warm paper, semantic family colors, hairline grid, Satoshi + JetBrains Mono</li>
+        <li><b>Bring-your-own-key:</b> OpenAI, Anthropic, Ollama, DeepSeek, … — your server, your quota</li>
       </ul>
     </td>
   </tr>
@@ -155,36 +163,61 @@ The output isn't *trustworthy* code. It's *provably correct* structure.
 
 ---
 
+## ✦ Try it
+
+Don't want to clone, configure, or run Docker? Use the hosted product:
+
+| | Link | What you get |
+|---|------|----------------|
+| **App** | **[app.solarch.dev](https://app.solarch.dev)** | Full canvas — sign up and build in the browser. Always up to date. |
+| **Website** | **[solarch.dev](https://solarch.dev)** | Product overview, demos, updates. |
+
+Zero local setup. If that fits you, stop reading here and open the app.
+
+---
+
 ## ✦ Self-Hosting
 
-The fastest way to use Solarch is the hosted app — **[app.solarch.dev](https://app.solarch.dev)** — no setup, always up to date.
-
-To run the whole stack yourself — a vector-native Neo4j, the NestJS server, and the canvas web app behind a single-origin proxy:
+Want the stack on **your machine** — your LLM key, your data, no vendor? This repository is the full OSS bundle: NestJS backend, canvas UI, vector-native Neo4j, local embeddings.
 
 ```bash
 git clone https://github.com/solarch-dev/solarch.git
 cd solarch
-./install.sh            # interactive setup wizard (Windows: ./install.ps1)
+./install.sh          # Linux/macOS — Neo4j password + AI provider wizard
+docker compose up --build
 # → http://localhost:3000
 ```
 
-The wizard asks for your **AI provider + API key**, Clerk keys, and a database password, writes `.env`, and starts the stack. Prefer to do it by hand? `cp .env.example .env`, edit, then `docker compose up --build`.
+No login screen. Bring your own LLM API key. By default Docker binds to **127.0.0.1** only.
 
-**Bring your own AI key.** Solarch supports OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, Groq, OpenRouter (300+ models), Ollama (local/offline), Bedrock, and any OpenAI-compatible endpoint — self-host runs **unlimited**, no metering. See **[docs/ai-providers.md](./docs/ai-providers.md)**.
+Windows: `./install.ps1`, then the same `docker compose` command.
 
-On first boot the server initializes the graph database (schema, the GraphRAG vector index, and the canonical pattern seed) — idempotent, so restarts are safe. Full guide: **[docs/self-hosting.md](./docs/self-hosting.md)**.
+| Need | Details |
+|------|---------|
+| Docker + Compose v2 | Required |
+| LLM provider | Tool-calling model — see [AI providers](docs/ai-providers.md) |
+| LAN / VPS | Enable HTTP Basic Auth — [Self-hosting guide](docs/self-hosting.md) |
 
-### Repository layout
+Hosted alternative: **[app.solarch.dev](https://app.solarch.dev)** · **[solarch.dev](https://solarch.dev)**
 
-```
-apps/
-  web/      Vite + React 19 — the canvas editor (custom Canvas 2D renderer)
-  server/   NestJS 11 + Neo4j — graph model, Rules Engine, AI, codegen
-deploy/     Caddyfile (single-origin reverse proxy)
-docs/       self-hosting + architecture
-```
+---
 
-pnpm workspaces + Turborepo. See **[docs/architecture.md](./docs/architecture.md)** for how it fits together, and **[CONTRIBUTING.md](./CONTRIBUTING.md)** for local development without Docker.
+## ✦ Documentation
+
+Full guides live in [`docs/`](docs/README.md):
+
+| Guide | Topics |
+|-------|--------|
+| [Getting started](docs/getting-started.md) | First run, four surfaces, API keys |
+| [Canvas & Rules Engine](docs/canvas-and-rules.md) | Nodes, edges, error codes |
+| [AI Architect](docs/ai-architect.md) | Agent, Instruct, GraphRAG |
+| [Codegen](docs/codegen.md) | NestJS scaffold, Surgical AI |
+| [CLI & API keys](docs/cli-and-api-keys.md) | `solarch login`, MCP |
+| [Self-hosting](docs/self-hosting.md) | Env, security, rate limits |
+| [Development](docs/development.md) | pnpm dev, tests |
+| [Deployment](docs/deployment.md) | Caddy, systemd, production |
+
+CLI / MCP / VS Code extension: [**solarch-tools**](https://github.com/solarch-dev/solarch-tools).
 
 ---
 

@@ -1,7 +1,7 @@
 import type { SuccessEnvelope } from "../../common/envelope";
 
 export interface ApplyViolation {
-  /** Node ihlali ise tempId; edge ihlali ise edgeIndex. */
+  /** tempId for node violation; edgeIndex for edge violation. */
   tempId?: string;
   edgeIndex?: number;
   source?: { tempId?: string; id?: string; type?: string };
@@ -15,11 +15,11 @@ export interface ApplyViolation {
 
 export interface ApplyGraphSuccess {
   success: true;
-  /** tempId → kalıcı UUID eşlemesi */
+  /** tempId -> persistent UUID mapping */
   idMap: Record<string, string>;
   nodeCount: number;
   edgeCount: number;
-  /** Commit sonrası graf revizyonu — istemci bir sonraki push'ta baseRevision olarak kullanır. */
+  /** Post-commit graph revision — client uses as baseRevision on next push. */
   graphRevision: number;
 }
 

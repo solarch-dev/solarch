@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ModuleName: "BillingContext",
-  Description: "Faturalandırma bağlamı",
+  Description: "Billing context",
   StrictBoundaries: true,
 };
 
@@ -19,14 +19,14 @@ const parse = (properties: unknown) =>
   ModuleNodeSchema.parse({ ...validBase, type: "Module", properties });
 
 describe("ModuleNodeSchema (enriched)", () => {
-  it("geçerli Module'ü parse eder (ExposedServices/Dependencies default boş)", () => {
+  it("parses valid Module (ExposedServices/Dependencies default empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.StrictBoundaries).toBe(true);
     expect(node.properties.ExposedServices).toEqual([]);
     expect(node.properties.Dependencies).toEqual([]);
   });
 
-  it("ExposedServices + Dependencies kabul eder", () => {
+  it("accepts ExposedServices + Dependencies", () => {
     const node = parse({
       ...validProperties,
       ExposedServices: ["InvoiceService", "PaymentService"],
@@ -36,12 +36,12 @@ describe("ModuleNodeSchema (enriched)", () => {
     expect(node.properties.Dependencies).toEqual(["UserContext"]);
   });
 
-  it("ModuleName zorunlu", () => {
+  it("ModuleName is required", () => {
     const { ModuleName, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("StrictBoundaries boolean değilse fırlatır", () => {
+  it("throws when StrictBoundaries is not boolean", () => {
     expect(() => parse({ ...validProperties, StrictBoundaries: "yes" })).toThrow();
   });
 });

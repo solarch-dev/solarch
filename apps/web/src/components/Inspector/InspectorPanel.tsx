@@ -83,8 +83,7 @@ export function InspectorPanel() {
     }
   };
 
-  // "Show Code" — TopBar listener gates + opens panel; detail.focusNodeId focuses
-  // on this node's generated file. If not entitled, TopBar redirects to /billing.
+  // "Show Code" — TopBar listener opens panel; detail.focusNodeId focuses this node's file.
   const onShowCode = () => {
     window.dispatchEvent(
       new CustomEvent("solarch:codegen-open", { detail: { focusNodeId: node.id } }),

@@ -13,33 +13,33 @@ import type { ExternalServiceNode } from "../../../nodes/schemas/external-servic
 /* ────────────────────────────────────────────────────────────────────────
  * external-service.emitter.ts — ExternalServiceNode -> <feature>/<base>.client.ts.
  *
- * Bir dış HTTP servisini saran @Injectable() NestJS HTTP istemcisi üretir:
+ * Emits an @Injectable() NestJS HTTP client wrapping an external HTTP service:
  *   - DI: HttpService (@nestjs/axios) + ConfigService (@nestjs/config).
- *     HttpModule + ConfigModule module tarafından (Wire fazı) bağlanır.
- *   - Konfig: BaseURL ve TimeoutSeconds ConfigService'ten env-var binding ile
- *     okunur (raw secret YOK). AuthType != "None" -> authHeaders() helper'ı
- *     bir Bearer/Basic/API_Key başlığını ENV değişkeninden bağlar (label).
- *   - Metotlar: schema'daki Endpoints (varsa) her biri için bir metot
- *     (HTTP fiili + path); yoksa tek generic `request<T>` metodu. Her metot
- *     gövdesi surgicalMarker + notImplemented + erişilebilir bağımlılık ipucu
+ *     HttpModule + ConfigModule are wired by the module (Wire phase).
+ *   - Config: BaseURL and TimeoutSeconds read from ConfigService via env-var binding
+ *     (raw secret NONE). AuthType != "None" -> authHeaders() helper binds a
+ *     Bearer/Basic/API_Key header from an ENV variable (label).
+ *   - Methods: one method per schema Endpoints entry (if any)
+ *     (HTTP verb + path); otherwise a single generic `request<T>` method. Each method
+ *     body is surgicalMarker + notImplemented + accessible dependency hint
  *     (this.http / this.baseUrl ...).
  *
- * SAF + DETERMİNİSTİK: Endpoints Name'e göre sıralı, import'lar ImportCollector
- * ile, timestamp/random yok, içerik tek "\n" ile biter.
+ * PURE + DETERMINISTIC: Endpoints sorted by Name, imports via ImportCollector,
+ * no timestamp/random, content ends with single "\n".
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** ExternalService props — PropsByKind (ir.ts) bu kind'ı içermez (backend
- *  zinciri 9 tipi taşır); tip doğrudan Zod-inferred schema'dan alınır. */
+/** ExternalService props — PropsByKind (ir.ts) does not include this kind (backend
+ *  chain carries 9 types); type comes directly from Zod-inferred schema. */
 type ExtProps = ExternalServiceNode["properties"];
 type ExtEndpoint = ExtProps["Endpoints"][number];
 
-/** node.properties'i tipli ExternalService props'a daraltır (DB zaten
- *  Zod-doğrulanmış; çalışma zamanı dönüşümü yok). */
+/** Narrow node.properties to typed ExternalService props (DB is already
+ *  Zod-validated; no runtime conversion). */
 function extPropsOf(node: CodeNode): ExtProps {
   return node.properties as ExtProps;
 }
 
-/** HTTP fiili -> HttpService metot adı (this.http.<verb>). */
+/** HTTP verb -> HttpService method name (this.http.<verb>). */
 const HTTP_VERB: Record<string, string> = {
   GET: "get",
   POST: "post",
@@ -52,7 +52,7 @@ export const emitExternalService: NodeEmitter = (node: CodeNode, ctx): Generated
   const props = extPropsOf(node);
   const className = pascalCase(node.name);
   const filePath = filePathFor(node, ctx.graph);
-  // Env-var binding önekleri (SCREAMING_SNAKE) — raw secret/URL gömülmez.
+  // Env-var binding prefixes (SCREAMING_SNAKE) — no raw secret/URL embedded.
   const envPrefix = snakeCase(node.name).toUpperCase();
 
   const imports = new ImportCollector();
@@ -63,7 +63,7 @@ export const emitExternalService: NodeEmitter = (node: CodeNode, ctx): Generated
   const authType = props.AuthType ?? "None";
   const needsAuth = authType !== "None";
 
-  // ── Metot blokları: Endpoints (Name'e göre sıralı) ya da generic request ──
+  // ── Method blocks: Endpoints (sorted by Name) or generic request ──
   const methodBlocks: string[] = [];
   const endpoints = [...(props.Endpoints ?? [])].sort((a, b) => cmp(a.Name, b.Name));
   if (endpoints.length > 0) {
@@ -77,19 +77,18 @@ export const emitExternalService: NodeEmitter = (node: CodeNode, ctx): Generated
     methodBlocks.push(renderAuthHeaders(node, className, authType, envPrefix));
   }
 
-  // ── Sınıf gövdesi ──
+  // ── Class body ──
   const lines: string[] = [];
-  // Anlamlı açıklama varsa (trim >=3 char) JSDoc bas; tek-harf/boş gürültüyü atla.
+  // Emit JSDoc when Description is meaningful (trim >=3 char); skip single-letter/empty noise.
   if (isMeaningfulDoc(props.Description)) lines.push(`/** ${props.Description!.trim()} */`);
   lines.push("@Injectable()");
   lines.push(`export class ${className} {`);
 
-  // Konfig alanları (env-var binding ile çözülür — raw değer gömülmez).
-  //   ATAMA constructor GÖVDESİNDE yapılır: alan başlatıcıları (field initializer)
-  //   constructor gövdesinden ÖNCE çalışır; bu yüzden `this.config`'i bir alan
-  //   başlatıcısında okumak TS2729 ("used before its initialization") + çalışma
-  //   zamanı `undefined` verir. Param-property atamaları gövde başında olduğundan
-  //   atamayı gövdeye taşırız.
+  // Config fields (resolved via env-var binding — no raw values embedded).
+  //   ASSIGN in constructor BODY: field initializers run BEFORE constructor body;
+  //   reading `this.config` in a field initializer causes TS2729 ("used before its
+  //   initialization") + runtime `undefined`. Param-property assignments run at body
+  //   start, so we move assignments into the body.
   lines.push("  private readonly baseUrl: string;");
   lines.push("  private readonly timeoutMs: number;");
   lines.push("");
@@ -122,9 +121,9 @@ export const emitExternalService: NodeEmitter = (node: CodeNode, ctx): Generated
   return [file];
 };
 
-/** Bir schema Endpoint'ini (HTTP fiili + path) bir istemci metoduna çevirir.
- *  Metot adı: camelCase(Name). Gövde = surgical marker + notImplemented;
- *  marker erişilebilir bağımlılık (this.http.<verb>, this.baseUrl) ipucu verir. */
+/** Convert a schema Endpoint (HTTP verb + path) into a client method.
+ *  Method name: camelCase(Name). Body = surgical marker + notImplemented;
+ *  marker hints accessible dependencies (this.http.<verb>, this.baseUrl). */
 function renderEndpointMethod(
   node: CodeNode,
   className: string,
@@ -135,9 +134,9 @@ function renderEndpointMethod(
   const methodName = camelCase(ep.Name);
   const verb = HTTP_VERB[ep.Method] ?? "request";
 
-  // AuthType != "None" ise authHeaders() helper'ı ÜRETİLİR; bu yüzden onu
-  //   request'te çağırmayı surgical AI'ye AÇIKÇA hatırlat (aksi halde helper
-  //   çağrılmadan kalır -> noUnusedLocals/ESLint uyarısı).
+  // When AuthType != "None", authHeaders() helper IS emitted; explicitly remind
+  //   surgical AI to call it in the request (otherwise helper stays unused ->
+  //   noUnusedLocals/ESLint warning).
   const deps = [`this.http.${verb}`, "this.baseUrl", "this.timeoutMs"];
   if (needsAuth) deps.push("this.authHeaders()");
   const marker = surgicalMarker({
@@ -158,10 +157,10 @@ function renderEndpointMethod(
   return lines.join("\n");
 }
 
-/** Endpoint tanımlı değilse: tek generic request metodu. */
+/** When no Endpoints defined: single generic request method. */
 function renderGenericRequest(node: CodeNode, className: string, needsAuth: boolean): string {
   const indent = "  ";
-  // AuthType != "None" ise authHeaders() ÜRETİLİR -> request'te çağrılmalı.
+  // When AuthType != "None", authHeaders() IS emitted -> must be called in request.
   const deps = ["this.http.request", "this.baseUrl", "this.timeoutMs"];
   if (needsAuth) deps.push("this.authHeaders()");
   const marker = surgicalMarker({
@@ -181,8 +180,8 @@ function renderGenericRequest(node: CodeNode, className: string, needsAuth: bool
   return lines.join("\n");
 }
 
-/** AuthType != "None" için bir auth-header helper'ı. SECRET değer ASLA gömülmez —
- *  ENV değişkeni binding'i (label) üzerinden okunur; gövde surgical. */
+/** Auth header helper for AuthType != "None". SECRET value NEVER embedded —
+ *  read via ENV variable binding (label); body is surgical. */
 function renderAuthHeaders(
   node: CodeNode,
   className: string,
@@ -207,13 +206,13 @@ function renderAuthHeaders(
   return lines.join("\n");
 }
 
-/** Deterministik string karşılaştırması. */
+/** Deterministic string comparison. */
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Bir Description'ın anlamlı bir JSDoc'a değip değmediği: trim sonrası >=3 char.
- *  Tek-harf/boş açıklamalar JSDoc gürültüsü; atlanır. */
+/** Whether a Description warrants a meaningful JSDoc: trim length >=3 char.
+ *  Single-letter/empty descriptions are JSDoc noise; skipped. */
 function isMeaningfulDoc(desc: string | undefined): boolean {
   return typeof desc === "string" && desc.trim().length >= 3;
 }

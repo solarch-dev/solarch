@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları (service.emitter.spec.ts ile aynı şekil) ───────── */
+/* ── Fixture helpers (same shape as service.emitter.spec.ts) ───────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -47,16 +47,16 @@ const MQ = "30000000-0000-4000-8000-000000000001";
 const DTO_JOB = "30000000-0000-4000-8000-000000000002";
 const SVC = "30000000-0000-4000-8000-000000000003";
 
-/* ── Node fixture'ları ──────────────────────────────────────────────────── */
+/* ── Node fixtures ──────────────────────────────────────────────────── */
 const imageJobDto = node("DTO", DTO_JOB, {
   Name: "ImageJobDto",
-  Description: "Üretim işi gövdesi",
+  Description: "Production job body",
   Fields: [{ Name: "prompt", DataType: "string", IsRequired: true, IsArray: false }],
 });
 
 const imageQueue = node("MessageQueue", MQ, {
   QueueName: "ImageMessageQueue",
-  Description: "Görsel üretim kuyruğu",
+  Description: "Image production queue",
   Type: "Queue",
   Provider: "Generic",
   MessageFormat: "ImageJobDto",
@@ -65,10 +65,10 @@ const imageQueue = node("MessageQueue", MQ, {
   DeadLetterQueue: "image-dlq",
 });
 
-// Kuyruğu kullanan bir Service -> feature inference kuyruğu "image" feature'ına çeker.
+// Kuyrugu kullanan bir Service -> feature inference kuyrugu "image" feature'ina ceker.
 const imageService = node("Service", SVC, {
   ServiceName: "ImageService",
-  Description: "Görsel iş mantığı",
+  Description: "Image business logic",
   IsTransactionScoped: false,
   Dependencies: [],
   Methods: [],
@@ -88,7 +88,7 @@ describe("emitMessageQueue", () => {
       /** "MessageQueue" queue name — single source of truth shared between BullModule.registerQueue and @InjectQueue. */
       export const IMAGE_MESSAGE_QUEUE = "ImageMessageQueue";
 
-      /** Görsel üretim kuyruğu */
+      /** Image production queue */
       @Injectable()
       export class ImageMessageQueue {
         constructor(
@@ -125,27 +125,27 @@ describe("emitMessageQueue", () => {
     expect(file.content).toContain("export class ImageMessageQueue {");
   });
 
-  it("queue adı sabiti @InjectQueue + (Wire) registerQueue için TEK KAYNAK", () => {
+  it("queue adi sabiti @InjectQueue + (Wire) registerQueue icin TEK SOURCE", () => {
     const ctx = ctxFrom([imageQueue, imageJobDto, imageService], [edge("e-mq", "CALLS", SVC, MQ)]);
     const [file] = emitMessageQueue(ctx.graph.byId(MQ)!, ctx);
     expect(file.content).toContain('export const IMAGE_MESSAGE_QUEUE = "ImageMessageQueue";');
     expect(file.content).toContain("@InjectQueue(IMAGE_MESSAGE_QUEUE) private readonly queue: Queue,");
   });
 
-  it("publish GERÇEK gövde taşır (queue.add) + marker + codegen-dolu damgası (fill sayımı tutarlı)", () => {
+  it("publish GERCEK govde tasir (queue.add) + marker + codegen-dolu damgasi (fill sayimi tutarli)", () => {
     const ctx = ctxFrom([imageQueue, imageJobDto, imageService], [edge("e-mq", "CALLS", SVC, MQ)]);
     const [file] = emitMessageQueue(ctx.graph.byId(MQ)!, ctx);
     expect(file.content).toContain("async publish(payload: ImageJobDto): Promise<void> {");
     expect(file.content).toContain('await this.queue.add("publish", payload);');
     expect(file.content).toContain(`// @solarch:surgical id=${MQ}#publish`);
     expect(file.content).toContain("// deps: this.queue");
-    // Gövde codegen tarafından tam üretildi → @solarch:filled by=codegen damgası.
+    // Govde codegen tarafindan tam uretildi → @solarch:filled by=codegen damgasi.
     expect(file.content).toContain("// @solarch:filled by=codegen");
-    // "Doldurulacak" SAYILMAZ (codegen-dolu) → 0; aksi halde 71 gösterilir 69 doldurulur.
+    // "Doldurulacak" SAYILMAZ (codegen-dolu) → 0; aksi halde 71 gosterilir 69 doldurulur.
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("MessageFormat -> DTO import edilir (payload tipi DTO sınıfı)", () => {
+  it("MessageFormat -> DTO import edilir (payload tipi DTO sinifi)", () => {
     const ctx = ctxFrom([imageQueue, imageJobDto, imageService], [edge("e-mq", "CALLS", SVC, MQ)]);
     const [file] = emitMessageQueue(ctx.graph.byId(MQ)!, ctx);
     expect(file.content).toMatch(/import type \{ ImageJobDto \} from ".*image-job\.dto"/);
@@ -158,14 +158,14 @@ describe("emitMessageQueue", () => {
     expect(file.path).toBe("image/image.queue.ts");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFrom([imageQueue, imageJobDto, imageService], [edge("e-mq", "CALLS", SVC, MQ)]);
     const [file] = emitMessageQueue(ctx.graph.byId(MQ)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: iki bağımsız graph kuruluşu -> byte-identical", () => {
+  it("DETERMINISM: two independent graph builds -> byte-identical", () => {
     const nodes = [imageQueue, imageJobDto, imageService];
     const edges = [edge("e-mq", "CALLS", SVC, MQ)];
     const a = emitMessageQueue(buildCodeGraph(nodes, edges).byId(MQ)!, ctxFrom(nodes, edges))[0].content;
@@ -173,10 +173,10 @@ describe("emitMessageQueue", () => {
     expect(a).toBe(b);
   });
 
-  it("'Queue' son-ekli ad da çalışır (ImageJobsQueue -> ImageJobs base)", () => {
+  it("'Queue' son-ekli ad da calisir (ImageJobsQueue -> ImageJobs base)", () => {
     const q = node("MessageQueue", MQ, {
       QueueName: "ImageJobsQueue",
-      Description: "İşler",
+      Description: "Jobs",
       Type: "Queue",
       Provider: "Generic",
       MessageFormat: "ImageJobDto",
@@ -189,8 +189,8 @@ describe("emitMessageQueue", () => {
     expect(file.content).toContain("export class ImageJobsQueue {");
   });
 
-  /* ── EDGE-CASE: kayıp/boş MessageFormat — throw etmez, unknown'a düşer ─── */
-  it("edge-case: çözülemeyen MessageFormat -> payload unknown, import yok, throw yok", () => {
+  /* ── EDGE-CASE: kayip/bos MessageFormat — throw etmez, unknown'a duser ─── */
+  it("edge-case: cozulemeyen MessageFormat -> payload unknown, import yok, throw yok", () => {
     const q = node("MessageQueue", MQ, {
       QueueName: "OrphanQueue",
       Description: "Yetim kuyruk",
@@ -205,15 +205,15 @@ describe("emitMessageQueue", () => {
     }).not.toThrow();
     expect(file!.content).toContain("async publish(payload: unknown): Promise<void> {");
     expect(file!.content).not.toContain("import type { GhostDto }");
-    // queue.add gövdesi yine GERÇEK + tek surgical marker.
+    // queue.add govdesi yine GERCEK + tek surgical marker.
     expect(file!.content).toContain('await this.queue.add("publish", payload);');
-    expect(file!.surgicalMarkers).toBe(0); // codegen-dolu (publish tam üretildi) → doldurulacak sayısı 0
+    expect(file!.surgicalMarkers).toBe(0); // codegen-dolu (publish tam uretildi) → doldurulacak sayisi 0
   });
 
-  it("edge-case: MessageFormat hiç yok -> payload unknown", () => {
+  it("edge-case: MessageFormat hic yok -> payload unknown", () => {
     const q = node("MessageQueue", MQ, {
       QueueName: "BareQueue",
-      Description: "Çıplak",
+      Description: "Bare",
       Type: "Queue",
       Provider: "Generic",
       MessageFormat: "",

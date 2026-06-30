@@ -5,21 +5,21 @@ import { ImportCollector } from "../../imports";
 import { countSurgicalMarkers } from "../../surgical";
 
 /* ────────────────────────────────────────────────────────────────────────
- * enum.emitter.ts — KANONİK REFERANS emitter.
+ * enum.emitter.ts — CANONICAL REFERENCE emitter.
  *
- * Diğer 10 emitter ajanı bu dosyayı örnek alır. Sözleşme:
- *   - default export YOK; named `export const emitEnum: NodeEmitter`.
- *   - SAF fonksiyon: (node, ctx) -> GeneratedFile[]. I/O yok, throw yok.
- *   - Yol her zaman filePathFor(node, ctx.graph) ile (hardcode YASAK).
- *   - İçerik DETERMİNİSTİK: koleksiyonlar sıralı, timestamp/random yok.
- *   - import'lar ImportCollector ile (Enum import gerektirmez ama desen budur).
- *   - surgicalMarkers countSurgicalMarkers(content) ile sayılır (Enum'da 0).
- *   - İçerik tek "\n" ile biter.
+ * Other 10 emitter agents use this file as the template. Contract:
+ *   - no default export; named `export const emitEnum: NodeEmitter`.
+ *   - PURE function: (node, ctx) -> GeneratedFile[]. No I/O, no throw.
+ *   - Path always via filePathFor(node, ctx.graph) (hardcode FORBIDDEN).
+ *   - Content DETERMINISTIC: collections sorted, no timestamp/random.
+ *   - imports via ImportCollector (Enum needs no imports but pattern holds).
+ *   - surgicalMarkers counted with countSurgicalMarkers(content) (0 for Enum).
+ *   - Content ends with single "\n".
  *
  * EnumNode -> common/enums/<e>.enum.ts. BackingType:
- *   - "string": her üye string literal değer alır (Value yoksa Key kullanılır).
- *   - "int":    üyeler 0'dan artan int değer alır (Value verilmişse parse edilir;
- *               değilse önceki+1 / sırasal). Determinizm: Values verildiği sırada.
+ *   - "string": each member gets a string literal value (Key if Value absent).
+ *   - "int":    members get incrementing int from 0 (Value parsed if given;
+ *               else previous+1 / sequential). Deterministic: Values order preserved.
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const emitEnum: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
@@ -27,12 +27,12 @@ export const emitEnum: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   const enumName = pascalCase(node.name);
   const backing = props.BackingType ?? "string";
 
-  // Enum üretimi import gerektirmez; deseni göstermek için collector yine de kurulur.
+  // Enum generation needs no imports; collector set up to show the pattern.
   const imports = new ImportCollector();
 
   const lines: string[] = [];
 
-  // Üst açıklama (deterministik tek satır).
+  // Top doc comment (deterministic single block).
   if (props.Description) {
     lines.push(`/** ${props.Description} */`);
   }
@@ -53,7 +53,7 @@ export const emitEnum: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   }
   lines.push("}");
 
-  // ── STATE MACHINE (L2): Transitions verilirse geçiş-map + guard'lar üret ──
+  // ── STATE MACHINE (L2): when Transitions given, emit transition map + guards ──
   lines.push(...emitTransitions(enumName, props));
 
   const importBlock = imports.render();
@@ -68,8 +68,8 @@ export const emitEnum: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] => {
   return [file];
 };
 
-/** TS enum üye adı: geçersiz karakterleri "_" yapar, rakamla başlıyorsa "_"
- *  önekler. Deterministik. */
+/** TS enum member name: invalid chars -> "_", numeric prefix gets leading "_".
+ *  Deterministic. */
 function sanitizeMemberKey(raw: string): string {
   let key = raw.replace(/[^A-Za-z0-9_$]/g, "_");
   if (key.length === 0) key = "_";
@@ -77,8 +77,7 @@ function sanitizeMemberKey(raw: string): string {
   return key;
 }
 
-/** int backing değeri: Value sayıya parse edilebiliyorsa onu, değilse sıralı
- *  sayacı kullanır. */
+/** int backing value: parse Value as number when possible, else use sequential counter. */
 function resolveIntValue(value: string | undefined, fallback: number): number {
   if (value !== undefined && value !== "") {
     const parsed = Number(value);
@@ -87,21 +86,20 @@ function resolveIntValue(value: string | undefined, fallback: number): number {
   return fallback;
 }
 
-/** STATE MACHINE (L2): Transitions verilmişse enum'un yanına izinli-geçiş map'i +
- *  canTransition<Enum> + assert<Enum>Transition (illegal geçişte throw) üretir.
- *  Transitions yoksa boş dizi (enum saf kalır). DETERMİNİSTİK: From/To enum üye
- *  Key'lerine sanitize edilir, yalnız GERÇEK üyeler tutulur (tsc-güvenli), aynı
- *  From'lar birleştirilir, çıktı Values sırasında. Terminal durumlar (geçişi yok)
- *  map'te yer almaz -> Partial<Record>. */
+/** STATE MACHINE (L2): when Transitions present, emit allowed-transition map +
+ *  canTransition<Enum> + assert<Enum>Transition (throw on illegal transition).
+ *  When absent returns empty array (enum stays pure). DETERMINISTIC: From/To sanitized
+ *  to enum member Keys, only REAL members kept (tsc-safe), same From merged,
+ *  output in Values order. Terminal states (no outgoing) omitted -> Partial<Record>. */
 function emitTransitions(enumName: string, props: ReturnType<typeof propsOf<"Enum">>): string[] {
   const transitions = props.Transitions ?? [];
   if (transitions.length === 0) return [];
 
-  // Kanonik üye sırası (Values) + geçerli üye kümesi (tsc-güvenli referans).
+  // Canonical member order (Values) + valid member set (tsc-safe references).
   const order = props.Values.map((v) => sanitizeMemberKey(v.Key));
   const valid = new Set(order);
 
-  // From -> To kümesi (sanitize + yalnız geçerli üyeler; aynı From birleşir).
+  // From -> To set (sanitize + valid members only; merge same From).
   const byFrom = new Map<string, Set<string>>();
   for (const t of transitions) {
     const from = sanitizeMemberKey(t.From);

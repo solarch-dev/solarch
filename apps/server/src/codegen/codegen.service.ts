@@ -32,17 +32,17 @@ import type {
 /* ────────────────────────────────────────────────────────────────────────
  * codegen.service.ts — orchestrator.
  *
- * Akış:
- *   1) Proje var mı? (yoksa 404 ERR_PROJECT_NOT_FOUND)
- *   2) Tüm node + edge'leri tek projeye göre çek.
- *   3) buildCodeGraph -> çözümlenmiş CodeGraph + EmitterContext.
- *   4) Her node için REGISTRY'den emitter çalıştır:
- *        - kayıtlı + supported -> dosya(lar) üret.
- *        - kayıtlı + !supported -> stub üret + skippedKinds++.
- *        - kayıtsız -> emitter yok -> skippedKinds++ (sessizce düşmez).
- *   5) Scaffold dosyalarını ekle.
- *   6) Determinizm: dosyaları path'e göre sırala, çift path'leri (ilk-kazanır)
- *      tekilleştir, summary doldur.
+ * Akis:
+ *   1) Proje var mi? (yoksa 404 ERR_PROJECT_NOT_FOUND)
+ *   2) Tum node + edge'leri tek projeye gore cek.
+ *   3) buildCodeGraph -> cozumlenmis CodeGraph + EmitterContext.
+ *   4) Her node icin REGISTRY'den emitter calistir:
+ *        - kayitli + supported -> dosya(lar) uret.
+ *        - kayitli + !supported -> stub uret + skippedKinds++.
+ *        - kayitsiz -> emitter yok -> skippedKinds++ (sessizce dusmez).
+ *   5) Scaffold dosyalarini ekle.
+ *   6) Determinizm: dosyalari path'e gore sirala, cift path'leri (ilk-kazanir)
+ *      tekillestir, summary doldur.
  * ──────────────────────────────────────────────────────────────────────── */
 
 @Injectable()
@@ -74,9 +74,9 @@ export class CodegenService {
       this.surgicalFills.getAllForProject(projectId),
     ]);
 
-    // GÜVENLİK (defense-in-depth): nodes.list (repository) redaksiyon YAPMAZ.
-    // Secret'i IR'a hiç sokmamak için codegen sınırında redakte et — böylece
-    // koruma yapısaldır, her emitter'ın IsSecret kontrolüne bağlı değildir.
+    // GUVENLIK (defense-in-depth): nodes.list (repository) redaksiyon YAPMAZ.
+    // Secret'i IR'a hic sokmamak icin codegen sinirinda redakte et — boylece
+    // koruma yapisaldir, her emitter'in IsSecret kontrolune bagli degildir.
     const redactedNodes = storedNodes.map((n) => ({
       ...n,
       properties: redactNodeSecrets(n.type, n.properties),
@@ -84,21 +84,21 @@ export class CodegenService {
 
     const graph = buildCodeGraph(redactedNodes, storedEdges);
     const project = this.assemble(graph, target);
-    // Saklı algoritma gövdelerini (bölge-bazında) iskeletteki NOT_IMPLEMENTED yerine
-    // geri-enjekte et → re-open/regenerate dolu sürümü gösterir, re-fill kaldığı yerden.
+    // Sakli algoritma govdelerini (bolge-bazinda) iskeletteki NOT_IMPLEMENTED yerine
+    // geri-enjekte et → re-open/regenerate dolu surumu gosterir, re-fill kaldigi yerden.
     if (fills.length > 0) project.files = applySurgicalFills(project.files, fills);
     return project;
   }
 
-  /** Basit Görünüm (non-dev) projeksiyonu — teknik graf → feature haritası +
-   *  capability'ler. READ-ONLY, deterministik (Mermaid export'un kardeşi); kod
-   *  ÜRETMEZ, AI yok → ücretsiz. Frontend src/features/simple bunu render eder. */
+  /** Basit Gorunum (non-dev) projeksiyonu — teknik graf → feature haritasi +
+   *  capability'ler. READ-ONLY, deterministik (Mermaid export'un kardesi); kod
+   *  URETMEZ, AI yok → ucretsiz. Frontend src/features/simple bunu render eder. */
   async simpleView(projectId: string): Promise<SystemMapDTO> {
     if (!(await this.projects.exists(projectId))) {
       throw new NotFoundException({ code: "ERR_PROJECT_NOT_FOUND", message: `Project '${projectId}' not found.` });
     }
     const [storedNodes, storedEdges] = await Promise.all([this.nodes.list(projectId), this.edges.list(projectId)]);
-    // Secret değerleri IR'a hiç sokma (defense-in-depth; projeksiyon zaten yapı gösterir).
+    // Secret degerleri IR'a hic sokma (defense-in-depth; projeksiyon zaten yapi gosterir).
     const redactedNodes = storedNodes.map((n) => ({ ...n, properties: redactNodeSecrets(n.type, n.properties) }));
     return projectSimpleView(buildCodeGraph(redactedNodes, storedEdges));
   }
@@ -233,27 +233,27 @@ export class CodegenService {
     return { doc: baseline, source: "deterministic", aiConfigured };
   }
 
-  /** Saf montaj — DB'siz test edilebilir (in-memory CodeGraph al, proje üret). */
+  /** Saf montaj — DB'siz test edilebilir (in-memory CodeGraph al, proje uret). */
   assemble(graph: CodeGraph, target: CodegenTarget = "nestjs"): GeneratedProject {
     const ctx: EmitterContext = { graph, target };
     const skippedKinds: SkippedKinds = {};
     const collected: GeneratedFile[] = [];
 
-    // graph.nodes zaten isme göre sıralı -> emit sırası deterministik.
-    // Node emitter'lar feature dosyalarını proje KÖKÜNE göreli üretir
-    // (ör. "auth/auth.service.ts"); montaj burada TypeScript feature
-    // dosyalarına "src/" önekini ekler ki scaffold (src/main.ts, src/app.module.ts)
-    // + tsconfig "include": ["src/**/*"] ile TEK ağaç altında toplansın. SQL
-    // migration'ları ("migrations/...") KÖKTE kalır (derlenmez; sıraya tabidir).
+    // graph.nodes zaten isme gore sirali -> emit sirasi deterministik.
+    // Node emitter'lar feature dosyalarini proje KOKUNE goreli uretir
+    // (or. "auth/auth.service.ts"); montaj burada TypeScript feature
+    // dosyalarina "src/" onekini ekler ki scaffold (src/main.ts, src/app.module.ts)
+    // + tsconfig "include": ["src/**/*"] ile TEK agac altinda toplansin. SQL
+    // migration'lari ("migrations/...") KOKTE kalir (derlenmez; siraya tabidir).
     for (const node of graph.nodes) {
-      // Kapsam-dışı (FrontendApp/UIComponent/View): bir backend'de frontend
-      // bileşenin yeri yok -> DOSYA ÜRETME, yalnız skippedKinds'e say.
+      // Kapsam-disi (FrontendApp/UIComponent/View): bir backend'de frontend
+      // bilesenin yeri yok -> DOSYA URETME, yalniz skippedKinds'e say.
       if (graph.isExcluded(node)) {
         bump(skippedKinds, node.kindOf());
         continue;
       }
-      // Module node: per-node DEĞİL, FEATURE başına sentezlenir (aşağıda).
-      // Feature SEED'i olarak ir.ts'te kullanılır; ayrı dosya üretmez.
+      // Module node: per-node NOT, FEATURE basina sentezlenir (asagida).
+      // Feature SEED'i olarak ir.ts'te kullanilir; ayri dosya uretmez.
       if (node.kindOf() === "Module") continue;
 
       const entry = EMITTER_REGISTRY[node.kindOf()];
@@ -261,74 +261,74 @@ export class CodegenService {
         bump(skippedKinds, node.kindOf());
         continue;
       }
-      // FAULT-ISOLATION (M5): adı OLMAYAN node bozuktur (name-property string değil
-      // ya da boş — ir.toCodeNode "" verir). Geçerli/şema-doğrulanmış her node'un
-      // adı zorunludur; boş ad = bozuk girdi. Geçerli bir sınıf/dosya adı türetilemez
-      // -> dosya ÜRETME, skippedKinds'e say, sıradakine geç (sessizce DÜŞME).
+      // FAULT-ISOLATION (M5): adi WITHOUT node bozuktur (name-property string degil
+      // ya da bos — ir.toCodeNode "" verir). Gecerli/sema-dogrulanmis her node'un
+      // adi zorunludur; bos ad = bozuk girdi. Gecerli bir sinif/dosya adi turetilemez
+      // -> dosya URETME, skippedKinds'e say, siradakine gec (sessizce DUSME).
       if (node.name.trim().length === 0) {
         bump(skippedKinds, node.kindOf());
         continue;
       }
       if (!entry.supported) bump(skippedKinds, node.kindOf());
-      // FAULT-ISOLATION (M5): tek bozuk node (ör. emitter undefined alana patlar)
-      // TÜM codegen'i düşürmemeli. Bu node'un emit'ini izole et — patlarsa onu
-      // skippedKinds'e say ve sıradakine geç; geri kalan graph üretilmeye devam
-      // eder. Hatayı yutmak DEĞİL, tek node'u atlamak: deterministik + saf kalır
-      // (girdi sabitse hangi node'un patladığı da sabittir).
+      // FAULT-ISOLATION (M5): tek bozuk node (or. emitter undefined alana patlar)
+      // TUM codegen'i dusurmemeli. Bu node'un emit'ini izole et — patlarsa onu
+      // skippedKinds'e say ve siradakine gec; geri kalan graph uretilmeye devam
+      // eder. Hatayi yutmak NOT, tek node'u atlamak: deterministik + saf kalir
+      // (girdi sabitse hangi node'un patladigi da sabittir).
       let emitted: GeneratedFile[];
       try {
         emitted = entry.emit(node, ctx);
       } catch (e) {
         if (process.env.SOLARCH_DEBUG_EMIT) console.error(`EMIT FAIL ${node.kindOf()} "${node.name}": ${(e as Error).message}\n${(e as Error).stack?.split("\n").slice(1, 4).join("\n")}`);
-        // Bozuk node -> dosya üretme, skippedKinds'e say (sessizce düşmez).
-        // supported=false zaten yukarıda sayıldı -> ÇİFT sayma. Yalnız
-        // supported (gerçek emitter) patlarsa burada say.
+        // Bozuk node -> dosya uretme, skippedKinds'e say (sessizce dusmez).
+        // supported=false zaten yukarida sayildi -> DOUBLE sayma. Yalniz
+        // supported (gercek emitter) patlarsa burada say.
         if (entry.supported) bump(skippedKinds, node.kindOf());
         continue;
       }
       for (const f of emitted) {
-        // node-emitter çıktısı -> dosyayı ÜRETEN node.id ile etiketle (nodeFiles).
+        // node-emitter ciktisi -> dosyayi URETEN node.id ile etiketle (nodeFiles).
         const tagged = { ...f, nodeId: node.id };
         collected.push(tagged.language === "typescript" ? { ...tagged, path: `src/${tagged.path}` } : tagged);
       }
     }
 
-    // ── ENTITY SENTEZİ (Table-only graph BOOT garantisi) ────────────────────
-    // Model'i OLMAYAN ama bir Repository tarafından referans edilen her Table
-    // için TypeORM @Entity sınıfı sentezlenir. Böylece @InjectRepository(Entity),
-    // Repository<Entity> ve TypeOrmModule.forFeature([Entity]) AYNI sınıfa bağlanır
-    // -> NestJS DI bootta repository provider'ını çözebilir, uygulama AÇILIR.
+    // ── ENTITY SENTEZI (Table-only graph BOOT garantisi) ────────────────────
+    // Model'i WITHOUT ama bir Repository tarafindan referans edilen her Table
+    // icin TypeORM @Entity sinifi sentezlenir. Boylece @InjectRepository(Entity),
+    // Repository<Entity> ve TypeOrmModule.forFeature([Entity]) AYNI sinifa baglanir
+    // -> NestJS DI bootta repository provider'ini cozebilir, uygulama ACILIR.
     for (const table of tablesNeedingSyntheticEntity(graph)) {
       for (const f of emitSyntheticEntity(table, ctx)) {
         collected.push({ ...f, path: `src/${f.path}` });
       }
     }
 
-    // ── EXCEPTION SENTEZİ (bildirilmiş-ama-tanımsız Throws DERLEME garantisi) ──
-    // Bir Service metodu Throws=[X] bildirir ama X için Exception node'u yoksa,
+    // ── EXCEPTION SENTEZI (bildirilmis-ama-tanimsiz Throws DERLEME garantisi) ──
+    // Bir Service metodu Throws=[X] bildirir ama X icin Exception node'u yoksa,
     // service.emitter X'i surgical marker'a yazar + sentetik dosyadan import eder;
-    // fill kontratı (checkContract) X'i fırlatmaya zorlar. X'in sınıfı burada
-    // üretilmezse `throw new X` import'suz/tanımsız kalır → TS2304. Sentezle.
+    // fill kontrati (checkContract) X'i firlatmaya zorlar. X'in sinifi burada
+    // uretilmezse `throw new X` import'suz/tanimsiz kalir → TS2304. Sentezle.
     for (const exName of undefinedThrownExceptions(graph)) {
       const f = emitSyntheticException(exName);
       collected.push({ ...f, path: `src/${f.path}` });
     }
 
-    // ── FEATURE-MODULE SENTEZİ (mimari-farkındalık) ─────────────────────────
-    // Graph'ta Module node OLMASA bile her çıkarılmış feature için bir
-    // <feature>.module.ts üretilir; app.module bunları import eder -> DI tam,
-    // repository'ler kayıtlı, uygulama BOOT EDER. features() zaten slug'a sıralı.
+    // ── FEATURE-MODULE SENTEZI (mimari-farkindalik) ─────────────────────────
+    // Graph'ta Module node OLMASA bile her cikarilmis feature icin bir
+    // <feature>.module.ts uretilir; app.module bunlari import eder -> DI tam,
+    // repository'ler kayitli, uygulama BOOT BOOTS. features() zaten slug'a sirali.
     for (const feature of graph.features()) {
       for (const f of emitFeatureModule(feature, ctx)) {
         collected.push({ ...f, path: `src/${f.path}` });
       }
     }
 
-    // ── COMMON-MODULE SENTEZİ (feature-bağsız altyapı) ──────────────────────
-    // "common/"a düşen feature-bağsız altyapı (MessageQueue/EventHandler/Cache/
-    // ... ve paylaşımlı @Controller/APIGateway'ler) bir feature module almaz ->
-    // BullModule.registerQueue HİÇ çağrılmaz, provider orphan kalırdı. CommonModule
-    // bunları toplar + wiring'ini yapar; AppModule import eder (buildAppModule).
+    // ── COMMON-MODULE SENTEZI (feature-bagsiz altyapi) ──────────────────────
+    // "common/"a dusen feature-bagsiz altyapi (MessageQueue/EventHandler/Cache/
+    // ... ve paylasimli @Controller/APIGateway'ler) bir feature module almaz ->
+    // BullModule.registerQueue HIC cagrilmaz, provider orphan kalirdi. CommonModule
+    // bunlari toplar + wiring'ini yapar; AppModule import eder (buildAppModule).
     const commonFeature = graph.commonFeature();
     if (commonFeature) {
       for (const f of emitFeatureModule(commonFeature, ctx)) {
@@ -336,52 +336,52 @@ export class CodegenService {
       }
     }
 
-    // ── SERVICE TEST İSKELETİ SENTEZİ (H6) ──────────────────────────────────
-    // Her Service için yanında bir <base>.service.spec.ts iskeleti (Test.create
-    // TestingModule + DI mock'ları). Feature TS dosyaları gibi "src/" altına alınır.
+    // ── SERVICE TEST ISKELETI SENTEZI (H6) ──────────────────────────────────
+    // Her Service icin yaninda bir <base>.service.spec.ts iskeleti (Test.create
+    // TestingModule + DI mock'lari). Feature TS dosyalari gibi "src/" altina alinir.
     for (const f of emitServiceSpecs(ctx)) {
       collected.push({ ...f, path: `src/${f.path}` });
     }
 
-    // Scaffold (node'dan bağımsız) proje-genel dosyalar (graph-farkında).
-    // Bunlar zaten doğru kökte ("src/" TS dosyaları + kök package.json/tsconfig/...).
+    // Scaffold (node'dan bagimsiz) proje-genel dosyalar (graph-farkinda).
+    // Bunlar zaten dogru kokte ("src/" TS dosyalari + kok package.json/tsconfig/...).
     collected.push(...emitScaffoldProject(ctx));
 
-    // ── MIGRATION RUNNER SENTEZİ (H5) ────────────────────────────────────────
-    // table/view emitter'ları okunaklı `migrations/NNN_create_<x>.sql` üretir ama
-    // bunlar TypeORM CLI'ca çalıştırılamaz. Toplanan SQL'leri ÇALIŞTIRILABİLİR
-    // `src/migrations/NNN-<Name>.ts` (MigrationInterface) sınıflarına çevir;
-    // data-source.ts glob'u bunlara bakar -> `npm run db:migrate` şemayı uygular.
-    // SQL dosyaları NNN'e göre sıralı verilir (path sırası deterministik).
+    // ── MIGRATION RUNNER SENTEZI (H5) ────────────────────────────────────────
+    // table/view emitter'lari okunakli `migrations/NNN_create_<x>.sql` uretir ama
+    // bunlar TypeORM CLI'ca calistirilamaz. Toplanan SQL'leri CALISTIRILABILIR
+    // `src/migrations/NNN-<Name>.ts` (MigrationInterface) siniflarina cevir;
+    // data-source.ts glob'u bunlara bakar -> `npm run db:migrate` semayi uygular.
+    // SQL dosyalari NNN'e gore sirali verilir (path sirasi deterministik).
     const sqlMigrations = collected
       .filter((f) => f.language === "sql" && /^migrations\/\d+_create_.+\.sql$/.test(f.path))
       .map((f) => ({ path: f.path, content: f.content }))
       .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     collected.push(...emitMigrationRunners(sqlMigrations));
 
-    // ── SURGICAL PLAN SENTEZİ (SURGICAL_PLAN.md) ────────────────────────────
-    // TÜM dosyalar (scaffold + feature + migration dahil) deduped+sorted hâle
-    // geldikten SONRA üretilir ki plan, üretilen her .ts dosyasındaki
-    // "@solarch:surgical" marker'larını GÖREBİLSİN. Sonra dosyaya eklenir ve
-    // liste yeniden dedupe/sort edilir (SURGICAL_PLAN.md doğru yere otursun).
-    //   ÖNEMLİ: MD'nin KENDİ marker'ı YOKTUR (plan METNİdir, surgicalMarkers:0)
-    //   -> surgicalMarkerCount mantığı bozulmaz.
+    // ── SURGICAL PLAN SENTEZI (SURGICAL_PLAN.md) ────────────────────────────
+    // TUM dosyalar (scaffold + feature + migration dahil) deduped+sorted hâle
+    // geldikten AFTER uretilir ki plan, uretilen her .ts dosyasindaki
+    // "@solarch:surgical" marker'larini GOREBILSIN. Sonra dosyaya eklenir ve
+    // liste yeniden dedupe/sort edilir (SURGICAL_PLAN.md dogru yere otursun).
+    //   ONEMLI: MD'nin KENDI marker'i NONETUR (plan METNIdir, surgicalMarkers:0)
+    //   -> surgicalMarkerCount mantigi bozulmaz.
     const assembled = dedupeAndSort(collected);
     const surgicalPlan = emitSurgicalPlan(assembled, graph);
     const files = dedupeAndSort([...assembled, surgicalPlan]);
     const surgicalMarkerCount = files.reduce((sum, f) => sum + f.surgicalMarkers, 0);
-    // node.id -> üretilen dosya yolları. NİHAİ (deduped+sorted) dosyalardan kurulur
-    // -> path'ler montaj sonrası gerçek yollardır. Yalnız nodeId taşıyan dosyalar.
+    // node.id -> uretilen dosya yollari. NIHAI (deduped+sorted) dosyalardan kurulur
+    // -> path'ler montaj sonrasi gercek yollardir. Yalniz nodeId tasiyan dosyalar.
     const nodeFiles = buildNodeFiles(files);
 
     return {
       target,
       files,
       nodeFiles,
-      // M4: graph'ta tespit edilen yapısal uyarılar (kırılan döngüsel module
-      // import'ları vb.) + diyagram-anı kontrat denetimi (contract-lint: gövde-alan
-      // write endpoint'i input DTO'su olmadan vb.) çıktıya taşınır — aksi halde
-      // sessizce kaybolurdu. İkisi de deterministik + sıralı.
+      // M4: graph'ta tespit edilen yapisal uyarilar (kirilan dongusel module
+      // import'lari vb.) + diyagram-ani kontrat denetimi (contract-lint: govde-alan
+      // write endpoint'i input DTO'su olmadan vb.) ciktiya tasinir — aksi halde
+      // sessizce kaybolurdu. Ikisi de deterministik + sirali.
       warnings: [...graph.warnings(), ...lintContracts(graph)],
       summary: {
         version: CODEGEN_VERSION,
@@ -397,12 +397,12 @@ export class CodegenService {
 const SURGICAL_MARKER_RE = /\/\/\s*@solarch:surgical\s+id=([^\s#]+)#(\S+)/;
 const NOT_IMPLEMENTED_RE = /^(\s*)throw new Error\("NOT_IMPLEMENTED:/;
 
-/** Saklı algoritma gövdelerini iskeletteki NOT_IMPLEMENTED satırının yerine enjekte eder
- *  (deterministik, string-bazlı — ts-morph gerektirmez). Her surgical marker
- *  (`// @solarch:surgical id=nodeId#member`) için saklı gövde varsa: marker + bilgi
- *  yorumlarını korur, NOT_IMPLEMENTED throw satırını `// @solarch:filled` imzası + gövde
- *  (satır girintisi marker bloğununkiyle eşlenir) ile değiştirir. Saklı gövdesi olmayan
- *  bölgeler iskelet kalır → re-fill onları seçer (kaldığı yerden devam). */
+/** Sakli algoritma govdelerini iskeletteki NOT_IMPLEMENTED satirinin yerine enjekte eder
+ *  (deterministik, string-bazli — ts-morph gerektirmez). Her surgical marker
+ *  (`// @solarch:surgical id=nodeId#member`) icin sakli govde varsa: marker + bilgi
+ *  yorumlarini korur, NOT_IMPLEMENTED throw satirini `// @solarch:filled` imzasi + govde
+ *  (satir girintisi marker blogununkiyle eslenir) ile degistirir. Sakli govdesi olmayan
+ *  bolgeler iskelet kalir → re-fill onlari secer (kaldigi yerden devam). */
 export function applySurgicalFills(files: GeneratedFile[], fills: StoredFill[]): GeneratedFile[] {
   const byKey = new Map<string, StoredFill>();
   for (const f of fills) byKey.set(`${f.nodeId}#${f.member}`, f);
@@ -419,17 +419,17 @@ export function applySurgicalFills(files: GeneratedFile[], fills: StoredFill[]):
         out.push(lines[i]!);
         continue;
       }
-      // marker satırı + onu izleyen yorum (// …) satırlarını koru.
+      // marker satiri + onu izleyen yorum (// …) satirlarini koru.
       out.push(lines[i]!);
       let j = i + 1;
       while (j < lines.length && /^\s*\/\//.test(lines[j]!)) {
         out.push(lines[j]!);
         j++;
       }
-      // Şimdi lines[j] NOT_IMPLEMENTED throw olmalı; değilse (zaten dolu) dokunma.
+      // Simdi lines[j] NOT_IMPLEMENTED throw olmali; degilse (zaten dolu) dokunma.
       const thr = NOT_IMPLEMENTED_RE.exec(lines[j] ?? "");
       if (!thr) {
-        i = j - 1; // yorum satırlarını çıktıladık; döngü j'den devam etsin
+        i = j - 1; // yorum satirlarini ciktiladik; dongu j'den devam etsin
         continue;
       }
       const indent = thr[1] ?? "";
@@ -437,14 +437,14 @@ export function applySurgicalFills(files: GeneratedFile[], fills: StoredFill[]):
       out.push("");
       for (const bl of fill.body.split("\n")) out.push(bl.length > 0 ? `${indent}${bl}` : "");
       changed = true;
-      i = j; // throw satırını atla
+      i = j; // throw satirini atla
     }
     return changed ? { ...file, content: out.join("\n") } : file;
   });
 }
 
-/** Nihai dosyalardan node.id -> path[] haritası kurar. Yalnız nodeId taşıyan
- *  (node-emitter) dosyalar dahil; anahtarlar + her node'un path listesi sıralı. */
+/** Nihai dosyalardan node.id -> path[] haritasi kurar. Yalniz nodeId tasiyan
+ *  (node-emitter) dosyalar dahil; anahtarlar + her node'un path listesi sirali. */
 function buildNodeFiles(files: GeneratedFile[]): Record<string, string[]> {
   const map = new Map<string, string[]>();
   for (const f of files) {
@@ -464,21 +464,21 @@ function bump(rec: SkippedKinds, key: string): void {
   rec[key] = (rec[key] ?? 0) + 1;
 }
 
-/** Path'e göre sırala + çift path'leri tekilleştir (ilk-kazanır). */
+/** Path'e gore sirala + cift path'leri tekillestir (ilk-kazanir). */
 function dedupeAndSort(files: GeneratedFile[]): GeneratedFile[] {
   const byPath = new Map<string, GeneratedFile>();
   for (const f of files) if (!byPath.has(f.path)) byPath.set(f.path, f);
   return [...byPath.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
-/** Record'u key'e göre sıralı yeniden kurar (deterministik JSON çıktısı). */
+/** Record'u key'e gore sirali yeniden kurar (deterministik JSON ciktisi). */
 function sortRecord(rec: SkippedKinds): SkippedKinds {
   const out: SkippedKinds = {};
   for (const k of Object.keys(rec).sort()) out[k] = rec[k];
   return out;
 }
 
-// CodeNode tipini dışa-bağlı tüketicilere kapatma — sadece tip referansı.
+// CodeNode tipini disa-bagli tuketicilere kapatma — sadece tip referansi.
 export type { CodeNode };
 
 /** FNV-1a → short stable key (cache invalidation on graph change). */

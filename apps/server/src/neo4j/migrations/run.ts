@@ -16,8 +16,8 @@ async function main() {
 
   for (const file of files) {
     const cypher = readFileSync(join(dir, file), "utf-8");
-    // Yorum SATIRLARI ayıklanır (chunk başında yorum varsa statement'ı
-    // komple düşürme bug'ı vardı — 005'in ilk constraint'i sessizce atlanıyordu).
+    // Comment LINES are stripped (bug: comment at chunk start dropped entire statement —
+    // 005's first constraint was silently skipped).
     const statements = cypher
       .split(/;\s*$/m)
       .map((s) =>

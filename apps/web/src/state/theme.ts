@@ -9,7 +9,7 @@
  *  - resolved:  theme actually applied — "light" | "dark" (resolved from OS when system).
  *  - setMode:   user choice (writes to localStorage + applies).
  *  - cycle:     System → Light → Dark cycle for the menu toggle.
- *  - hydrate:   adopt from Clerk metadata (on sign-in; also mirrors to localStorage).
+ *  - hydrate:   reserved for future per-user sync (OSS uses localStorage only).
  *  - syncSystem: re-resolve when OS preference changes (only when mode==="system").
  *
  *  First-paint: the inline script in index.html has already applied the class (no FOUC); on init

@@ -8,15 +8,15 @@ import type { NodeKind } from "../../../nodes/schemas";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
 /* ────────────────────────────────────────────────────────────────────────
- * module.emitter.spec.ts — FEATURE-MODULE SENTEZİ.
+ * module.emitter.spec.ts — FEATURE-MODULE SENTEZI.
  *
- * Yeni API: emitFeatureModule(feature, ctx). Girdi artık ham Module node DEĞİL,
- * ir.ts feature-inference'ın ürettiği bir `Feature` tanımıdır. Module node
- * OLMASA bile her çıkarılmış feature için bir <feature>/<feature>.module.ts
- * sentezlenir; app.module bunları import eder -> DI tam, uygulama BOOT EDER.
+ * Yeni API: emitFeatureModule(feature, ctx). Girdi artik ham Module node NOT,
+ * ir.ts feature-inference'in urettigi bir `Feature` tanimidir. Module node
+ * OLMASA bile her cikarilmis feature icin bir <feature>/<feature>.module.ts
+ * sentezlenir; app.module bunlari import eder -> DI tam, uygulama BOOT BOOTS.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 let nodeSeq = 0;
 function node(type: NodeKind, properties: Record<string, unknown>, id?: string): StoredNode {
   const n = (nodeSeq += 1);
@@ -55,44 +55,44 @@ function ctxFor(nodes: StoredNode[], edges: StoredEdge[]): EmitterContext {
 
 function featureBySlug(graph: CodeGraph, slug: string): Feature {
   const f = graph.features().find((x) => x.slug === slug);
-  if (!f) throw new Error(`feature '${slug}' bulunamadı: ${graph.features().map((x) => x.slug)}`);
+  if (!f) throw new Error(`feature '${slug}' not found: ${graph.features().map((x) => x.slug)}`);
   return f;
 }
 
-/* ── Gerçekçi "users" feature fixture'ı (Module node YOK -> sentez) ─────────
+/* ── Gercekci "users" feature fixture'i (Module node NONE -> sentez) ─────────
  * Controller -CALLS-> Service -CALLS-> Repository -WRITES-> Model(+Table).
  * Feature-inference: tek "users" feature; controller/service/repository/entity
- * hepsi bu feature'a atanır. */
+ * hepsi bu feature'a atanir. */
 function usersFixture() {
   const userModel = node("Model", {
     ClassName: "User",
-    Description: "Kullanıcı varlığı",
+    Description: "User varligi",
     TableRef: "users",
     Properties: [{ Name: "id", Type: "uuid", IsNullable: false, IsCollection: false }],
     Methods: [],
   });
   const usersTable = node("Table", {
     TableName: "users",
-    Description: "Kullanıcı tablosu",
+    Description: "User table",
     Columns: [{ Name: "id", DataType: "UUID", IsPrimaryKey: true, IsNotNull: true, IsUnique: true }],
   });
   const usersRepo = node("Repository", {
     RepositoryName: "UserRepository",
-    Description: "Kullanıcı veri erişimi",
+    Description: "User veri erisimi",
     EntityReference: "User",
     IsCached: false,
     CustomQueries: [],
   });
   const usersService = node("Service", {
     ServiceName: "UsersService",
-    Description: "Kullanıcı iş mantığı",
+    Description: "User is mantigi",
     IsTransactionScoped: false,
     Methods: [{ MethodName: "findAll", ReturnType: "User[]", IsAsync: true }],
     Dependencies: [{ Kind: "Repository", Ref: "UserRepository" }],
   });
   const usersController = node("Controller", {
     ControllerName: "UsersController",
-    Description: "Kullanıcı uçları",
+    Description: "User uclari",
     BaseRoute: "users",
     Endpoints: [{ HttpMethod: "GET", Route: "/", RequiresAuth: false }],
   });
@@ -110,7 +110,7 @@ function usersFixture() {
 }
 
 describe("emitFeatureModule", () => {
-  it("tam users modülü (Module node YOK -> sentez) — snapshot", () => {
+  it("tam users modulu (Module node NONE -> sentez) — snapshot", () => {
     const fx = usersFixture();
     const ctx = ctxFor(fx.nodes, fx.edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "users"), ctx);
@@ -138,26 +138,26 @@ describe("emitFeatureModule", () => {
     `);
   });
 
-  it("dosya yolu <feature>/<feature>.module.ts (feature başına TEK module)", () => {
+  it("dosya yolu <feature>/<feature>.module.ts (feature basina TEK module)", () => {
     const fx = usersFixture();
     const ctx = ctxFor(fx.nodes, fx.edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "users"), ctx);
     expect(file.path).toBe("users/users.module.ts");
   });
 
-  it("@Module dekoratörü + DI: controllers/providers + TypeOrmModule.forFeature", () => {
+  it("@Module dekoratoru + DI: controllers/providers + TypeOrmModule.forFeature", () => {
     const fx = usersFixture();
     const ctx = ctxFor(fx.nodes, fx.edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "users"), ctx);
     expect(file.content).toContain("@Module({");
     expect(file.content).toContain("controllers: [UsersController],");
-    // providers = service'ler + repository'ler (DI tam; repository kayıtlı).
+    // providers = service'ler + repository'ler (DI tam; repository kayitli).
     expect(file.content).toContain("providers: [UsersService, UserRepository],");
     expect(file.content).toContain("imports: [TypeOrmModule.forFeature([User])],");
     expect(file.content).toContain("export class UsersModule {}");
   });
 
-  it("import çözümleme: @nestjs/common + @nestjs/typeorm + feature-içi göreli importlar", () => {
+  it("import cozumleme: @nestjs/common + @nestjs/typeorm + feature-ici goreli importlar", () => {
     const fx = usersFixture();
     const ctx = ctxFor(fx.nodes, fx.edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "users"), ctx);
@@ -166,14 +166,14 @@ describe("emitFeatureModule", () => {
     expect(file.content).toContain('import { UsersService } from "./users.service";');
     expect(file.content).toContain('import { UserRepository } from "./user.repository";');
     expect(file.content).toContain('import { User } from "./entities/user.entity";');
-    // Paketler önce, göreli sonra (import sıralaması).
+    // Paketler once, goreli sonra (import siralamasi).
     const pkgIdx = file.content.indexOf("@nestjs/common");
     const relIdx = file.content.indexOf("./users.service");
     expect(pkgIdx).toBeGreaterThanOrEqual(0);
     expect(pkgIdx).toBeLessThan(relIdx);
   });
 
-  it("içerik tek satır sonu ile biter, surgical marker yok", () => {
+  it("content ends with single newline, surgical marker yok", () => {
     const fx = usersFixture();
     const ctx = ctxFor(fx.nodes, fx.edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "users"), ctx);
@@ -182,7 +182,7 @@ describe("emitFeatureModule", () => {
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("DETERMİNİZM: aynı feature iki kez -> byte-identical", () => {
+  it("DETERMINISM: ayni feature iki kez -> byte-identical", () => {
     const fx = usersFixture();
     const ctx = ctxFor(fx.nodes, fx.edges);
     const a = emitFeatureModule(featureBySlug(ctx.graph, "users"), ctx)[0].content;
@@ -190,32 +190,32 @@ describe("emitFeatureModule", () => {
     expect(a).toBe(b);
   });
 
-  /* ── CROSS-FEATURE: bir feature başka feature'ın service'ini çağırırsa ──── */
-  it("cross-feature bağımlılık: dependsOn modülü import + kaynak feature service'i export eder", () => {
+  /* ── CROSS-FEATURE: bir feature baska feature'in service'ini cagirirsa ──── */
+  it("cross-feature bagimlilik: dependsOn modulu import + kaynak feature service'i export eder", () => {
     // image feature ImageService -CALLS-> AuthService (auth feature). Beklenen:
-    //   - auth modülü AuthService'i EXPORT eder (başka feature kullanıyor).
-    //   - image modülü AuthModule'ü IMPORT eder (dependsOn=[auth]).
+    //   - auth modulu AuthService'i EXPORT eder (baska feature kullaniyor).
+    //   - image modulu AuthModule'u IMPORT eder (dependsOn=[auth]).
     const authCtrl = node("Controller", {
       ControllerName: "AuthController",
-      Description: "Kimlik uçları",
+      Description: "Kimlik uclari",
       BaseRoute: "auth",
       Endpoints: [],
     });
     const authSvc = node("Service", {
       ServiceName: "AuthService",
-      Description: "Kimlik mantığı",
+      Description: "Kimlik mantigi",
       Dependencies: [],
       Methods: [],
     });
     const imageCtrl = node("Controller", {
       ControllerName: "ImageController",
-      Description: "Görsel uçları",
+      Description: "Gorsel uclari",
       BaseRoute: "image",
       Endpoints: [],
     });
     const imageSvc = node("Service", {
       ServiceName: "ImageService",
-      Description: "Görsel mantığı",
+      Description: "Gorsel mantigi",
       Dependencies: [],
       Methods: [],
     });
@@ -234,11 +234,11 @@ describe("emitFeatureModule", () => {
     expect(imageFile.content).toContain('import { AuthModule } from "../auth/auth.module";');
   });
 
-  /* ── KARŞILIKLI (circular) import: geri-kenar forwardRef ile emit edilir ── */
-  it("karşılıklı cross-feature: geri-kenar forwardRef(() => X) ile emit edilir (boot circular yok)", () => {
-    // auth <-> image karşılıklı CALLS. ir.ts geri-kenarı ((to,from) en küçük =
-    // image -> auth) forwardRef ile işaretler -> image modülü AuthModule'ü
-    // forwardRef(() => AuthModule) ile import EDER (kenar KORUNUR); auth düz import EDER.
+  /* ── KARSILIKLI (circular) import: geri-kenar forwardRef ile emit edilir ── */
+  it("karsilikli cross-feature: geri-kenar forwardRef(() => X) ile emit edilir (boot circular yok)", () => {
+    // auth <-> image karsilikli CALLS. ir.ts geri-kenari ((to,from) en kucuk =
+    // image -> auth) forwardRef ile isaretler -> image modulu AuthModule'u
+    // forwardRef(() => AuthModule) ile import BOOTS (kenar KORUNUR); auth duz import BOOTS.
     const authCtrl = node("Controller", { ControllerName: "AuthController", Description: "x", BaseRoute: "auth", Endpoints: [] });
     const authSvc = node("Service", { ServiceName: "AuthService", Description: "x", Dependencies: [], Methods: [] });
     const imageCtrl = node("Controller", { ControllerName: "ImageController", Description: "x", BaseRoute: "image", Endpoints: [] });
@@ -247,14 +247,14 @@ describe("emitFeatureModule", () => {
       edge("CALLS", authCtrl.id, authSvc.id),
       edge("CALLS", imageCtrl.id, imageSvc.id),
       edge("CALLS", imageSvc.id, authSvc.id), // image -> auth
-      edge("CALLS", authSvc.id, imageSvc.id), // auth -> image (karşılıklı)
+      edge("CALLS", authSvc.id, imageSvc.id), // auth -> image (karsilikli)
     ];
     const ctx = ctxFor([authCtrl, authSvc, imageCtrl, imageSvc], edges);
 
     const authFile = emitFeatureModule(featureBySlug(ctx.graph, "auth"), ctx)[0];
     const imageFile = emitFeatureModule(featureBySlug(ctx.graph, "image"), ctx)[0];
 
-    // Eager yön (auth -> image) düz import KORUNUR (forwardRef YOK bu yönde).
+    // Eager yon (auth -> image) duz import KORUNUR (forwardRef NONE bu yonde).
     expect(authFile.content).toContain("imports: [ImageModule],");
     expect(authFile.content).toContain('import { ImageModule } from "../image/image.module";');
     expect(authFile.content).not.toContain("forwardRef");
@@ -262,29 +262,29 @@ describe("emitFeatureModule", () => {
     expect(imageFile.content).toContain("imports: [forwardRef(() => AuthModule)],");
     expect(imageFile.content).toContain('import { Module, forwardRef } from "@nestjs/common";');
     expect(imageFile.content).toContain('import { AuthModule } from "../auth/auth.module";');
-    // DI yine sağlam: iki servis de export edilir.
+    // DI yine saglam: iki servis de export edilir.
     expect(authFile.content).toContain("exports: [AuthService],");
     expect(imageFile.content).toContain("exports: [ImageService],");
   });
 
-  /* ── Açık Module node feature'ı tohumlarsa Description KORUNUR ──────────── */
-  it("açık Module node varsa: feature slug'ı tohumlar + Description korunur", () => {
+  /* ── Acik Module node feature'i tohumlarsa Description KORUNUR ──────────── */
+  it("acik Module node varsa: feature slug'i tohumlar + Description korunur", () => {
     const mod = node("Module", {
       ModuleName: "AuthModule",
-      Description: "Kimlik doğrulama modülü",
+      Description: "Kimlik dogrulama modulu",
       StrictBoundaries: true,
       ExposedServices: ["AuthService"],
       Dependencies: [],
     });
     const ctrl = node("Controller", {
       ControllerName: "AuthController",
-      Description: "Kimlik uçları",
+      Description: "Kimlik uclari",
       BaseRoute: "auth",
       Endpoints: [],
     });
     const svc = node("Service", {
       ServiceName: "AuthService",
-      Description: "Kimlik mantığı",
+      Description: "Kimlik mantigi",
       Dependencies: [],
       Methods: [],
     });
@@ -293,17 +293,17 @@ describe("emitFeatureModule", () => {
     const feature = featureBySlug(ctx.graph, "auth");
     expect(feature.module?.id).toBe(mod.id);
     const [file] = emitFeatureModule(feature, ctx);
-    // Module.Description -> dosya başı yorumu (sentez varsayılan metni DEĞİL).
-    expect(file.content).toContain("/** Kimlik doğrulama modülü */");
+    // Module.Description -> dosya basi yorumu (sentez varsayilan metni NOT).
+    expect(file.content).toContain("/** Kimlik dogrulama modulu */");
     expect(file.content).toContain("export class AuthModule {}");
     expect(file.path).toBe("auth/auth.module.ts");
   });
 
-  /* ── CROSS-FEATURE Service->Repository: owner modül Repository'yi EXPORT eder ── */
-  it("cross-feature Service->Repository: owner modül Repository'yi EXPORT eder, tüketici dependsOn", () => {
+  /* ── CROSS-FEATURE Service->Repository: owner modul Repository'yi EXPORT eder ── */
+  it("cross-feature Service->Repository: owner modul Repository'yi EXPORT eder, tuketici dependsOn", () => {
     // image feature ImageGenerationService -CALLS-> UserRepository (auth feature).
     // Beklenen: AuthModule UserRepository'yi EXPORT eder (NestJS'te export edilmeyen
-    // provider modül-dışı görünmez -> bootta DI hatası); ImageModule AuthModule import.
+    // provider modul-disi gorunmez -> bootta DI hatasi); ImageModule AuthModule import.
     const authCtrl = node("Controller", { ControllerName: "AuthController", Description: "x", BaseRoute: "auth", Endpoints: [] });
     const authSvc = node("Service", { ServiceName: "AuthService", Description: "x", Dependencies: [{ Kind: "Repository", Ref: "UserRepository" }], Methods: [] });
     const userRepo = node("Repository", { RepositoryName: "UserRepository", Description: "x", EntityReference: "User", CustomQueries: [] });
@@ -318,20 +318,20 @@ describe("emitFeatureModule", () => {
     ];
     const ctx = ctxFor([authCtrl, authSvc, userRepo, userModel, imageCtrl, imageSvc], edges);
 
-    // UserRepository hangi feature'a düştü? (firstSourceFeature isimce ilk = auth.)
+    // UserRepository hangi feature'a dustu? (firstSourceFeature isimce ilk = auth.)
     const authFeature = ctx.graph.features().find((f) => f.repositories.some((r) => r.name === "UserRepository"));
     expect(authFeature?.slug).toBe("auth");
 
     const authFile = emitFeatureModule(featureBySlug(ctx.graph, "auth"), ctx)[0];
-    // Repository EXPORT edilir (Service değil sadece -> Repository de aday).
+    // Repository EXPORT edilir (Service degil sadece -> Repository de aday).
     expect(authFile.content).toContain("exports: [UserRepository],");
 
     const imageFile = emitFeatureModule(featureBySlug(ctx.graph, "image"), ctx)[0];
     expect(imageFile.content).toContain("imports: [AuthModule],");
   });
 
-  /* ── Enjekte edilen Cache/ExternalService TAM provider'ları module'da ───── */
-  it("CACHES_IN/REQUESTS edge'li Service -> Cache/ExternalService TAM provider + module import'ları", () => {
+  /* ── Enjekte edilen Cache/ExternalService TAM provider'lari module'da ───── */
+  it("CACHES_IN/REQUESTS edge'li Service -> Cache/ExternalService TAM provider + module import'lari", () => {
     const ctrl = node("Controller", { ControllerName: "ImageController", Description: "x", BaseRoute: "image", Endpoints: [] });
     const svc = node("Service", {
       ServiceName: "ImageService",
@@ -348,12 +348,12 @@ describe("emitFeatureModule", () => {
     ];
     const ctx = ctxFor([ctrl, svc, cache, ext], edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "image"), ctx);
-    // Cache/ExternalService artık TAM emitter -> gerçek sınıf adı (Stub eki YOK).
+    // Cache/ExternalService artik TAM emitter -> gercek sinif adi (Stub eki NONE).
     expect(file.content).toContain("providers: [ImageService, ImageCache, SdApi],");
     expect(file.content).not.toContain("Stub");
     expect(file.content).toContain('import { ImageCache } from "./image.cache";');
     expect(file.content).toContain('import { SdApi } from "./sd.client";');
-    // Module-seviyesi altyapı import'ları: CacheModule + HttpModule + ConfigModule.
+    // Module-seviyesi altyapi import'lari: CacheModule + HttpModule + ConfigModule.
     expect(file.content).toContain("CacheModule.register()");
     expect(file.content).toContain("HttpModule");
     expect(file.content).toContain("ConfigModule");
@@ -368,17 +368,17 @@ describe("emitFeatureModule", () => {
     const edges = [edge("CALLS", ctrl.id, svc.id), edge("CALLS", svc.id, repo.id), edge("WRITES", repo.id, table.id)];
     const ctx = ctxFor([ctrl, svc, repo, table], edges);
     const [file] = emitFeatureModule(featureBySlug(ctx.graph, "image"), ctx);
-    // Model YOK ama sentetik GeneratedImage entity forFeature'a girer -> DI tam.
+    // Model NONE ama sentetik GeneratedImage entity forFeature'a girer -> DI tam.
     expect(file.content).toContain("TypeOrmModule.forFeature([GeneratedImage])");
     expect(file.content).toContain('import { GeneratedImage } from "./entities/generated-image.entity";');
     expect(file.content).toContain("providers: [ImageService, ImageRepository],");
   });
 
   /* ── #7 cross-feature infra provider TEK module'de provider (singleton) ──── */
-  it("çift-inject: PaymentGateway YALNIZ payment module'ünde provider; order import eder", () => {
-    // payment + order İKİSİ de PaymentGateway (ExternalService) enjekte eder.
-    // Eski hata: gateway iki module'ün de providers'ında -> iki örnek (singleton kırık).
-    // Beklenen: yalnız PaymentModule provider+export eder; OrderModule PaymentModule import.
+  it("cift-inject: PaymentGateway YALNIZ payment module'unde provider; order import eder", () => {
+    // payment + order IKISI de PaymentGateway (ExternalService) enjekte eder.
+    // Eski hata: gateway iki module'un de providers'inda -> iki ornek (singleton kirik).
+    // Beklenen: yalniz PaymentModule provider+export eder; OrderModule PaymentModule import.
     const payCtrl = node("Controller", { ControllerName: "PaymentController", Description: "x", BaseRoute: "payment", Endpoints: [] });
     const paySvc = node("Service", { ServiceName: "PaymentService", Description: "x", Dependencies: [{ Kind: "ExternalService", Ref: "PaymentGateway" }], Methods: [] });
     const orderCtrl = node("Controller", { ControllerName: "OrderController", Description: "x", BaseRoute: "order", Endpoints: [] });
@@ -396,35 +396,35 @@ describe("emitFeatureModule", () => {
     const paymentFile = emitFeatureModule(featureBySlug(ctx.graph, "payment"), ctx)[0];
     const orderFile = emitFeatureModule(featureBySlug(ctx.graph, "order"), ctx)[0];
 
-    // Sahip (payment): PaymentGateway providers + exports + import edilen sınıf.
+    // Sahip (payment): PaymentGateway providers + exports + import edilen sinif.
     expect(paymentFile.content).toContain("providers: [PaymentService, PaymentGateway],");
     expect(paymentFile.content).toContain("exports: [PaymentService, PaymentGateway],");
     expect(paymentFile.content).toContain('import { PaymentGateway } from "./payment-gateway.client";');
 
-    // Sahip-DIŞI (order): PaymentGateway'i providers'a YAZMAZ, sınıfı import ETMEZ.
+    // Sahip-DISI (order): PaymentGateway'i providers'a YAZMAZ, sinifi import ETMEZ.
     expect(orderFile.content).not.toContain("PaymentGateway");
     expect(orderFile.content).toContain("providers: [OrderService],");
-    // PaymentModule'ü import eder (gateway + PaymentService oradan gelir).
+    // PaymentModule'u import eder (gateway + PaymentService oradan gelir).
     expect(orderFile.content).toContain("imports: [PaymentModule],");
     expect(orderFile.content).toContain('import { PaymentModule } from "../payment/payment.module";');
 
-    // forwardRef ASLA üretilmez; döngü yok.
+    // forwardRef ASLA uretilmez; dongu yok.
     expect(paymentFile.content).not.toContain("forwardRef");
     expect(orderFile.content).not.toContain("forwardRef");
   });
 
-  it("entity yoksa imports alanı atlanır (boş @Module alanları yazılmaz)", () => {
-    // Controller + Service var ama Model/Table YOK -> TypeOrmModule.forFeature yok,
-    // cross-feature bağımlılık yok -> imports alanı tamamen atlanır.
+  it("entity yoksa imports alani atlanir (bos @Module alanlari yazilmaz)", () => {
+    // Controller + Service var ama Model/Table NONE -> TypeOrmModule.forFeature yok,
+    // cross-feature bagimlilik yok -> imports alani tamamen atlanir.
     const ctrl = node("Controller", {
       ControllerName: "PingController",
-      Description: "Sağlık",
+      Description: "Saglik",
       BaseRoute: "ping",
       Endpoints: [],
     });
     const svc = node("Service", {
       ServiceName: "PingService",
-      Description: "Sağlık mantığı",
+      Description: "Saglik mantigi",
       Dependencies: [],
       Methods: [],
     });

@@ -12,8 +12,8 @@ export interface ProjectGraph {
   nodes: Node[];
   edges: Edge[];
   counts: { nodes: number; edges: number };
-  /** Graf seviyesi revizyon — her yapısal mutasyonda +1. CLI push'un
-   *  baseRevision çatışma tespiti bu değere dayanır. */
+  /** Graph-level revision — +1 on every structural mutation. CLI push
+   *  baseRevision conflict detection relies on this value. */
   graphRevision: number;
 }
 

@@ -13,15 +13,15 @@ import {
   type NodeKind,
 } from "../nodes/schemas";
 
-/** UI inspector için alan ipucu: rozet + grup + value-set referansı + node-ref. */
+/** Field hint for UI inspector: badge + group + value-set ref + node-ref. */
 export interface FieldHint {
   badge?: string;
   group?: string;
-  /** Strict enum referansı — value-sets registry'sinde tanımlı id (örn 'http-methods'). */
+  /** Strict enum reference — id defined in value-sets registry (e.g. 'http-methods'). */
   valueSet?: string;
-  /** Proje içindeki node referansı — frontend NodeRefCombobox açar (autocomplete +
-   *  yeni oluştur). edgeKind varsa: seçim/create sonrası otomatik edge yaratılır
-   *  (örn Service.Throws → THROWS). */
+  /** In-project node reference — frontend opens NodeRefCombobox (autocomplete +
+   *  create new). When edgeKind set: auto edge after select/create
+   *  (e.g. Service.Throws → THROWS). */
   nodeRef?: {
     type: NodeKind;
     edgeKind?: string;
@@ -35,7 +35,7 @@ export interface NodeTypeMetadata {
   description: string;
   nameKey: string;
   schema: z.ZodTypeAny;
-  /** Dotted property path → hint. UI'da kolon/alan rozetleri için. */
+  /** Dotted property path -> hint. For column/field badges in UI. */
   fieldHints?: Record<string, FieldHint>;
 }
 
@@ -128,7 +128,7 @@ export const NODE_TYPE_REGISTRY: Record<NodeKind, NodeTypeMetadata> = {
     "Business process coordinator. Pattern (Saga/CompensatingTransaction/StateMachine). Coordinates multiple Services.", OrchestratorNodeSchema),
 };
 
-/* ── Faz A fieldHints — UI inspector rozet/grup metadata ─────────────── */
+/* ── Phase A fieldHints — UI inspector badge/group metadata ─────────────── */
 NODE_TYPE_REGISTRY.Table.fieldHints = {
   "Columns.DataType": { badge: "TYPE", group: "definition", valueSet: "column-data-types" },
   "Columns.IsPrimaryKey": { badge: "PK", group: "constraints" },
@@ -173,7 +173,7 @@ NODE_TYPE_REGISTRY.View.fieldHints = {
   "Columns.DataType": { badge: "TYPE", group: "definition", valueSet: "column-data-types" },
 };
 
-/* ── Faz B fieldHints — İş Mantığı + Erişim ──────────────────────────── */
+/* ── Phase B fieldHints — Business Logic + Access ──────────────────────────── */
 NODE_TYPE_REGISTRY.Service.fieldHints = {
   IsTransactionScoped: { badge: "TX", group: "behavior" },
   "Methods.Visibility": { badge: "VIS", group: "behavior", valueSet: "visibility" },
@@ -185,8 +185,8 @@ NODE_TYPE_REGISTRY.Service.fieldHints = {
   "Methods.ReturnDtoRef": { badge: "DTO", group: "reference", nodeRef: { type: "DTO", edgeKind: "RETURNS" } },
   Dependencies: { badge: "DI", group: "relations" },
   "Dependencies.Kind": { badge: "KIND", group: "relations", valueSet: "service-dep-kinds" },
-  // Dependencies.Ref kind'a göre dinamik (Repository/Service/Cache/ExternalService).
-  // Şimdilik generic — frontend dinamik lookup yapabilir, edgeKind CALLS varsayılan.
+  // Dependencies.Ref dynamic by kind (Repository/Service/Cache/ExternalService).
+  // Generic for now — frontend can dynamic lookup, edgeKind CALLS default.
 };
 NODE_TYPE_REGISTRY.EventHandler.fieldHints = {
   ...NODE_TYPE_REGISTRY.EventHandler.fieldHints,
@@ -224,8 +224,8 @@ NODE_TYPE_REGISTRY.Controller.fieldHints = {
   "Endpoints.RequestDTORef": { badge: "REQ", group: "reference", nodeRef: { type: "DTO", edgeKind: "USES" } },
   "Endpoints.ResponseDTORef": { badge: "RES", group: "reference", nodeRef: { type: "DTO", edgeKind: "RETURNS" } },
   "Endpoints.RateLimit": { badge: "RATE", group: "security" },
-  // MiddlewareRefs: edgeKind YOK — Controller→Middleware USES whitelist'te yasak.
-  // Semantic yön Middleware→Controller ROUTES_TO (ters); autocomplete kullanılır, edge yaratılmaz.
+  // MiddlewareRefs: no edgeKind — Controller→Middleware USES forbidden in whitelist.
+  // Semantic direction Middleware→Controller ROUTES_TO (reverse); autocomplete used, no edge created.
   "Endpoints.MiddlewareRefs": { badge: "MW", group: "security", nodeRef: { type: "Middleware" } },
 };
 NODE_TYPE_REGISTRY.MessageQueue.fieldHints = {
@@ -244,7 +244,7 @@ NODE_TYPE_REGISTRY.APIGateway.fieldHints = {
   "Routes.TargetRef": { badge: "TARGET", group: "relations", nodeRef: { type: "Controller", edgeKind: "ROUTES_TO" } },
 };
 
-/* ── Faz C fieldHints — Altyapı/İstemci/Güvenlik/Konfig/Yapı ──────────── */
+/* ── Phase C fieldHints — Infra/Client/Security/Config/Structure ──────────── */
 NODE_TYPE_REGISTRY.Repository.fieldHints = {
   EntityReference: { badge: "ENTITY", group: "reference", nodeRef: { type: "Model", edgeKind: "USES" } },
   IsCached: { badge: "CACHED", group: "performance" },

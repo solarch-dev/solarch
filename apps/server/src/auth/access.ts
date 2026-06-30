@@ -1,8 +1,8 @@
 import type { AuthContext } from "./auth.types";
 
-/** Bir projeye erişim kuralı:
- *  - Org bağlamı aktifse (auth.orgId varsa): proje aynı org'a ait olmalı.
- *  - Kişisel bağlamda: proje çağıranın olmalı ve hiçbir org'a ait olmamalı. */
+/** Project access rule:
+ *  - When org context is active (auth.orgId set): project must belong to that org.
+ *  - In personal context: project must belong to caller and not be org-owned. */
 export function hasProjectAccess(
   project: { ownerId: string; orgId: string | null },
   auth: AuthContext,
@@ -11,12 +11,12 @@ export function hasProjectAccess(
   return project.ownerId === auth.userId && project.orgId == null;
 }
 
-/** Yeni projeye damgalanacak sahiplik. */
+/** Ownership stamped on new projects. */
 export function ownershipFor(auth: AuthContext): { ownerId: string; orgId: string | null } {
   return { ownerId: auth.userId, orgId: auth.orgId };
 }
 
-/** list() için kapsam filtresi. */
+/** Scope filter for list(). */
 export function projectScope(auth: AuthContext): { userId: string; orgId: string | null } {
   return { userId: auth.userId, orgId: auth.orgId };
 }

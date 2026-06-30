@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { EvaluationContext, EvaluationResult } from "../types";
 
-/** WARN_COND_001 — Repository → QUERIES → Table'da target Table boş şemalıysa uyarı. */
+/** WARN_COND_001 — warn when target Table has empty schema on Repository → QUERIES → Table. */
 @Injectable()
 export class EmptySchemaChecker {
   check(ctx: EvaluationContext): EvaluationResult {
@@ -13,7 +13,7 @@ export class EmptySchemaChecker {
 
     const tableName = (ctx.targetNode.properties as any).TableName ?? ctx.targetNode.id;
     return {
-      allowed: true, // warning — edge yine oluşur
+      allowed: true, // warning — edge still created
       severity: "warning",
       code: "WARN_COND_001",
       ruleViolated: "EMPTY_SCHEMA",

@@ -8,10 +8,9 @@ import { PatternsModule } from "../patterns/patterns.module";
 import { NodesModule } from "../nodes/nodes.module";
 import { EdgesModule } from "../edges/edges.module";
 import { TabsModule } from "../tabs/tabs.module";
-import { BillingModule } from "../billing/billing.module";
 
 @Module({
-  imports: [ProjectsModule, GraphModule, PatternsModule, NodesModule, EdgesModule, TabsModule, BillingModule],
+  imports: [ProjectsModule, GraphModule, PatternsModule, NodesModule, EdgesModule, TabsModule],
   controllers: [AiController],
   providers: [AiService, AiIdempotencyStore],
 })

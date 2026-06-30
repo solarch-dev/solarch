@@ -44,23 +44,6 @@ export class ProjectsController {
     return ok({ projects, total: projects.length });
   }
 
-  @Post("claim-guest")
-  @HttpCode(200)
-  @ApiOperation({
-    summary: "Claim guest projects",
-    description:
-      "Transfers the project(s) drawn with a guest token (`X-Guest-Token` trial) to the signed-in account. Invalid or empty tokens return an empty list. Counts toward the user's own project cap.",
-  })
-  @ApiResponse({ status: 200, description: "`data: { projects: [...], total }` — claimed projects." })
-  @ApiResponse({ status: 402, description: "`ERR_PLAN_LIMIT` — claiming would exceed the user's project cap." })
-  async claimGuest(
-    @Body() body: { token?: string },
-    @CurrentAuth() auth: AuthContext,
-  ): Promise<ProjectListResponse> {
-    const projects = await this.service.claimGuestProjects(body?.token ?? "", auth);
-    return ok({ projects, total: projects.length });
-  }
-
   @Get(":projectId")
   @ApiOperation({
     summary: "Single project (+ counts)",

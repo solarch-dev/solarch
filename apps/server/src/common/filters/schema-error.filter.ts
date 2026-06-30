@@ -7,7 +7,7 @@ import { err } from "../envelope";
 export class SchemaErrorFilter implements ExceptionFilter {
   catch(exception: ZodError | ZodValidationException, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse();
-    // nestjs-zod ZodValidationException ZodError'ı `error` field'ında taşır
+    // nestjs-zod ZodValidationException carries ZodError in `error` field
     const zodError: ZodError =
       exception instanceof ZodValidationException
         ? ((exception as any).error as ZodError)

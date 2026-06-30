@@ -6,7 +6,7 @@ import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 import type { EdgeKind } from "../../../edges/schemas/edge.schema";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -50,7 +50,7 @@ const DTO_USER = "10000000-0000-4000-8000-000000000004";
 const EXC = "10000000-0000-4000-8000-000000000005";
 const CACHE = "10000000-0000-4000-8000-000000000006";
 
-/* ── Node fixture'ları ──────────────────────────────────────────────────── */
+/* ── Node fixtures ──────────────────────────────────────────────────── */
 const usersRepository = node("Repository", REPO, {
   RepositoryName: "UsersRepository",
   EntityReference: "User",
@@ -59,31 +59,31 @@ const usersRepository = node("Repository", REPO, {
 
 const createUserDto = node("DTO", DTO_CREATE, {
   Name: "CreateUserDto",
-  Description: "Kullanıcı oluşturma girdisi",
+  Description: "User olusturma girdisi",
   Fields: [{ Name: "email", DataType: "string", IsRequired: true, IsArray: false }],
 });
 
 const userDto = node("DTO", DTO_USER, {
   Name: "UserDto",
-  Description: "Kullanıcı çıktısı",
+  Description: "User ciktisi",
   Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
 });
 
 const notFoundException = node("Exception", EXC, {
   ExceptionName: "UserNotFoundException",
-  Description: "Kullanıcı bulunamadı",
+  Description: "User bulunamadi",
   HttpStatusCode: 404,
   LogSeverity: "Warning",
 });
 
 const usersCache = node("Cache", CACHE, {
   CacheName: "UsersCache",
-  // Cache şeması v1'de stub; emitter sadece adı/yolu kullanır.
+  // Cache semasi v1'de stub; emitter sadece adi/yolu kullanir.
 });
 
 const usersService = node("Service", SVC, {
   ServiceName: "UsersService",
-  Description: "Kullanıcı iş mantığı",
+  Description: "User is mantigi",
   IsTransactionScoped: true,
   Dependencies: [{ Kind: "Repository", Ref: "UsersRepository" }],
   Methods: [
@@ -95,7 +95,7 @@ const usersService = node("Service", SVC, {
       ReturnDtoRef: "UserDto",
       IsAsync: true,
       Throws: ["UserNotFoundException"],
-      Description: "Yeni kullanıcı oluşturur ve UserDto döner.",
+      Description: "Yeni kullanici olusturur ve UserDto doner.",
     },
     {
       MethodName: "countActive",
@@ -109,7 +109,7 @@ const usersService = node("Service", SVC, {
 });
 
 describe("emitService", () => {
-  it("tam servis — snapshot (DI, dekoratör, DTO import, surgical marker)", () => {
+  it("tam servis — snapshot (DI, dekorator, DTO import, surgical marker)", () => {
     const ctx = ctxFrom(
       [usersService, usersRepository, createUserDto, userDto, notFoundException, usersCache],
       [edge("e-cache", "CALLS", SVC, CACHE)],
@@ -124,7 +124,7 @@ describe("emitService", () => {
       import { UsersCache } from "./users.cache";
       import { UsersRepository } from "./users.repository";
 
-      /** Kullanıcı iş mantığı */
+      /** User is mantigi */
       @Injectable()
       export class UsersService {
         constructor(
@@ -140,7 +140,7 @@ describe("emitService", () => {
 
         async createUser(input: CreateUserDto): Promise<UserDto> {
           // @solarch:surgical id=10000000-0000-4000-8000-000000000001#createUser
-          // Yeni kullanıcı oluşturur ve UserDto döner.
+          // Yeni kullanici olusturur ve UserDto doner.
           // throws: UserNotFoundException
           // deps: this.usersCache, this.usersRepository
           throw new Error("NOT_IMPLEMENTED: UsersService.createUser");
@@ -154,8 +154,8 @@ describe("emitService", () => {
     `);
   });
 
-  it("public metot IsAsync:false olsa bile async (await-sync TS1308 önle); private sync KALIR", () => {
-    // Gerçek bug: AuthService.ValidateToken IsAsync:false ama fill await ister -> TS1308.
+  it("public metot IsAsync:false olsa bile async (await-sync TS1308 onle); private sync KALIR", () => {
+    // Gercek bug: AuthService.ValidateToken IsAsync:false ama fill await ister -> TS1308.
     // Public metot daima async (NestJS idiom); private graf IsAsync'ini korur.
     const svc = node("Service", SVC, {
       ServiceName: "AuthService",
@@ -171,23 +171,23 @@ describe("emitService", () => {
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
     // public validateToken -> async + Promise<>
     expect(file.content).toMatch(/async validateToken\([^)]*\): Promise<UserDto>/);
-    // private hashKey -> sync KALIR (async DEĞİL)
+    // private hashKey -> sync KALIR (async NOT)
     expect(file.content).toMatch(/private hashKey\(raw: string\): string \{/);
     expect(file.content).not.toMatch(/async hashKey/);
   });
 
-  it("çözülemeyen DI bağımlılığı constructor'a DANGLING tip basmaz (TS2304 + DI boot patlamasını önle)", () => {
-    // Bir Service, gerçek bir node'a çözülmeyen bağımlılık bildirirse (ör. Ref="Environment"
-    // ama öyle bir node yok) eskiden `private readonly environment: Environment` üretiliyordu:
-    // import yok -> TS2304, ayrıca NestJS DI boot'ta "can't resolve" ile patlardı. Çözülemeyen
-    // dep DI'dan DÜŞÜRÜLMELİ (çözülen repo kalır), yerine TODO. Uyarı contract-lint Rule 5'te.
+  it("cozulemeyen DI bagimliligi constructor'a DANGLING tip basmaz (TS2304 + DI boot patlamasini onle)", () => {
+    // Bir Service, gercek bir node'a cozulmeyen bagimlilik bildirirse (or. Ref="Environment"
+    // ama oyle bir node yok) eskiden `private readonly environment: Environment` uretiliyordu:
+    // import yok -> TS2304, ayrica NestJS DI boot'ta "can't resolve" ile patlardi. Cozulemeyen
+    // dep DI'dan DUSURULMELI (cozulen repo kalir), yerine TODO. Uyari contract-lint Rule 5'te.
     const svc = node("Service", SVC, {
       ServiceName: "TokenService",
-      Description: "JWT üretir/doğrular",
+      Description: "JWT uretir/dogrular",
       IsTransactionScoped: false,
       Dependencies: [
-        { Kind: "Repository", Ref: "UsersRepository" }, // çözülür
-        { Kind: "Service", Ref: "Environment" }, // çözülmez (node yok)
+        { Kind: "Repository", Ref: "UsersRepository" }, // cozulur
+        { Kind: "Service", Ref: "Environment" }, // cozulmez (node yok)
       ],
       Methods: [
         { MethodName: "generateTokens", Visibility: "public", Parameters: [{ Name: "userId", Type: "UUID", Optional: false }], ReturnType: "TokenPair", IsAsync: false, Throws: [] },
@@ -195,19 +195,19 @@ describe("emitService", () => {
     });
     const ctx = ctxFrom([svc, usersRepository], []);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
-    // Dangling tip ve dangling DI alanı ÜRETİLMEZ.
+    // Dangling tip ve dangling DI alani URETILMEZ.
     expect(file.content).not.toMatch(/:\s*Environment\b/);
     expect(file.content).not.toContain("private readonly environment");
-    // Çözülen repo bağımlılığı KORUNUR.
+    // Cozulen repo bagimliligi KORUNUR.
     expect(file.content).toContain("private readonly usersRepository: UsersRepository,");
-    // Atlanan dep in-file görünür (TODO).
+    // Atlanan dep in-file gorunur (TODO).
     expect(file.content).toMatch(/TODO:.*Environment.*(resolve|omitted)/i);
-    // Çözülemeyen serbest dönüş tipi (TokenPair) merkezi degrade ile Record olur (Fix 1).
+    // Cozulemeyen serbest donus tipi (TokenPair) merkezi degrade ile Record olur (Fix 1).
     expect(file.content).toContain("Record<string, unknown>");
   });
 
-  it("DI = Dependencies ∪ CALLS hedefleri, DEDUP + isme göre sıralı", () => {
-    // Dependencies'te UsersRepository var; CALLS edge ile de aynı repo → tek alan.
+  it("DI = Dependencies ∪ CALLS hedefleri, DEDUP + isme gore sirali", () => {
+    // Dependencies'te UsersRepository var; CALLS edge ile de ayni repo → tek alan.
     const ctx = ctxFrom(
       [usersService, usersRepository, createUserDto, userDto, notFoundException],
       [edge("e-dup", "CALLS", SVC, REPO)],
@@ -218,26 +218,26 @@ describe("emitService", () => {
     expect(file.content).toContain("private readonly usersRepository: UsersRepository,");
   });
 
-  it("DTO import'ları DEĞER import ile gelir (surgical AI runtime kullanır), exception değer import'u ile", () => {
+  it("DTO import'lari DEGER import ile gelir (surgical AI runtime kullanir), exception deger import'u ile", () => {
     const ctx = ctxFrom(
       [usersService, usersRepository, createUserDto, userDto, notFoundException],
       [],
     );
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
-    // DTO'lar DEĞER import ile: surgical AI gövdede DTO'yu runtime değer olarak
-    // kullanabilsin (plainToInstance(CreateUserDto, ...)) -> `import type` olsaydı
-    // derlenmezdi. (DTO'lar UsersService ile aynı "users" feature'ında -> ./dto.)
+    // DTO'lar DEGER import ile: surgical AI govdede DTO'yu runtime deger olarak
+    // kullanabilsin (plainToInstance(CreateUserDto, ...)) -> `import type` olsaydi
+    // derlenmezdi. (DTO'lar UsersService ile ayni "users" feature'inda -> ./dto.)
     expect(file.content).toContain('import { CreateUserDto } from "./dto/create-user.dto";');
     expect(file.content).toContain('import { UserDto } from "./dto/user.dto";');
-    // type-only DEĞİL -> "import type { ...Dto }" ÜRETİLMEMELİ.
+    // type-only NOT -> "import type { ...Dto }" URETILMEMELI.
     expect(file.content).not.toContain("import type { CreateUserDto }");
     expect(file.content).not.toContain("import type { UserDto }");
-    // Exception değer import'u ile (THROWS kaynağı yok -> common/exceptions).
+    // Exception deger import'u ile (THROWS kaynagi yok -> common/exceptions).
     expect(file.content).toContain('import { UserNotFoundException } from "../common/exceptions/user-not-found.exception";');
     expect(file.content).toContain('import { Injectable } from "@nestjs/common";');
   });
 
-  it("her gövde-gerektiren metot için surgical marker + NOT_IMPLEMENTED", () => {
+  it("her govde-gerektiren metot icin surgical marker + NOT_IMPLEMENTED", () => {
     const ctx = ctxFrom([usersService, usersRepository, createUserDto, userDto, notFoundException], []);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
     expect(file.surgicalMarkers).toBe(2);
@@ -249,18 +249,18 @@ describe("emitService", () => {
     const ctx = ctxFrom([usersService, usersRepository, createUserDto, userDto, notFoundException], []);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
     expect(file.content).toContain("async createUser(input: CreateUserDto): Promise<UserDto> {");
-    // Default varsa "?" düşer (geçerli TS) → "since: Date = new Date()".
+    // Default varsa "?" duser (gecerli TS) → "since: Date = new Date()".
     expect(file.content).toContain("private countActive(since: Date = new Date()): number {");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFrom([usersService, usersRepository, createUserDto, userDto, notFoundException], []);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: iki bağımsız graph kuruluşu -> byte-identical", () => {
+  it("DETERMINISM: two independent graph builds -> byte-identical", () => {
     const nodes = [usersService, usersRepository, createUserDto, userDto, notFoundException, usersCache];
     const ctxA = ctxFrom(nodes, [edge("e-cache", "CALLS", SVC, CACHE)]);
     const a = emitService(ctxA.graph.byId(SVC)!, ctxA)[0].content;
@@ -269,41 +269,41 @@ describe("emitService", () => {
     expect(a).toBe(b);
   });
 
-  it("DEDUP: çözülemeyen property Dependency, çözülebilen CALLS edge'ini MASKELEMEZ (import korunur)", () => {
-    // Property Dependency yanlış Kind ile çözülemez (Service diye arar ama node
-    // Repository'dir) -> ham ref "UsersRepository" filePath=null girer. Aynı ada
-    // giden CALLS edge gerçek Repository'yi çözer. Çözülen KAZANMALI (import kalmalı).
+  it("DEDUP: cozulemeyen property Dependency, cozulebilen CALLS edge'ini MASKELEMEZ (import korunur)", () => {
+    // Property Dependency yanlis Kind ile cozulemez (Service diye arar ama node
+    // Repository'dir) -> ham ref "UsersRepository" filePath=null girer. Ayni ada
+    // giden CALLS edge gercek Repository'yi cozer. Cozulen KAZANMALI (import kalmali).
     const svc = node("Service", SVC, {
       ServiceName: "OrdersService",
-      Description: "Sipariş mantığı",
+      Description: "Order mantigi",
       IsTransactionScoped: false,
-      // Kasıtlı yanlış Kind -> resolveRef("Service","UsersRepository") = null.
+      // Kasitli yanlis Kind -> resolveRef("Service","UsersRepository") = null.
       Dependencies: [{ Kind: "Service", Ref: "UsersRepository" }],
       Methods: [],
     });
     const ctx = ctxFrom([svc, usersRepository], [edge("e-calls", "CALLS", SVC, REPO)]);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
-    // Tek alan (dedup), tip doğru ve EN ÖNEMLİSİ import üretildi (filePath null kalmadı).
+    // Tek alan (dedup), tip dogru ve EN ONEMLISI import uretildi (filePath null kalmadi).
     const occurrences = file.content.split("private readonly usersRepository").length - 1;
     expect(occurrences).toBe(1);
     expect(file.content).toContain("private readonly usersRepository: UsersRepository,");
-    // EN ÖNEMLİSİ: import üretildi (çözülen entry kazandı; filePath null kalmadı).
+    // EN ONEMLISI: import uretildi (cozulen entry kazandi; filePath null kalmadi).
     expect(file.content).toMatch(/import \{ UsersRepository \} from ".*users\.repository"/);
   });
 
-  /* ── DİZİ DÖNÜŞ KORUMA: ReturnType="XDto[]" + ReturnDtoRef -> "XDto[]" ──── */
-  it("dizi dönüş: ReturnType='XDto[]' + ReturnDtoRef -> Promise<XDto[]> (controller ile hizalı)", () => {
-    // Graf zaten dizi dönüşler için ReturnType="CartItemDto[]" verir AMA DtoRef de
-    // doludur. Eskiden DtoRef dolu olduğunda ham Type atılıp çıplak "CartItemDto"
-    // dönerdi -> service tekil, controller dizi -> uyumsuz imza. Artık dizi korunur.
+  /* ── DIZI RETURN KORUMA: ReturnType="XDto[]" + ReturnDtoRef -> "XDto[]" ──── */
+  it("dizi donus: ReturnType='XDto[]' + ReturnDtoRef -> Promise<XDto[]> (controller ile hizali)", () => {
+    // Graf zaten dizi donusler icin ReturnType="CartItemDto[]" verir AMA DtoRef de
+    // doludur. Eskiden DtoRef dolu oldugunda ham Type atilip ciplak "CartItemDto"
+    // donerdi -> service tekil, controller dizi -> uyumsuz imza. Artik dizi korunur.
     const cartItemDto = node("DTO", "10000000-0000-4000-8000-0000000000a1", {
       Name: "CartItemDto",
-      Description: "Sepet kalemi çıktısı",
+      Description: "Sepet kalemi ciktisi",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const cartService = node("Service", SVC, {
       ServiceName: "CartService",
-      Description: "Sepet iş mantığı",
+      Description: "Sepet is mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -311,35 +311,35 @@ describe("emitService", () => {
           MethodName: "getCart",
           Visibility: "public",
           Parameters: [{ Name: "userId", Type: "UUID", Optional: false }],
-          // KRİTİK: ham Type dizi taşır + DtoRef dolu.
+          // CRITICAL: ham Type dizi tasir + DtoRef dolu.
           ReturnType: "CartItemDto[]",
           ReturnDtoRef: "CartItemDto",
           IsAsync: true,
           Throws: [],
-          Description: "Kullanıcının sepet kalemlerini döner.",
+          Description: "Usernin sepet kalemlerini doner.",
         },
       ],
     });
     const ctx = ctxFrom([cartService, cartItemDto], []);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
-    // Dizi KORUNDU -> Promise<CartItemDto[]> (controller ile aynı imza).
+    // Dizi KORUNDU -> Promise<CartItemDto[]> (controller ile ayni imza).
     expect(file.content).toContain("async getCart(userId: string): Promise<CartItemDto[]> {");
     expect(file.content).not.toContain("Promise<CartItemDto> {");
-    // DTO yine DEĞER import edilir (sınıf adı çözüldü).
+    // DTO yine DEGER import edilir (sinif adi cozuldu).
     expect(file.content).toContain('import { CartItemDto } from "./dto/cart-item.dto";');
   });
 
-  it("dizi dönüş (DtoRef YOK): ReturnType='XDto[]' zaten korunur (regresyon)", () => {
-    // ReturnDtoRef boşken yol resolveTypeRef'ten geçer; dizi zaten korunuyordu.
-    // Bu testin amacı: düzeltme bu yolu BOZMADI (mevcut tekil davranış değişmedi).
+  it("dizi donus (DtoRef NONE): ReturnType='XDto[]' zaten korunur (regresyon)", () => {
+    // ReturnDtoRef bosken yol resolveTypeRef'ten gecer; dizi zaten korunuyordu.
+    // Bu testin amaci: duzeltme bu yolu BOZMADI (mevcut tekil davranis degismedi).
     const productDto = node("DTO", "10000000-0000-4000-8000-0000000000b2", {
       Name: "ProductDto",
-      Description: "Ürün çıktısı",
+      Description: "Urun ciktisi",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const productService = node("Service", SVC, {
       ServiceName: "ProductService",
-      Description: "Ürün iş mantığı",
+      Description: "Urun is mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -348,7 +348,7 @@ describe("emitService", () => {
           Visibility: "public",
           Parameters: [],
           ReturnType: "ProductDto[]",
-          // ReturnDtoRef YOK -> resolveTypeRef yolu.
+          // ReturnDtoRef NONE -> resolveTypeRef yolu.
           IsAsync: true,
           Throws: [],
         },
@@ -359,8 +359,8 @@ describe("emitService", () => {
     expect(file.content).toContain("async list(): Promise<ProductDto[]> {");
   });
 
-  it("dizi parametresi: Type='XDto[]' + DtoRef -> dizi korunur (param tarafı tutarlı)", () => {
-    // Parametre tipinde de dizi-koruma tutarlı olmalı (görev gereği).
+  it("dizi parametresi: Type='XDto[]' + DtoRef -> dizi korunur (param tarafi tutarli)", () => {
+    // Parametre tipinde de dizi-koruma tutarli olmali (gorev geregi).
     const itemDto = node("DTO", "10000000-0000-4000-8000-0000000000c3", {
       Name: "ItemDto",
       Description: "Kalem girdisi",
@@ -368,7 +368,7 @@ describe("emitService", () => {
     });
     const bulkService = node("Service", SVC, {
       ServiceName: "BulkService",
-      Description: "Toplu işlem mantığı",
+      Description: "Toplu islem mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -388,22 +388,22 @@ describe("emitService", () => {
     expect(file.content).not.toContain("addMany(items: ItemDto)");
   });
 
-  /* ── TEK-KAYNAK KARDİNALİTE: ReturnsCollection bildirilmiş alanı ──────────
-   * Graf TEKİL ReturnType verse bile (ör. ListProducts'ta ReturnType='ProductDto',
-   * ReturnDtoRef='ProductDto'), operasyon bir KOLEKSİYON ise service imzası DTO[]
-   * olmalı. Aksi halde controller dizi (route sezgisi) ↔ service tekil -> uyumsuz
-   * imza + surgical gövdedeki `return result` (dizi) DERLEME hatası verir (gerçek
-   * bug: ListProducts/ListOrders, surgical-output 18 tsc hatası). ReturnsCollection
-   * kardinalitenin TEK KAYNAĞIDIR; emitter onu okur ve tipi DTO[]'e zorlar. */
+  /* ── TEK-SOURCE KARDINALITE: ReturnsCollection bildirilmis alani ──────────
+   * Graf SINGLE ReturnType verse bile (or. ListProducts'ta ReturnType='ProductDto',
+   * ReturnDtoRef='ProductDto'), operasyon bir COLLECTION ise service imzasi DTO[]
+   * olmali. Aksi halde controller dizi (route sezgisi) ↔ service tekil -> uyumsuz
+   * imza + surgical govdedeki `return result` (dizi) DERLEME hatasi verir (gercek
+   * bug: ListProducts/ListOrders, surgical-output 18 tsc hatasi). ReturnsCollection
+   * kardinalitenin TEK KAYNAGIDIR; emitter onu okur ve tipi DTO[]'e zorlar. */
   it("ReturnsCollection=true: tekil ReturnDtoRef'i Promise<XDto[]>'e zorlar (tek-kaynak)", () => {
     const productDto = node("DTO", "10000000-0000-4000-8000-0000000000d4", {
       Name: "ProductDto",
-      Description: "Ürün çıktısı",
+      Description: "Urun ciktisi",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const catalogService = node("Service", SVC, {
       ServiceName: "CatalogService",
-      Description: "Katalog iş mantığı",
+      Description: "Katalog is mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -411,12 +411,12 @@ describe("emitService", () => {
           MethodName: "listProducts",
           Visibility: "public",
           Parameters: [],
-          ReturnType: "ProductDto", // TEKİL ham tip
+          ReturnType: "ProductDto", // SINGLE ham tip
           ReturnDtoRef: "ProductDto",
-          ReturnsCollection: true, // bildirilmiş tek-kaynak
+          ReturnsCollection: true, // bildirilmis tek-kaynak
           IsAsync: true,
           Throws: [],
-          Description: "Ürünleri listeler.",
+          Description: "Urunleri listeler.",
         },
       ],
     });
@@ -426,20 +426,20 @@ describe("emitService", () => {
     expect(file.content).not.toContain("Promise<ProductDto> {");
   });
 
-  /* ── FALLBACK: metot-adı liste-semantiği (bildirilmiş alan YOKKEN) ────────
-   * Gerçek bug: ListProducts/ListOrders graf'ta ReturnsCollection alanı OLMADAN +
-   * tekil ReturnType ile geldi. Bildirilmiş alan yoksa emitter, metot adının liste-
-   * semantiğine (list/all/search/findAll/findMany) bakıp koleksiyon çıkarır -> DTO[].
-   * EXACT-kelime eşleşmesi: "listen"/"getAllowance" gibi adlar YANLIŞ pozitif vermez. */
-  it("fallback: liste-semantikli ad (listProducts) tekil ReturnType'ı Promise<XDto[]> yapar", () => {
+  /* ── FALLBACK: metot-adi liste-semantigi (bildirilmis alan NONEKEN) ────────
+   * Gercek bug: ListProducts/ListOrders graf'ta ReturnsCollection alani WITHOUT +
+   * tekil ReturnType ile geldi. Bildirilmis alan yoksa emitter, metot adinin liste-
+   * semantigine (list/all/search/findAll/findMany) bakip koleksiyon cikarir -> DTO[].
+   * EXACT-kelime eslesmesi: "listen"/"getAllowance" gibi adlar YANLIS pozitif vermez. */
+  it("fallback: liste-semantikli ad (listProducts) tekil ReturnType'i Promise<XDto[]> yapar", () => {
     const productDto = node("DTO", "10000000-0000-4000-8000-0000000000e5", {
       Name: "ProductDto",
-      Description: "Ürün çıktısı",
+      Description: "Urun ciktisi",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const catalogService = node("Service", SVC, {
       ServiceName: "CatalogService",
-      Description: "Katalog iş mantığı",
+      Description: "Katalog is mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -447,11 +447,11 @@ describe("emitService", () => {
           MethodName: "listProducts",
           Visibility: "public",
           Parameters: [],
-          ReturnType: "ProductDto", // TEKİL + ReturnsCollection YOK
+          ReturnType: "ProductDto", // SINGLE + ReturnsCollection NONE
           ReturnDtoRef: "ProductDto",
           IsAsync: true,
           Throws: [],
-          Description: "Ürünleri listeler.",
+          Description: "Urunleri listeler.",
         },
       ],
     });
@@ -460,19 +460,19 @@ describe("emitService", () => {
     expect(file.content).toContain("async listProducts(): Promise<ProductDto[]> {");
   });
 
-  /* ── PRECEDENCE: bildirilmiş ReturnsCollection=false, ad-sezgisini EZER ───
-   * 'getAllSettings' adı 'all' içerir -> fallback koleksiyon derdi; ama alan açıkça
-   * false. Bildirilmiş alan KAZANIR (tekil kalır). Bu, `??` semantiğini kilitler:
-   * `||` kullanılsaydı false düşüp ada kayardı (ince regresyon) -> bu test yakalar. */
+  /* ── PRECEDENCE: bildirilmis ReturnsCollection=false, ad-sezgisini OVERRIDES ───
+   * 'getAllSettings' adi 'all' icerir -> fallback koleksiyon derdi; ama alan acikca
+   * false. Bildirilmis alan KAZANIR (tekil kalir). Bu, `??` semantigini kilitler:
+   * `||` kullanilsaydi false dusup ada kayardi (ince regresyon) -> bu test yakalar. */
   it("ReturnsCollection=false ad-sezgisini ezer (bildirilen > tahmin)", () => {
     const settingsDto = node("DTO", "10000000-0000-4000-8000-0000000000f6", {
       Name: "SettingsDto",
-      Description: "Ayar çıktısı",
+      Description: "Ayar ciktisi",
       Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const settingsService = node("Service", SVC, {
       ServiceName: "SettingsService",
-      Description: "Ayar iş mantığı",
+      Description: "Ayar is mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -482,10 +482,10 @@ describe("emitService", () => {
           Parameters: [],
           ReturnType: "SettingsDto",
           ReturnDtoRef: "SettingsDto",
-          ReturnsCollection: false, // ama bildirilmiş alan tekil diyor -> kazanır
+          ReturnsCollection: false, // ama bildirilmis alan tekil diyor -> kazanir
           IsAsync: true,
           Throws: [],
-          Description: "Tüm ayarları tek nesnede döner.",
+          Description: "Tum ayarlari tek nesnede doner.",
         },
       ],
     });
@@ -496,14 +496,14 @@ describe("emitService", () => {
   });
 
   /* ── AUTH GROUNDING: login/register metodlu servis -> auth helper import ─
-   * Login/Register fill'i comparePassword/hashPassword/signAccessToken'ı KULLANSIN
-   * diye (düz-metin şifre / sahte token yerine), bu helper'lar servise import edilir
-   * -> readDeclaredSurface AI'ın apiSurface'ine koyar. noUnusedLocals kapalı: kullanmazsa
-   * zararsız. Auth-metot adı: login/register/signin/signup/authenticate/... */
-  it("auth servisi (Login metodu) -> auth helper'larını import eder (grounding)", () => {
+   * Login/Register fill'i comparePassword/hashPassword/signAccessToken'i KULLANSIN
+   * diye (duz-metin sifre / sahte token yerine), bu helper'lar servise import edilir
+   * -> readDeclaredSurface AI'in apiSurface'ine koyar. noUnusedLocals kapali: kullanmazsa
+   * zararsiz. Auth-metot adi: login/register/signin/signup/authenticate/... */
+  it("auth servisi (Login metodu) -> auth helper'larini import eder (grounding)", () => {
     const authSvc = node("Service", SVC, {
       ServiceName: "AuthService",
-      Description: "kimlik doğrulama",
+      Description: "kimlik dogrulama",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -519,27 +519,27 @@ describe("emitService", () => {
     expect(file.content).toMatch(/from "\.\.\/shared\/auth\/auth-token"/);
   });
 
-  it("auth OLMAYAN servis -> auth helper import ETMEZ", () => {
+  it("auth WITHOUT servis -> auth helper import ETMEZ", () => {
     const ctx = ctxFrom([usersService, usersRepository, createUserDto, userDto, notFoundException], []);
     const [file] = emitService(ctx.graph.byId(SVC)!, ctx);
     expect(file.content).not.toContain("shared/auth");
   });
 
-  /* ── STATE-MACHINE GROUNDING (L2): status-güncelleyen servis -> assert guard ─
-   * Update*Status metodu olan servise, geçiş kuralı TANIMLI enum'ların
-   * assert<Enum>Transition guard'ı import edilir -> AI fill'i illegal geçişi
-   * (pending->delivered atlaması) reddeder. Geçiş kuralı YOK enum -> import yok. */
-  it("status-güncelleyen servis -> geçişli enum'un assert<Enum>Transition'ını import eder", () => {
+  /* ── STATE-MACHINE GROUNDING (L2): status-guncelleyen servis -> assert guard ─
+   * Update*Status metodu olan servise, gecis kurali TANIMLI enum'larin
+   * assert<Enum>Transition guard'i import edilir -> AI fill'i illegal gecisi
+   * (pending->delivered atlamasi) reddeder. Gecis kurali NONE enum -> import yok. */
+  it("status-guncelleyen servis -> gecisli enum'un assert<Enum>Transition'ini import eder", () => {
     const orderStatus = node("Enum", "e2e2e2e2-2222-4222-8222-e2e2e2e2e2e2", {
       Name: "OrderStatus",
-      Description: "Sipariş durumu",
+      Description: "Order status",
       BackingType: "string",
       Values: [{ Key: "PENDING" }, { Key: "CONFIRMED" }],
       Transitions: [{ From: "PENDING", To: ["CONFIRMED"] }],
     });
     const orderSvc = node("Service", SVC, {
       ServiceName: "OrderService",
-      Description: "sipariş iş mantığı",
+      Description: "siparis is mantigi",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -552,17 +552,17 @@ describe("emitService", () => {
     expect(file.content).toMatch(/from ".*order-status\.enum"/);
   });
 
-  it("geçiş kuralı YOK enum -> status servisi guard import ETMEZ", () => {
+  it("gecis kurali NONE enum -> status servisi guard import ETMEZ", () => {
     const plainStatus = node("Enum", "e3e3e3e3-3333-4333-8333-e3e3e3e3e3e3", {
       Name: "OrderStatus",
       Description: "durum",
       BackingType: "string",
       Values: [{ Key: "PENDING" }, { Key: "CONFIRMED" }],
-      // Transitions YOK.
+      // Transitions NONE.
     });
     const orderSvc = node("Service", SVC, {
       ServiceName: "OrderService",
-      Description: "sipariş",
+      Description: "order",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [{ MethodName: "UpdateStatus", Visibility: "public", Parameters: [], ReturnType: "OrderResponse", IsAsync: true, Throws: [] }],
@@ -572,11 +572,11 @@ describe("emitService", () => {
     expect(file.content).not.toContain("assertOrderStatusTransition");
   });
 
-  /* ── EDGE-CASE: kayıp ref + boş koleksiyon — ASLA throw etmez ──────────── */
-  it("edge-case: kayıp DTO/Exception ref + boş Dependencies — throw etmez, ham tip kullanır", () => {
+  /* ── EDGE-CASE: kayip ref + bos koleksiyon — ASLA throw etmez ──────────── */
+  it("edge-case: kayip DTO/Exception ref + bos Dependencies — throw etmez, ham tip kullanir", () => {
     const lonelyService = node("Service", SVC, {
       ServiceName: "LonelyService",
-      Description: "Bağımlılıksız servis",
+      Description: "Bagimliliksiz servis",
       IsTransactionScoped: false,
       Dependencies: [],
       Methods: [
@@ -588,27 +588,27 @@ describe("emitService", () => {
           ReturnDtoRef: "AlsoMissingDto",
           IsAsync: false,
           Throws: ["GhostException"],
-          Description: "Kayıp ref'ler ham tipe düşmeli.",
+          Description: "Kayip ref'ler ham tipe dusmeli.",
         },
       ],
     });
-    // Hiçbir ref'i çözen node yok; yalnız servisin kendisi graph'ta.
+    // Hicbir ref'i cozen node yok; yalniz servisin kendisi graph'ta.
     const ctx = ctxFrom([lonelyService], []);
     let file: { content: string; surgicalMarkers: number; path: string } | undefined;
     expect(() => {
       file = emitService(ctx.graph.byId(SVC)!, ctx)[0];
     }).not.toThrow();
-    // Controller yok → Service kendi adından feature türer ("lonely"); dosya adı
+    // Controller yok → Service kendi adindan feature turer ("lonely"); dosya adi
     // rol son-ekini ("Service") TEKRARLAMAZ.
     expect(file!.path).toBe("lonely/lonely.service.ts");
-    // Constructor yok (boş DI), parametre tipi ham "string"e düşmüş.
+    // Constructor yok (bos DI), parametre tipi ham "string"e dusmus.
     expect(file!.content).not.toContain("constructor(");
-    // public metot -> async (NestJS idiom + await-sync güvenlik ağı); ham ReturnType Promise'le sarılır.
+    // public metot -> async (NestJS idiom + await-sync guvenlik agi); ham ReturnType Promise'le sarilir.
     expect(file!.content).toContain("async ping(raw: string): Promise<boolean> {");
-    // Kayıp ReturnDtoRef -> ham ReturnType (Promise<> içinde).
+    // Kayip ReturnDtoRef -> ham ReturnType (Promise<> icinde).
     expect(file!.content).toContain("): Promise<boolean> {");
-    // Çözülemeyen exception artık SENTETİK dosyadan import edilir (exception-synthesis
-    // bildirilmiş-ama-tanımsız Throws'u üretir → fill `throw new Ghost...` derlenir, TS2304 yok).
+    // Cozulemeyen exception artik SENTETIK dosyadan import edilir (exception-synthesis
+    // bildirilmis-ama-tanimsiz Throws'u uretir → fill `throw new Ghost...` derlenir, TS2304 yok).
     expect(file!.content).toContain('import { GhostException } from "../common/exceptions/ghost.exception";');
     expect(file!.content).toContain("// throws: GhostException");
     expect(file!.surgicalMarkers).toBe(1);

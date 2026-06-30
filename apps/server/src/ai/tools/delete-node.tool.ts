@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-/** Bir node'u (ve ona bağlı edge'leri) kalıcı siler. Refactor için: bir
- *  bileşeni kaldırma, yanlış yaratılmış bir node'u temizleme. */
+/** Permanently deletes a node (and its connected edges). For refactors: remove a
+ *  component, clean up a wrongly created node. */
 
 export const DELETE_NODE_TOOL_NAME = "delete_node";
 

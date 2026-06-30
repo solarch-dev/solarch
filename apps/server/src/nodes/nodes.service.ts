@@ -23,7 +23,7 @@ export interface UpdateInput {
   position?: { x: number; y: number };
   properties?: Record<string, unknown>;
   type?: NodeKind;
-  /** Optimistic concurrency — client'ın gördüğü son version. Uyuşmazsa 409. */
+  /** Optimistic concurrency — client's last seen version. Mismatch yields 409. */
   expectedVersion?: number;
 }
 
@@ -43,7 +43,7 @@ export class NodesService {
       });
     }
 
-    // Strict referential integrity — project var olmalı
+    // Strict referential integrity — project must exist
     if (!(await this.projectsRepo.exists(urlProjectId))) {
       throw new NotFoundException({
         code: "ERR_PROJECT_NOT_FOUND",
@@ -51,11 +51,11 @@ export class NodesService {
       });
     }
 
-    // Kind-bazlı şema doğrulaması (default'lar uygulanır, fazlalık reddedilir).
-    // HTTP DTO bunu zaten yapar; AI create_node bu servisi doğrudan çağırdığından
-    // burada da şart → AI çıktısı geçersizse ERR_SCHEMA_INVALID ile self-correct olur.
+    // Kind-based schema validation (defaults applied, extras rejected).
+    // HTTP DTO already does this; AI create_node calls this service directly,
+    // so required here too -> invalid AI output self-corrects via ERR_SCHEMA_INVALID.
     const validatedProps = validateNodeProperties(input.type, input.properties);
-    // Güvenlik: secret env-var'da düz-metin değer saklanmasını engelle (her yol).
+    // Security: block storing plaintext secret values in env-var (all paths).
     assertNoPlaintextSecret(input.type, validatedProps);
 
     const id = input.id ?? randomUUID();
@@ -135,7 +135,7 @@ export class NodesService {
       });
     }
 
-    // Optimistic concurrency — erken/temiz hata. (Asıl garanti repo'da atomik.)
+    // Optimistic concurrency — early/clean error. (Actual guarantee is atomic in repo.)
     if (input.expectedVersion !== undefined && existing.version !== input.expectedVersion) {
       throw new ConflictException({
         code: "ERR_VERSION_CONFLICT",
@@ -145,11 +145,11 @@ export class NodesService {
     }
 
     if (input.properties) {
-      // Kind-bazlı şema doğrulaması — PATCH gövdesi z.record(unknown) ile gelir.
-      // properties replace edildiğinden gelen TAM properties geçerli olmalı;
-      // burada parse + default'lanır, geçersiz/eksik/fazla alan reddedilir.
+      // Kind-based schema validation — PATCH body arrives as z.record(unknown).
+      // properties is replaced wholesale, so incoming FULL properties must be valid;
+      // parsed + defaulted here; invalid/missing/extra fields rejected.
       input.properties = validateNodeProperties(existing.type, input.properties);
-      // Güvenlik: secret-temiz olmalı.
+      // Security: must be secret-safe.
       assertNoPlaintextSecret(existing.type, input.properties);
       const nameKey = this.repo.findNameKey(existing.type);
       const newName = input.properties[nameKey] as string | undefined;
@@ -174,8 +174,8 @@ export class NodesService {
       expectedVersion: input.expectedVersion,
     });
     if (!updated) {
-      // Atomik guard 0 kayıt döndü. expectedVersion verilmiş + node hâlâ var ise
-      // → araya başka bir update girdi (TOCTOU race) = version conflict; yoksa silinmiş.
+      // Atomic guard returned 0 rows. If expectedVersion was given + node still exists
+      // -> another update slipped in (TOCTOU race) = version conflict; otherwise deleted.
       if (input.expectedVersion !== undefined) {
         const stillThere = await this.repo.getById(projectId, id);
         if (stillThere) {
@@ -191,8 +191,8 @@ export class NodesService {
         message: `Node '${id}' not found.`,
       });
     }
-    // Yapısal değişiklik (properties) revizyonu bump'lar; salt pozisyon
-    // taşıma drift'e girmediğinden bump etmez (gereksiz push çatışması üretir).
+    // Structural change (properties) bumps revision; position-only moves do not
+    // (avoids unnecessary push conflicts from drift).
     if (input.properties) await this.projectsRepo.bumpRevision(projectId);
     return this.toNode(updated);
   }
@@ -208,10 +208,10 @@ export class NodesService {
     await this.projectsRepo.bumpRevision(projectId);
   }
 
-  /** Partial properties patch — mevcut (HAM) properties üzerine shallow-merge,
-   *  taze version ile update()'e devreder (tam şema doğrulaması + secret +
-   *  isim çakışması + revision bump orada yapılır). Dizi alanları (Columns/
-   *  Endpoints/Methods/Fields) REPLACE edilir; çağıran tam diziyi göndermeli. */
+  /** Partial properties patch — shallow-merge over existing (RAW) properties,
+   *  delegates to update() with fresh version (full schema validation + secret +
+   *  name collision + revision bump happen there). Array fields (Columns/
+   *  Endpoints/Methods/Fields) are REPLACED; caller must send the full array. */
   async applyPropertiesPatch(
     projectId: string,
     id: string,

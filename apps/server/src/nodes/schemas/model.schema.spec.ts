@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ClassName: "User",
-  Description: "Kullanıcı entity sınıfı",
+  Description: "User entity class",
   Properties: [
     { Name: "id", Type: "UUID" },
     { Name: "email", Type: "string" },
@@ -22,7 +22,7 @@ const parse = (properties: unknown) =>
   ModelNodeSchema.parse({ ...validBase, type: "Model", properties });
 
 describe("ModelNodeSchema (enriched)", () => {
-  it("geçerli Model'i parse eder", () => {
+  it("parses valid Model", () => {
     const node = parse(validProperties);
     expect(node.properties.ClassName).toBe("User");
   });
@@ -33,7 +33,7 @@ describe("ModelNodeSchema (enriched)", () => {
     expect(node.properties.Properties[0].IsCollection).toBe(false);
   });
 
-  it("ilişkili property (OneToMany + RelatedModelRef) kabul eder", () => {
+  it("accepts related property (OneToMany + RelatedModelRef)", () => {
     const node = parse({
       ...validProperties,
       Properties: [
@@ -45,19 +45,19 @@ describe("ModelNodeSchema (enriched)", () => {
     expect(node.properties.Properties[1].RelatedModelRef).toBe("Order");
   });
 
-  it("geçersiz RelationType reddeder", () => {
+  it("rejects invalid RelationType", () => {
     expect(() => parse({
       ...validProperties,
       Properties: [{ Name: "x", Type: "Y", RelationType: "ManyToNone" }],
     })).toThrow();
   });
 
-  it("TableRef kabul eder", () => {
+  it("accepts TableRef", () => {
     const node = parse({ ...validProperties, TableRef: "users" });
     expect(node.properties.TableRef).toBe("users");
   });
 
-  it("typed method signature (parametreler + async) kabul eder", () => {
+  it("accepts typed method signature (parameters + async)", () => {
     const node = parse({
       ...validProperties,
       Methods: [{
@@ -79,11 +79,11 @@ describe("ModelNodeSchema (enriched)", () => {
     expect(() => parse(rest)).toThrow();
   });
 
-  it("Properties boşsa fırlatır", () => {
+  it("throws when Properties is empty", () => {
     expect(() => parse({ ...validProperties, Properties: [] })).toThrow();
   });
 
-  it("Methods default boş array", () => {
+  it("defaults Methods to empty array", () => {
     const node = parse(validProperties);
     expect(node.properties.Methods).toEqual([]);
   });

@@ -18,36 +18,36 @@ import type { NodeKind } from "../../../nodes/schemas";
 /* ────────────────────────────────────────────────────────────────────────
  * service.emitter.ts — ServiceNode -> <feature>/<kebab>.service.ts.
  *
- * @Injectable() bir NestJS servisi üretir:
- *   - DI alanları: ServiceNode.Dependencies (Kind+Ref) BİRLEŞİM
+ * @Injectable() bir NestJS servisi uretir:
+ *   - DI alanlari: ServiceNode.Dependencies (Kind+Ref) BIRLESIM
  *     graph.outEdges(id, "CALLS") hedefleri (Repository/Service/Cache/
- *     ExternalService). DEDUP edilir, isme göre sıralanır, constructor'a
+ *     ExternalService). DEDUP edilir, isme gore siralanir, constructor'a
  *     `private readonly <camelCaseRef>: <ClassName>` olarak enjekte edilir.
- *     Çözülebilen ref'ler için import eklenir; çözülemeyen ref'ler ham
- *     Ref isminden sınıf adı türetir (import atlanır → ASLA throw).
+ *     Cozulebilen ref'ler icin import eklenir; cozulemeyen ref'ler ham
+ *     Ref isminden sinif adi turetir (import atlanir → ASLA throw).
  *   - Metotlar: Parameters (DtoRef -> DTO tipi+import; yoksa ham Type;
  *     Optional -> "?"; Default), ReturnType (ReturnDtoRef -> DTO;
- *     IsAsync -> Promise<>). Gövde = surgicalMarker (Description, Throws ->
- *     Exception, erişilebilir bağımlılıklar this.<dep>) + notImplemented().
+ *     IsAsync -> Promise<>). Govde = surgicalMarker (Description, Throws ->
+ *     Exception, erisilebilir bagimliliklar this.<dep>) + notImplemented().
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar sıralı, import'lar ImportCollector ile,
- * timestamp/random yok, içerik tek "\n" ile biter.
+ * SAF + DETERMINISTIC: koleksiyonlar sirali, import'lar ImportCollector ile,
+ * timestamp/random yok, icerik tek "\n" ile biter.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** DI ile enjekte edilebilen bağımlılık kind'ları (Dependencies.Kind ⊆ bunlar). */
+/** DI ile enjekte edilebilen bagimlilik kind'lari (Dependencies.Kind ⊆ bunlar). */
 const INJECTABLE_KINDS: NodeKind[] = ["Repository", "Service", "Cache", "ExternalService"];
 
-/** Bir servisi "auth servisi" sayan kimlik-metodu adları (önek eşleşmesi). Böyle
- *  bir metot varsa paylaşımlı auth helper'ları (password/token) import edilir →
- *  fill grounding'i: Login/Register düz-metin şifre / sahte token yerine bunları kullanır. */
+/** Bir servisi "auth servisi" sayan kimlik-metodu adlari (onek eslesmesi). Boyle
+ *  bir metot varsa paylasimli auth helper'lari (password/token) import edilir →
+ *  fill grounding'i: Login/Register duz-metin sifre / sahte token yerine bunlari kullanir. */
 const AUTH_METHOD_RE =
   /^(login|register|signup|signin|authenticate|refreshtoken|validatetoken|verifytoken|resetpassword|changepassword|forgotpassword)/i;
 
-/** Tam backend emitter'ı OLAN (sınıfı `pascalCase(name)` olarak export eden)
- *  kind'lar. Cache + ExternalService artık tam emitter'a sahip (cache.emitter /
- *  external-service.emitter) -> gerçek sınıfı `pascalCase(name)` export ederler
- *  (Stub eki YOK). DI tipi/import sembolü bununla eşleşmek ZORUNDA; ir.ts
- *  FULL_PROVIDER_KINDS ile birebir tutulmalıdır. */
+/** Tam backend emitter'i OLAN (sinifi `pascalCase(name)` olarak export eden)
+ *  kind'lar. Cache + ExternalService artik tam emitter'a sahip (cache.emitter /
+ *  external-service.emitter) -> gercek sinifi `pascalCase(name)` export ederler
+ *  (Stub eki NONE). DI tipi/import sembolu bununla eslesmek ZORUNDA; ir.ts
+ *  FULL_PROVIDER_KINDS ile birebir tutulmalidir. */
 const FULL_EMITTER_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>([
   "Repository",
   "Service",
@@ -55,23 +55,23 @@ const FULL_EMITTER_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>([
   "ExternalService",
 ]);
 
-/** Bir node'un üretilen dosyada export ettiği sınıf adını döndürür: tam
- *  emitter'lı kind'lar `pascalCase(name)`; stub'lanan kind'lar `pascalCase(name)
- *  + "Stub"` (stub.emitter.ts ile TEK KAYNAK). resolved=null (kayıp ref) ->
- *  ham ref'in pascal'ı (kind bilinmez; mevcut davranış korunur). */
+/** Bir node'un uretilen dosyada export ettigi sinif adini dondurur: tam
+ *  emitter'li kind'lar `pascalCase(name)`; stub'lanan kind'lar `pascalCase(name)
+ *  + "Stub"` (stub.emitter.ts ile TEK SOURCE). resolved=null (kayip ref) ->
+ *  ham ref'in pascal'i (kind bilinmez; mevcut davranis korunur). */
 function injectedClassName(resolved: CodeNode | null, rawRef: string): string {
   if (!resolved) return pascalCase(rawRef);
   const base = pascalCase(resolved.name);
   return FULL_EMITTER_KINDS.has(resolved.kindOf()) ? base : `${base}Stub`;
 }
 
-/** Çözülmüş bir bağımlılık: DI alanı + sınıf tipi + (varsa) import yolu. */
+/** Cozulmus bir bagimlilik: DI alani + sinif tipi + (varsa) import yolu. */
 interface ResolvedDep {
   /** constructor'da `this.<field>` */
   field: string;
-  /** enjekte edilen sınıf tipi */
+  /** enjekte edilen sinif tipi */
   className: string;
-  /** çözülen node'un dosya yolu (import için); çözülemezse null. */
+  /** cozulen node'un dosya yolu (import icin); cozulemezse null. */
   filePath: string | null;
 }
 
@@ -84,10 +84,10 @@ export const emitService: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =
   const imports = new ImportCollector();
   imports.add("Injectable", "@nestjs/common");
 
-  // ── DI bağımlılıkları: Dependencies ∪ CALLS hedefleri, DEDUP + isme göre sıralı ──
-  // Çözülemeyen dep'ler (filePath===null) DI'dan DÜŞÜRÜLÜR: çıplak tipli constructor
-  // param'ı hem TS2304 (import yok) hem NestJS DI boot patlaması (sağlayıcı yok) verirdi.
-  // Bunlar contract-lint Rule 5 ile YÜKSEK SESLE bildirilir; in-file de TODO bırakılır.
+  // ── DI bagimliliklari: Dependencies ∪ CALLS hedefleri, DEDUP + isme gore sirali ──
+  // Cozulemeyen dep'ler (filePath===null) DI'dan DUSURULUR: ciplak tipli constructor
+  // param'i hem TS2304 (import yok) hem NestJS DI boot patlamasi (saglayici yok) verirdi.
+  // Bunlar contract-lint Rule 5 ile YUKSEK SESLE bildirilir; in-file de TODO birakilir.
   const allDeps = collectDependencies(node, graph);
   const deps = allDeps.filter((d) => d.filePath !== null);
   const unresolvedDeps = allDeps.filter((d) => d.filePath === null);
@@ -95,21 +95,21 @@ export const emitService: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =
     imports.add(dep.className, importPathOf(relativeImportPath(filePath, dep.filePath!)));
   }
 
-  // ── AUTH GROUNDING: kimlik-metodu (login/register/...) taşıyan servise paylaşımlı
-  //    auth helper'larını import et. Bunlar scaffold tarafından üretilir; import
-  //    edilince readDeclaredSurface AI'ın apiSurface'ine koyar → Login düz-metin şifre
-  //    yerine comparePassword, sahte token yerine signAccessToken kullanır. noUnusedLocals
-  //    kapalı → kullanılmazsa zararsız (dead import değil tsc hatası DEĞİL). ──
+  // ── AUTH GROUNDING: kimlik-metodu (login/register/...) tasiyan servise paylasimli
+  //    auth helper'larini import et. Bunlar scaffold tarafindan uretilir; import
+  //    edilince readDeclaredSurface AI'in apiSurface'ine koyar → Login duz-metin sifre
+  //    yerine comparePassword, sahte token yerine signAccessToken kullanir. noUnusedLocals
+  //    kapali → kullanilmazsa zararsiz (dead import degil tsc hatasi NOT). ──
   if (props.Methods.some((m) => AUTH_METHOD_RE.test(m.MethodName))) {
     imports.add("comparePassword", relativeImportPath(filePath, "shared/auth/password"));
     imports.add("hashPassword", relativeImportPath(filePath, "shared/auth/password"));
     imports.add("signAccessToken", relativeImportPath(filePath, "shared/auth/auth-token"));
   }
 
-  // ── STATE-MACHINE GROUNDING (L2): status-güncelleyen metodu (Update*Status)
-  //    olan servise, geçiş kuralı TANIMLI enum'ların assert<Enum>Transition guard'ını
-  //    import et -> AI fill'i illegal durum geçişini (pending->delivered) reddeder.
-  //    Yalnız Transitions taşıyan enum'lar (status enum'ları); Color/Size eklenmez. ──
+  // ── STATE-MACHINE GROUNDING (L2): status-guncelleyen metodu (Update*Status)
+  //    olan servise, gecis kurali TANIMLI enum'larin assert<Enum>Transition guard'ini
+  //    import et -> AI fill'i illegal durum gecisini (pending->delivered) reddeder.
+  //    Yalniz Transitions tasiyan enum'lar (status enum'lari); Color/Size eklenmez. ──
   if (props.Methods.some((m) => /update\w*status/i.test(m.MethodName))) {
     for (const en of graph.allOf("Enum")) {
       if ((propsOf<"Enum">(en).Transitions ?? []).length === 0) continue;
@@ -120,21 +120,21 @@ export const emitService: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =
 
   // ── Metotlar ───────────────────────────────────────────────────────────
   const methodBlocks: string[] = [];
-  // Metotları MethodName'e göre deterministik sırala.
+  // Metotlari MethodName'e gore deterministik sirala.
   const methods = [...props.Methods].sort((a, b) => cmp(a.MethodName, b.MethodName));
   for (const m of methods) {
     methodBlocks.push(renderMethod(node, className, m, deps, graph, filePath, imports));
   }
 
-  // ── Sınıf gövdesi ────────────────────────────────────────────────────────
+  // ── Sinif govdesi ────────────────────────────────────────────────────────
   const lines: string[] = [];
-  // Anlamlı bir açıklama varsa JSDoc bas; tek-harf/boş gürültüyü (ham "s"/"c"
-  //   gibi) atla -> "/** s */" gibi anlamsız doc üretme.
+  // Anlamli bir aciklama varsa JSDoc bas; tek-harf/bos gurultuyu (ham "s"/"c"
+  //   gibi) atla -> "/** s */" gibi anlamsiz doc uretme.
   if (isMeaningfulDoc(props.Description)) lines.push(`/** ${props.Description!.trim()} */`);
   lines.push("@Injectable()");
   lines.push(`export class ${className} {`);
 
-  // Çözülemeyen bağımlılıklar: DI'dan düşürüldü; in-file TODO ile görünür kıl.
+  // Cozulemeyen bagimliliklar: DI'dan dusuruldu; in-file TODO ile gorunur kil.
   for (const u of unresolvedDeps) {
     lines.push(
       `  // TODO: dependency "${u.field}" (${u.className}) could not be resolved — omitted from DI (fix the reference).`,
@@ -169,11 +169,11 @@ export const emitService: NodeEmitter = (node: CodeNode, ctx): GeneratedFile[] =
   return [file];
 };
 
-/** Dependencies (Kind+Ref) ∪ CALLS edge hedeflerini DEDUP edip isme göre
- *  sıralanmış ResolvedDep listesi döndürür. Çözülemeyen ref'ler ham isimden
- *  sınıf adı türetir (filePath=null → import atlanır). Asla throw etmez. */
+/** Dependencies (Kind+Ref) ∪ CALLS edge hedeflerini DEDUP edip isme gore
+ *  siralanmis ResolvedDep listesi dondurur. Cozulemeyen ref'ler ham isimden
+ *  sinif adi turetir (filePath=null → import atlanir). Asla throw etmez. */
 function collectDependencies(node: CodeNode, graph: CodeGraph): ResolvedDep[] {
-  // refName -> ResolvedDep (DEDUP anahtarı: çözülen node.name veya ham ref).
+  // refName -> ResolvedDep (DEDUP anahtari: cozulen node.name veya ham ref).
   const byKey = new Map<string, ResolvedDep>();
 
   const props = propsOf<"Service">(node);
@@ -195,11 +195,11 @@ function collectDependencies(node: CodeNode, graph: CodeGraph): ResolvedDep[] {
   return [...byKey.values()].sort((a, b) => cmp(a.field, b.field));
 }
 
-/** Bir bağımlılığı (çözülmüş node veya ham ref) DEDUP map'ine ekler.
- *  ÇÖZÜLEN KAZANIR: aynı isimde bir kayıt zaten varsa ama o kayıt çözülmemişse
- *  (filePath===null) ve gelen çözülmüşse, kaydı YÜKSELT (import kaybını önler).
- *  Örn. çözülemeyen bir property Dependency, aynı node'a giden çözülebilir bir
- *  CALLS edge'ini maskelemesin — eskiden ilk-kazanır filePath=null bırakıyordu. */
+/** Bir bagimliligi (cozulmus node veya ham ref) DEDUP map'ine ekler.
+ *  COZULEN KAZANIR: ayni isimde bir kayit zaten varsa ama o kayit cozulmemisse
+ *  (filePath===null) ve gelen cozulmusse, kaydi YUKSELT (import kaybini onler).
+ *  Orn. cozulemeyen bir property Dependency, ayni node'a giden cozulebilir bir
+ *  CALLS edge'ini maskelemesin — eskiden ilk-kazanir filePath=null birakiyordu. */
 function addDep(
   byKey: Map<string, ResolvedDep>,
   resolved: CodeNode | null,
@@ -210,8 +210,8 @@ function addDep(
   const key = refName;
   const existing = byKey.get(key);
   if (existing) {
-    // Mevcut çözülmemiş + gelen çözülmüş -> yükselt; aksi halde ilk-kazanır.
-    // Yükseltirken sınıf adını da düzelt (stub kind'ı `<Pascal>Stub` olabilir).
+    // Mevcut cozulmemis + gelen cozulmus -> yukselt; aksi halde ilk-kazanir.
+    // Yukseltirken sinif adini da duzelt (stub kind'i `<Pascal>Stub` olabilir).
     if (existing.filePath === null && resolved) {
       existing.filePath = filePathFor(resolved, graph);
       existing.className = injectedClassName(resolved, rawRef);
@@ -219,15 +219,15 @@ function addDep(
     return;
   }
   byKey.set(key, {
-    // DI alanı node adından (stub eki taşımaz; "usersCache").
+    // DI alani node adindan (stub eki tasimaz; "usersCache").
     field: camelCase(refName),
-    // DI tipi = üretilen sınıf adı: tam emitter -> Pascal; stub -> Pascal+"Stub".
+    // DI tipi = uretilen sinif adi: tam emitter -> Pascal; stub -> Pascal+"Stub".
     className: injectedClassName(resolved, rawRef),
     filePath: resolved ? filePathFor(resolved, graph) : null,
   });
 }
 
-/** Tek bir ServiceMethod'u (imza + surgical gövde) render eder. */
+/** Tek bir ServiceMethod'u (imza + surgical govde) render eder. */
 function renderMethod(
   node: CodeNode,
   className: string,
@@ -245,46 +245,46 @@ function renderMethod(
     const typeName = resolveTypeName(p.DtoRef, p.Type, graph, fromFile, imports);
     const hasDefault = p.Default !== undefined && p.Default !== "";
     // TS: bir parametre HEM "?" HEM "= default" alamaz; default zaten parametreyi
-    // implicit opsiyonel yapar. Default varsa "?" düşürülür.
+    // implicit opsiyonel yapar. Default varsa "?" dusurulur.
     const optional = p.Optional && !hasDefault ? "?" : "";
     const def = hasDefault ? ` = ${p.Default}` : "";
     params.push(`${p.Name}${optional}: ${typeName}${def}`);
   }
   const paramList = params.join(", ");
 
-  // ── Dönüş tipi ───────────────────────────────────────────────────────────
-  //  TEK-KAYNAK KARDİNALİTE: ReturnsCollection bildirildiyse (true) dönüş tipini
-  //  DTO[]'e zorla — graf tekil ReturnType verse bile (ör. ListProducts: ReturnType
-  //  'ProductDto' ama operasyon koleksiyon). Böylece service imzası controller'ın
-  //  koleksiyon kararıyla HİZALI kalır; aksi halde tekil imza + dizi döndüren surgical
-  //  gövde derleme hatası verirdi (gerçek bug). Zaten dizi/Array<> taşıyan tip İKİ
-  //  KEZ sarılmaz.
+  // ── Donus tipi ───────────────────────────────────────────────────────────
+  //  TEK-SOURCE KARDINALITE: ReturnsCollection bildirildiyse (true) donus tipini
+  //  DTO[]'e zorla — graf tekil ReturnType verse bile (or. ListProducts: ReturnType
+  //  'ProductDto' ama operasyon koleksiyon). Boylece service imzasi controller'in
+  //  koleksiyon karariyla HIZALI kalir; aksi halde tekil imza + dizi donduren surgical
+  //  govde derleme hatasi verirdi (gercek bug). Zaten dizi/Array<> tasiyan tip IKI
+  //  KEZ sarilmaz.
   let innerReturn = resolveTypeName(method.ReturnDtoRef, method.ReturnType, graph, fromFile, imports);
-  // Bildirilmiş ReturnsCollection (true/false) KAZANIR; yoksa metot-adı liste-
-  // semantiği fallback'i (list/all/search/findAll/findMany). Zaten dizi olan tip
-  // (ör. ReturnType 'XDto[]') İKİ KEZ sarılmaz.
+  // Bildirilmis ReturnsCollection (true/false) KAZANIR; yoksa metot-adi liste-
+  // semantigi fallback'i (list/all/search/findAll/findMany). Zaten dizi olan tip
+  // (or. ReturnType 'XDto[]') IKI KEZ sarilmaz.
   const returnsCollection =
     method.ReturnsCollection ?? tokensHaveCollectionSemantics(splitWords(method.MethodName));
   if (returnsCollection && !isArrayType(innerReturn)) {
     innerReturn = `${innerReturn}[]`;
   }
-  // ── ASYNC: PUBLIC service metotları DAİMA async (NestJS idiom + güvenlik ağı).
-  //  Public bir metot neredeyse her zaman I/O yapar (repo/servis çağrısı → await);
-  //  graf IsAsync:false dese bile surgical fill `await` kullanınca sync imza TS1308
-  //  ile kırılırdı (gerçek bug: AuthService.ValidateToken). Public → async (Promise
-  //  sarmalı); private metotlar graf IsAsync'ini KORUR (saf yardımcı olabilir).
+  // ── ASYNC: PUBLIC service metotlari DAIMA async (NestJS idiom + guvenlik agi).
+  //  Public bir metot neredeyse her zaman I/O yapar (repo/servis cagrisi → await);
+  //  graf IsAsync:false dese bile surgical fill `await` kullaninca sync imza TS1308
+  //  ile kirilirdi (gercek bug: AuthService.ValidateToken). Public → async (Promise
+  //  sarmali); private metotlar graf IsAsync'ini KORUR (saf yardimci olabilir).
   const isAsync = method.IsAsync || method.Visibility === "public";
   const returnType = isAsync ? `Promise<${innerReturn}>` : innerReturn;
 
-  // ── Erişilebilir bağımlılıklar (this.<field>) ──────────────────────────────
+  // ── Erisilebilir bagimliliklar (this.<field>) ──────────────────────────────
   const depFields = deps.map((d) => `this.${d.field}`);
 
-  // ── Fırlatılabilir Exception'lar — HER ZAMAN import edilir. ────────────────
-  //  Çözülen Exception node'u → o dosyadan. Çözülmeyen (bildirilmiş-ama-tanımsız
-  //  Throws) → exception-synthesis SENTETİK sınıfı üretir; import'u da oradan yap
-  //  (TEK KAYNAK synthException*). Aksi halde marker fill'i `throw new X` üretmeye
-  //  zorlar ama X import'suz/tanımsız kalır → TS2304 (gerçek bug: PlaceOrder'ın
-  //  CartEmptyException'ı). Sentetik dosya assemble'da emitSyntheticException ile basılır.
+  // ── Firlatilabilir Exception'lar — HER ZAMAN import edilir. ────────────────
+  //  Cozulen Exception node'u → o dosyadan. Cozulmeyen (bildirilmis-ama-tanimsiz
+  //  Throws) → exception-synthesis SENTETIK sinifi uretir; import'u da oradan yap
+  //  (TEK SOURCE synthException*). Aksi halde marker fill'i `throw new X` uretmeye
+  //  zorlar ama X import'suz/tanimsiz kalir → TS2304 (gercek bug: PlaceOrder'in
+  //  CartEmptyException'i). Sentetik dosya assemble'da emitSyntheticException ile basilir.
   const throwsNames: string[] = [];
   for (const exName of method.Throws ?? []) {
     const exNode = graph.resolveRef("Exception", exName);
@@ -313,22 +313,22 @@ function renderMethod(
   return lines.join("\n");
 }
 
-/** Bir parametre/dönüş tipini çözer: DtoRef varsa DTO sınıf adı (+import),
+/** Bir parametre/donus tipini cozer: DtoRef varsa DTO sinif adi (+import),
  *  yoksa ham Type NORMALIZE edilir (resolveTypeRef: UUID->string, User->import+
- *  sınıf). Çözülemeyen serbest ad olduğu gibi geçer (controller.emitter ile aynı
- *  tolerans) ama skaler eş anlamlılar ve entity/DTO/Enum adları çözülür -> TS2304
- *  önlenir.
+ *  sinif). Cozulemeyen serbest ad oldugu gibi gecer (controller.emitter ile ayni
+ *  tolerans) ama skaler es anlamlilar ve entity/DTO/Enum adlari cozulur -> TS2304
+ *  onlenir.
  *
- *  DİZİ/SARMALAYICI KORUMA: graf zaten dizi dönüşleri için ReturnType="XDto[]"
- *  (or. "CartItemDto[]") verir ama DtoRef de doludur (DTO sınıfını işaret eder).
- *  Eskiden DtoRef dolu olduğunda ham Type TAMAMEN atılır, çıplak "CartItemDto"
- *  dönerdi -> service tekil, controller (resolveTypeRef'ten geçtiği için) dizi ->
- *  UYUMSUZ imza. Düzeltme: DtoRef SINIF ADINI çözse bile ham Type'taki
- *  dizi/sarmalayıcı son-ekini ([], Array<>, <>, | null/undefined ...) KORU.
- *  Yöntem: ham Type içindeki çıplak tanımlayıcıyı (DTO adı) çözülmüş sınıf adına
- *  yer-değiştir, çevreleyen sarmalayıcıyı (resolveTypeRef'in koruduğu <>[]| vb.)
- *  olduğu gibi bırak. Ham Type sarmalayıcı içermiyorsa (tekil, ör. "unknown" +
- *  DtoRef) MEVCUT davranış korunur: çıplak DTO sınıfı döner. */
+ *  DIZI/SARMALAYICI KORUMA: graf zaten dizi donusleri icin ReturnType="XDto[]"
+ *  (or. "CartItemDto[]") verir ama DtoRef de doludur (DTO sinifini isaret eder).
+ *  Eskiden DtoRef dolu oldugunda ham Type TAMAMEN atilir, ciplak "CartItemDto"
+ *  donerdi -> service tekil, controller (resolveTypeRef'ten gectigi icin) dizi ->
+ *  UYUMSUZ imza. Duzeltme: DtoRef SINIF ADINI cozse bile ham Type'taki
+ *  dizi/sarmalayici son-ekini ([], Array<>, <>, | null/undefined ...) KORU.
+ *  Yontem: ham Type icindeki ciplak tanimlayiciyi (DTO adi) cozulmus sinif adina
+ *  yer-degistir, cevreleyen sarmalayiciyi (resolveTypeRef'in korudugu <>[]| vb.)
+ *  oldugu gibi birak. Ham Type sarmalayici icermiyorsa (tekil, or. "unknown" +
+ *  DtoRef) MEVCUT davranis korunur: ciplak DTO sinifi doner. */
 function resolveTypeName(
   dtoRef: string | undefined,
   rawType: string,
@@ -340,67 +340,67 @@ function resolveTypeName(
     const dtoNode = graph.resolveRef("DTO", dtoRef);
     if (dtoNode) {
       const dtoClass = pascalCase(dtoNode.name);
-      // DEĞER import'u (type-only DEĞİL): surgical AI gövdede DTO'yu runtime
-      // değer olarak kullanır (plainToInstance(CreateUserDto, ...), validate(...));
-      // `import type` olsaydı bu kullanım derlenmezdi. Controller.emitter @Body
-      // DTO'sunu da DEĞER import eder (class-validator runtime) -> tutarlı.
+      // DEGER import'u (type-only NOT): surgical AI govdede DTO'yu runtime
+      // deger olarak kullanir (plainToInstance(CreateUserDto, ...), validate(...));
+      // `import type` olsaydi bu kullanim derlenmezdi. Controller.emitter @Body
+      // DTO'sunu da DEGER import eder (class-validator runtime) -> tutarli.
       imports.add(dtoClass, importPathOf(relativeImportPath(fromFile, filePathFor(dtoNode, graph))));
-      // Ham Type bir dizi/sarmalayıcı taşıyorsa onu KORU (controller ile hizalı):
+      // Ham Type bir dizi/sarmalayici tasiyorsa onu KORU (controller ile hizali):
       //   "CartItemDto[]" -> "CartItemDto[]", "Promise<UserDto>" -> "Promise<UserDto>".
-      //   Tekil ham Type (sarmalayıcısız) -> çıplak DTO sınıfı (mevcut davranış).
+      //   Tekil ham Type (sarmalayicisiz) -> ciplak DTO sinifi (mevcut davranis).
       return applyTypeWrapper(rawType, dtoClass);
     }
-    // Çözülemeyen DtoRef -> ham Type'ı normalize et; yoksa ref ismini koru.
+    // Cozulemeyen DtoRef -> ham Type'i normalize et; yoksa ref ismini koru.
     return rawType && rawType !== "" ? resolveTypeRef(rawType, graph, fromFile, imports) : pascalCase(dtoRef);
   }
   return resolveTypeRef(rawType, graph, fromFile, imports);
 }
 
-/** Ham bir tip stringinin SARMALAYICISINI çözülmüş sınıf adına uygular.
+/** Ham bir tip stringinin SARMALAYICISINI cozulmus sinif adina uygular.
  *
- *  Ham Type içindeki TEK çıplak tanımlayıcı parçasını (DTO adı) `resolvedClass`
- *  ile yer-değiştirir; çevredeki sarmalayıcı sembolleri ([], <>, |, Array, Promise,
- *  boşluk, null, undefined ...) OLDUĞU GİBİ korur. Böylece:
- *    "CartItemDto[]"        + UserDto  -> "UserDto[]"        (DtoRef sınıfı, dizi korunur)
- *    "CartItemDto"          + UserDto  -> "UserDto"          (tekil; mevcut davranış)
- *    "unknown" / ""         + UserDto  -> "UserDto"          (sarmalayıcı yok -> çıplak)
- *    "Promise<CartItemDto>" + UserDto  -> "Promise<UserDto>" (sarmalayıcı korunur)
+ *  Ham Type icindeki TEK ciplak tanimlayici parcasini (DTO adi) `resolvedClass`
+ *  ile yer-degistirir; cevredeki sarmalayici sembolleri ([], <>, |, Array, Promise,
+ *  bosluk, null, undefined ...) OLDUGU GIBI korur. Boylece:
+ *    "CartItemDto[]"        + UserDto  -> "UserDto[]"        (DtoRef sinifi, dizi korunur)
+ *    "CartItemDto"          + UserDto  -> "UserDto"          (tekil; mevcut davranis)
+ *    "unknown" / ""         + UserDto  -> "UserDto"          (sarmalayici yok -> ciplak)
+ *    "Promise<CartItemDto>" + UserDto  -> "Promise<UserDto>" (sarmalayici korunur)
  *
- *  Ham Type'ta tam olarak BİR tip-tanımlayıcısı (TS anahtar kelimesi olmayan)
- *  varsa onu resolvedClass ile değiştirir. Aksi halde (0 ya da >1 tanımlayıcı,
- *  ör. union "A | B") sarmalayıcıyı güvenle eşleyemeyiz -> çıplak resolvedClass'a
- *  düşeriz (mevcut tekil davranış; determinizm + güvenli taraf). */
+ *  Ham Type'ta tam olarak BIR tip-tanimlayicisi (TS anahtar kelimesi olmayan)
+ *  varsa onu resolvedClass ile degistirir. Aksi halde (0 ya da >1 tanimlayici,
+ *  or. union "A | B") sarmalayiciyi guvenle esleyemeyiz -> ciplak resolvedClass'a
+ *  duseriz (mevcut tekil davranis; determinizm + guvenli taraf). */
 function applyTypeWrapper(rawType: string, resolvedClass: string): string {
   const t = (rawType ?? "").trim();
   if (t.length === 0) return resolvedClass;
-  // Tip-tanımlayıcısı parçaları (TS sarmalayıcı anahtar kelimeleri HARİÇ).
+  // Tip-tanimlayicisi parcalari (TS sarmalayici anahtar kelimeleri HARIC).
   const ids = (t.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []).filter((tok) => !TYPE_WRAPPER_KEYWORDS.has(tok));
-  // Tam olarak bir tip-tanımlayıcısı yoksa sarmalayıcıyı güvenle eşleyemeyiz.
+  // Tam olarak bir tip-tanimlayicisi yoksa sarmalayiciyi guvenle esleyemeyiz.
   if (ids.length !== 1) return resolvedClass;
-  // O tek tanımlayıcıyı resolvedClass ile değiştir; sarmalayıcıyı koru.
+  // O tek tanimlayiciyi resolvedClass ile degistir; sarmalayiciyi koru.
   return t.replace(/[A-Za-z_][A-Za-z0-9_]*/g, (tok) =>
     TYPE_WRAPPER_KEYWORDS.has(tok) ? tok : resolvedClass,
   );
 }
 
-/** Sarmalayıcı/yapısal tip anahtar kelimeleri: bunlar bir DTO adı DEĞİLDİR, ham
- *  Type'ta görünseler bile yer-değiştirme dışı tutulur (sarmalayıcı parçası). */
+/** Sarmalayici/yapisal tip anahtar kelimeleri: bunlar bir DTO adi NOTDIR, ham
+ *  Type'ta gorunseler bile yer-degistirme disi tutulur (sarmalayici parcasi). */
 const TYPE_WRAPPER_KEYWORDS: ReadonlySet<string> = new Set<string>([
   "Promise", "Array", "Readonly", "Partial", "null", "undefined", "void",
 ]);
 
-/** Deterministik string karşılaştırması. */
+/** Deterministik string karsilastirmasi. */
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
 
-/** Bir Description'ın anlamlı bir JSDoc'a değip değmediği: trim sonrası >=3 char.
- *  Tek-harf/boş açıklamalar ("s", "c", " ") JSDoc gürültüsü; atlanır. */
+/** Bir Description'in anlamli bir JSDoc'a degip degmedigi: trim sonrasi >=3 char.
+ *  Tek-harf/bos aciklamalar ("s", "c", " ") JSDoc gurultusu; atlanir. */
 function isMeaningfulDoc(desc: string | undefined): boolean {
   return typeof desc === "string" && desc.trim().length >= 3;
 }
 
-/* ── Yerel tip: ServiceMethod (service.schema.ts ile aynı shape) ──────────── */
+/* ── Yerel tip: ServiceMethod (service.schema.ts ile ayni shape) ──────────── */
 type ServiceProps = PropsByKind["Service"];
 type ServiceMethod = ServiceProps["Methods"][number];

@@ -12,14 +12,14 @@ function make() {
 }
 
 describe("TabsService", () => {
-  it("ensureDefault varsa oluşturmaz", async () => {
+  it("ensureDefault does not create when one exists", async () => {
     const { svc, repo } = make();
     repo.findDefault.mockResolvedValue({ id: "d", isDefault: true });
     await svc.ensureDefault("p");
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  it("ensureDefault yoksa Ana Mimari oluşturur", async () => {
+  it("ensureDefault creates Main Architecture when missing", async () => {
     const { svc, repo } = make();
     repo.findDefault.mockResolvedValue(null);
     const t = await svc.ensureDefault("p");
@@ -28,20 +28,20 @@ describe("TabsService", () => {
     expect(repo.create).toHaveBeenCalled();
   });
 
-  it("default sekme silinemez", async () => {
+  it("default tab cannot be deleted", async () => {
     const { svc, repo } = make();
     repo.getById.mockResolvedValue({ id: "d", isDefault: true });
     await expect(svc.delete("p", "d")).rejects.toThrow();
   });
 
-  it("node kendi ev sekmesine referans edilemez", async () => {
+  it("node cannot reference its own home tab", async () => {
     const { svc, repo } = make();
     repo.getById.mockResolvedValue({ id: "t1", isDefault: false });
     repo.nodeHomeTab.mockResolvedValue("t1");
     await expect(svc.addReference("p", "t1", "n", 0, 0)).rejects.toThrow();
   });
 
-  it("addReference farklı ev sekmesinde upsert eder", async () => {
+  it("addReference upserts on a different home tab", async () => {
     const { svc, repo } = make();
     repo.getById.mockResolvedValue({ id: "t2", isDefault: false });
     repo.nodeHomeTab.mockResolvedValue("t1");

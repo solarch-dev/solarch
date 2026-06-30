@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   AppName: "AdminDashboard",
-  Description: "Yönetim paneli",
+  Description: "Admin panel",
   Framework: "React" as const,
   DeploymentType: "SPA" as const,
 };
@@ -20,13 +20,13 @@ const parse = (properties: unknown) =>
   FrontendAppNodeSchema.parse({ ...validBase, type: "FrontendApp", properties });
 
 describe("FrontendAppNodeSchema (enriched)", () => {
-  it("geçerli FrontendApp'i parse eder (Routes default boş)", () => {
+  it("parses valid FrontendApp (Routes default empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.Framework).toBe("React");
     expect(node.properties.Routes).toEqual([]);
   });
 
-  it("StateManagement + StylingApproach + Routes kabul eder", () => {
+  it("accepts StateManagement + StylingApproach + Routes", () => {
     const node = parse({
       ...validProperties,
       StateManagement: "Redux",
@@ -37,15 +37,15 @@ describe("FrontendAppNodeSchema (enriched)", () => {
     expect(node.properties.Routes[0].ComponentRef).toBe("UserDataTable");
   });
 
-  it("geçersiz StateManagement reddeder", () => {
+  it("rejects invalid StateManagement", () => {
     expect(() => parse({ ...validProperties, StateManagement: "MobX" })).toThrow();
   });
 
-  it("Bilinmeyen Framework reddeder", () => {
+  it("rejects unknown Framework", () => {
     expect(() => parse({ ...validProperties, Framework: "Solid" })).toThrow();
   });
 
-  it("Bilinmeyen DeploymentType reddeder", () => {
+  it("rejects unknown DeploymentType", () => {
     expect(() => parse({ ...validProperties, DeploymentType: "PWA" })).toThrow();
   });
 });

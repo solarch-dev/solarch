@@ -36,8 +36,8 @@ export class GraphService {
       });
     }
 
-    // Çatışma ön-kontrolü: istemcinin delta hesapladığı revizyon eskidiyse hiçbir
-    // şey yazmadan 409. (Asıl atomik garanti commit transaction'ında tekrarlanır.)
+    // Conflict pre-check: if revision client used for delta is stale, 409 without writing.
+    // (Actual atomic guarantee is repeated in commit transaction.)
     if (input.baseRevision !== undefined) {
       const current = await this.projectsRepo.getGraphRevision(projectId);
       if (current !== input.baseRevision) {
@@ -46,14 +46,14 @@ export class GraphService {
     }
 
     const { nodes, edges } = input.mutations;
-    // Üretilen node'ların ev sekmesi: verilen tabId ya da projenin default sekmesi.
+    // Home tab for generated nodes: given tabId or project default tab.
     const homeTabId = input.tabId ?? (await this.tabs.ensureDefault(projectId)).id;
     const violations: ApplyViolation[] = [];
     const idMap: Record<string, string> = {};
     const nodeMap = new Map<string, StoredNode>();
     const now = new Date().toISOString();
 
-    // ── 1. tempId benzersizliği ───────────────────────────────────────
+    // ── 1. tempId uniqueness ───────────────────────────────────────
     const seenTempIds = new Set<string>();
     for (const node of nodes) {
       if (seenTempIds.has(node.tempId)) {
@@ -66,7 +66,7 @@ export class GraphService {
       seenTempIds.add(node.tempId);
     }
 
-    // ── 2. node şema doğrulama + grid position ────────────────────────
+    // ── 2. node schema validation + grid position ────────────────────────
     nodes.forEach((node, i) => {
       const id = randomUUID();
       const candidate = {
@@ -91,8 +91,8 @@ export class GraphService {
         });
         return;
       }
-      // Güvenlik: bu batch yolu NodesService'i baypas eder → secret guard'ı burada
-      // da uygula (yoksa IsSecret=true + düz-metin DefaultValue at-rest plaintext yazılır).
+      // Security: this batch path bypasses NodesService -> apply secret guard here
+      // too (otherwise IsSecret=true + plaintext DefaultValue writes at-rest plaintext).
       try {
         assertNoPlaintextSecret(node.type, node.properties as Record<string, unknown>);
       } catch {
@@ -118,10 +118,10 @@ export class GraphService {
       });
     });
 
-    // ── 3. isim benzersizliği (batch içi + DB) ────────────────────────
+    // ── 3. name uniqueness (in-batch + DB) ────────────────────────
     await this.checkNames(projectId, nodeMap, violations);
 
-    // ── 4. mevcut cloud node'larını çöz (edge uçları sourceId/targetId) ──
+    // ── 4. resolve existing cloud nodes (edge endpoints sourceId/targetId) ──
     const existingNodes = new Map<string, StoredNode>();
     const referencedIds = new Set<string>();
     for (const e of edges) {
@@ -133,7 +133,7 @@ export class GraphService {
       if (stored) existingNodes.set(id, stored);
     }
 
-    // ── 5. edge doğrulama + Rules Engine ──────────────────────────────
+    // ── 5. edge validation + Rules Engine ──────────────────────────────
     const resolveEndpoint = (tempId?: string, cloudId?: string) =>
       tempId ? nodeMap.get(tempId) : existingNodes.get(cloudId!);
 
@@ -180,7 +180,7 @@ export class GraphService {
       }
     }
 
-    // ── 6. batch-içi döngüsel bağımlılık (CALLS) ──────────────────────
+    // ── 6. in-batch circular dependency (CALLS) ──────────────────────
     const cycle = detectBatchCycle(edges, nodeMap);
     if (cycle) {
       violations.push({
@@ -190,7 +190,7 @@ export class GraphService {
       });
     }
 
-    // ── 7. ihlal varsa rollback (hiç commit yok) ──────────────────────
+    // ── 7. rollback on violations (no commit) ──────────────────────
     if (violations.length > 0) {
       return {
         success: false,
@@ -200,13 +200,13 @@ export class GraphService {
       };
     }
 
-    // Boş mutation = no-op: revizyonu bump'lamadan mevcut değeri dön (idempotans).
+    // Empty mutation = no-op: return current revision without bump (idempotent).
     if (nodes.length === 0 && edges.length === 0) {
       const graphRevision = await this.projectsRepo.getGraphRevision(projectId);
       return { success: true, idMap, nodeCount: 0, edgeCount: 0, graphRevision };
     }
 
-    // ── 8. atomik commit (tek transaction, revizyon kontrolü + bump dahil) ──
+    // ── 8. atomic commit (single transaction, revision check + bump included) ──
     const graphRevision = await this.commit(projectId, nodes, edges, nodeMap, idMap, now, input.baseRevision);
 
     return {
@@ -236,7 +236,7 @@ export class GraphService {
       const nameKey = this.nodesRepo.findNameKey(node.type);
       const name = (node.properties as Record<string, unknown>)[nameKey] as string | undefined;
       if (!name) continue;
-      // batch içi
+      // in-batch
       if (batchNames.has(name)) {
         violations.push({ tempId, code: "ERR_NAME_DUPLICATE", message: `The name '${name}' is used by more than one node in the batch.` });
         continue;
@@ -250,8 +250,8 @@ export class GraphService {
     }
   }
 
-  /** Tek transaction: revizyon kontrolü (baseRevision verildiyse) + bump,
-   *  node create, edge merge. Dönen değer commit sonrası graphRevision. */
+  /** Single transaction: revision check (when baseRevision given) + bump,
+   *  node create, edge merge. Returns graphRevision after commit. */
   private async commit(
     projectId: string,
     nodes: ApplyGraphInput["mutations"]["nodes"],
@@ -271,7 +271,7 @@ export class GraphService {
           positionX: stored.positionX,
           positionY: stored.positionY,
           homeTabId: stored.homeTabId,
-          version: 1, // HTTP create yolu ile tutarlı (optimistic concurrency)
+          version: 1, // consistent with HTTP create path (optimistic concurrency)
           properties: JSON.stringify(stored.properties),
         },
         createdAt: now,
@@ -294,8 +294,8 @@ export class GraphService {
     }));
 
     return this.neo4j.write(async (tx) => {
-      // Atomik revizyon kontrolü + bump: baseRevision verildiyse ve bu transaction'a
-      // kadar başka bir yazma araya girdiyse 0 kayıt döner → rollback ile 409.
+      // Atomic revision check + bump: when baseRevision given and another write
+      // slipped in before this transaction, returns 0 rows -> rollback with 409.
       const revResult = await tx.run(
         `MATCH (p:Project {id: $projectId})
          WITH p, coalesce(p.graphRevision, 0) AS rev
@@ -317,8 +317,8 @@ export class GraphService {
         { nodes: nodeParams },
       );
       if (edgeParams.length > 0) {
-        // apoc.merge.relationship → aynı (source, target, kind, projectId) edge'i
-        // ikinci kez yaratmaz (idempotent push). props yalnız create'te uygulanır.
+        // apoc.merge.relationship -> does not create same (source, target, kind, projectId)
+        // edge twice (idempotent push). props applied only on create.
         await tx.run(
           `UNWIND $edges AS ed
            MATCH (s:Node {id: ed.sourceId}), (t:Node {id: ed.targetId})
@@ -340,7 +340,7 @@ function gridPosition(index: number): { x: number; y: number } {
   return { x: (index % GRID_COLS) * GRID_X, y: Math.floor(index / GRID_COLS) * GRID_Y };
 }
 
-/** Batch içindeki CALLS edge'lerinde döngü var mı? Varsa zinciri döner. */
+/** Is there a cycle in CALLS edges within the batch? Returns the chain if so. */
 function detectBatchCycle(
   edges: ApplyGraphInput["mutations"]["edges"],
   nodeMap: Map<string, StoredNode>,
@@ -348,8 +348,8 @@ function detectBatchCycle(
   const adj = new Map<string, string[]>();
   for (const e of edges) {
     if (e.edgeType !== "CALLS") continue;
-    // Yalnız batch-içi (tempId↔tempId) CALLS zincirleri — mevcut cloud node'a
-    // bağlanan kenarlar DB'deki grafa karışır, batch döngü analizine girmez.
+    // Only in-batch (tempId<->tempId) CALLS chains — edges to existing cloud nodes
+    // merge into DB graph, excluded from batch cycle analysis.
     if (!e.sourceTempId || !e.targetTempId) continue;
     if (!nodeMap.has(e.sourceTempId) || !nodeMap.has(e.targetTempId)) continue;
     if (!adj.has(e.sourceTempId)) adj.set(e.sourceTempId, []);
@@ -366,7 +366,7 @@ function detectBatchCycle(
     for (const next of adj.get(node) ?? []) {
       const c = color.get(next) ?? WHITE;
       if (c === GRAY) {
-        // döngü — stack'ten zinciri çıkar
+        // cycle — extract chain from stack
         const idx = stack.indexOf(next);
         return [...stack.slice(idx), next];
       }

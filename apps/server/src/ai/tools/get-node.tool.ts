@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-/** Read-only — mevcut bir node'un tam properties'ini okur. Agent, bir DİZİ
- *  alanını (Columns/Endpoints/Methods/Fields) düzenlemeden ÖNCE bunu çağırıp
- *  tam diziyi görür, sonra update_node'a komple yeni diziyi gönderir. */
+/** Read-only — reads full properties of an existing node. Agent calls this FIRST
+ *  before editing an ARRAY field (Columns/Endpoints/Methods/Fields) to see the
+ *  full array, then sends the complete new array to update_node. */
 
 export const GET_NODE_TOOL_NAME = "get_node";
 

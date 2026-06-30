@@ -8,7 +8,7 @@ describe("EdgeTypesService", () => {
   };
   const service = new EdgeTypesService(mockEngine as any);
 
-  it("listAll 16 edge tipi döner", () => {
+it("listAll returns 16 edge type", () => {
     const list = service.listAll();
     expect(list).toHaveLength(16);
     const ids = list.map((t) => t.id);
@@ -17,7 +17,7 @@ describe("EdgeTypesService", () => {
     expect(ids).toContain("ROUTES_TO");
   });
 
-  it("getById CALLS için family + description döner", () => {
+it("getById returns family + description for CALLS", () => {
     const d = service.getById("CALLS");
     expect(d.family).toBe("communication");
     expect(d.familyLabel).toContain("Communication");
@@ -27,7 +27,7 @@ describe("EdgeTypesService", () => {
     expect(() => service.getById("FOO")).toThrow(NotFoundException);
   });
 
-  it("getRulesById engine'den allow + deny listesi döner", () => {
+it("getRulesById engine returns allow + deny list", () => {
     const r = service.getRulesById("CALLS");
     expect(r.allow).toBeDefined();
     expect(r.deny).toBeDefined();

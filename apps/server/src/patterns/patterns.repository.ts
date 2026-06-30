@@ -31,9 +31,9 @@ export class PatternsRepository {
     );
   }
 
-  // GÜVENLİK (kiracılar-arası BOLA): okuma yüzeyi YALNIZ kanonik 'seed' pattern'leri
-  // döndürür. Promoted (kullanıcı) pattern'ler kiracıya damgalı olmadığından
-  // hiçbir okuma yolundan (list/getById/search) dışarı sızmaz + AI prompt'una
+// SECURITY (inter-tenant BOLA): reading surface canonical 'seed' patterns ONLY
+//returns. Since promoted (user) patterns are not stamped to the tenant
+// does not leak out of any read path (list/getById/search) + to AI prompt
   // (search RAG) zehirli pattern enjekte edilemez.
   async list(): Promise<PatternSummary[]> {
     const res = await this.neo4j.run(
@@ -64,7 +64,7 @@ export class PatternsRepository {
     return res.records.length > 0;
   }
 
-  /** Native vektör arama: cosine top-K + minScore filtresi. */
+/** Native vector search: cosine top-K + minScore filter. */
   async search(embedding: number[], k: number, minScore: number): Promise<PatternSearchHit[]> {
     const res = await this.neo4j.run(
       `CALL db.index.vector.queryNodes('pattern_embedding', $k, $embedding)

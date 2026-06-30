@@ -7,7 +7,7 @@ import type { StoredTab, TabGraph, CreateTabInput, UpdateTabInput } from "./sche
 export class TabsService {
   constructor(private readonly repo: TabsRepository) {}
 
-  /** Projenin default ("Ana Mimari") sekmesi — yoksa oluşturur (idempotent). */
+  /** Project default ("Main Architecture") tab — creates if missing (idempotent). */
   async ensureDefault(projectId: string): Promise<StoredTab> {
     const existing = await this.repo.findDefault(projectId);
     if (existing) return existing;
@@ -73,7 +73,7 @@ export class TabsService {
     if (!(await this.repo.nodeExists(projectId, nodeId))) {
       throw new NotFoundException({ code: "ERR_NODE_NOT_FOUND", message: `Node '${nodeId}' not found.` });
     }
-    // Node'u kendi ev sekmesine referans olarak eklemek anlamsız.
+    // Adding a node as reference on its own home tab is meaningless.
     const homeTabId = await this.repo.nodeHomeTab(projectId, nodeId);
     if (homeTabId === tab.id) {
       throw new BadRequestException({

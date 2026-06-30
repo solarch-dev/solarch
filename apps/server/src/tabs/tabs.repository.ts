@@ -85,11 +85,11 @@ export class TabsRepository {
     return r.records.length ? toStoredTab(r.records[0].get("t").properties) : null;
   }
 
-  /** Sekmeyi sil: owned node'ların evini default'a taşı + tab'ı (ve REFERENCES'larını)
-   *  sil. **Tek atomik sorgu** — önceden 3 ayrı transaction'dı; ortada crash olursa
-   *  yarım durum (taşınmış node ama silinmemiş tab / dangling REFERENCES) kalıyordu.
-   *  `DETACH DELETE` tab'ın tüm ilişkilerini (REFERENCES dahil) temizler; `count(n)`
-   *  satırları tek'e indirir (aksi halde her owned node için DELETE tekrar eder). */
+  /** Delete tab: move owned nodes' home to default + delete tab (and REFERENCES).
+   *  **Single atomic query** — previously 3 separate transactions; crash mid-way
+   *  left partial state (moved nodes but undeleted tab / dangling REFERENCES).
+   *  `DETACH DELETE` cleans all tab relationships (including REFERENCES); `count(n)`
+   *  collapses rows to one (otherwise DELETE repeats per owned node). */
   async deleteAndReassign(projectId: string, tabId: string, defaultTabId: string): Promise<void> {
     await this.neo4j.run(
       `OPTIONAL MATCH (n:Node {projectId: $projectId, homeTabId: $tabId})
@@ -101,7 +101,7 @@ export class TabsRepository {
     );
   }
 
-  /** Referans ekle/güncelle (upsert). */
+  /** Add/update reference (upsert). */
   async upsertReference(projectId: string, tabId: string, nodeId: string, x: number, y: number): Promise<void> {
     await this.neo4j.run(
       `MATCH (t:Tab {id: $tabId, projectId: $projectId})
@@ -136,8 +136,8 @@ export class TabsRepository {
     );
   }
 
-  /** Sekmenin render içeriği: owned (homeTabId=tab) + referenced node'lar + iki ucu da
-   *  görünen edge'ler. */
+  /** Tab render content: owned (homeTabId=tab) + referenced nodes + edges with both
+   *  endpoints visible. */
   async tabGraph(projectId: string, tab: StoredTab): Promise<TabGraph> {
     const ownedRes = await this.neo4j.run(
       `MATCH (n:Node {projectId: $projectId, homeTabId: $tabId}) RETURN n, labels(n) AS labels`,
@@ -201,7 +201,7 @@ function memberFrom(p: any, labels: string[], isReference: boolean): TabGraphMem
     version: Number(p.version ?? 1),
     isReference,
     origin: isReference ? p.homeTabId : undefined,
-    // İmplementasyon sayaçları — hiç rapor edilmediyse alanlar görünmez.
+    // Implementation counters — fields omitted when never reported.
     ...(p.implTotal != null
       ? {
           implTotal: Number(p.implTotal),

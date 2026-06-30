@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// .env dosyasını config/env.ts import'undan ÖNCE yükle (env.ts boot anında parse eder)
+// Load .env file FIRST from config/env.ts import (env.ts parses at boot time)
 import "dotenv/config";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
@@ -7,7 +7,6 @@ import helmet from "helmet";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { apiReference } from "@scalar/nestjs-api-reference";
 import { cleanupOpenApiDoc, ZodValidationPipe as ZodPipe } from "nestjs-zod";
-import { clerkMiddleware } from "@clerk/express";
 import { AppModule } from "./app.module";
 import { env } from "./config/env";
 import { warnMissingEnv } from "./config/env-check";
@@ -17,8 +16,6 @@ import { ConflictFilter } from "./common/filters/conflict.filter";
 import { InternalFilter } from "./common/filters/internal.filter";
 import { UnauthorizedFilter } from "./common/filters/unauthorized.filter";
 import { ForbiddenFilter } from "./common/filters/forbidden.filter";
-import { PaymentRequiredFilter } from "./common/filters/payment-required.filter";
-
 const API_DESCRIPTION = `
 A graph backend that grounds software architecture drawn via natural language / sketch into **strict schema standards** and blocks architectural violations with a **Rules Engine**.
 
@@ -55,52 +52,40 @@ Any node→edge→node connection that is not explicitly specified is **forbidde
 `;
 
 async function bootstrap() {
-  // bodyParser:false → varsayılan 100kb parser'ı kapat; aşağıda tek 1mb parser
-  // kuruyoruz (yoksa iki parser zincirlenir, varsayılan limit geçerli kalır).
-  // rawBody:true korunur (core appOptions.rawBody'den türetir) → webhook imzası çalışır.
+// bodyParser:false → close default 100kb parser; below is single 1mb parser
+// we set up (otherwise the two parsers will be chained, the default limit remains valid).
+// rawBody:true is preserved (derives from core appOptions.rawBody) → webhook signature works.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
     bodyParser: false,
   });
-  // Reverse proxy (Caddy/nginx) arkasında gerçek istemci IP'sini X-Forwarded-For'dan al
-  // → rate-limit IP fallback'i proxy IP'sine değil gerçek IP'ye göre çalışır.
+// Get real client IP from X-Forwarded-For behind reverse proxy (Caddy/nginx)
+// → rate-limit IP fallback works based on the real IP, not the proxy IP.
   app.set("trust proxy", 1);
-  // Güvenlik başlıkları. CSP kapalı: bu bir JSON API + Scalar docs (inline
-  // script/style) sayfası; CSP docs UI'ını kırar, JSON yanıtlarda anlamsız.
+// Security headers. CSP off: it's a JSON API + Scalar docs (inline
+// script/style) page; It breaks the CSP docs UI, JSON is meaningless in responses.
   app.use(helmet({ contentSecurityPolicy: false }));
-  // Gövde boyut sınırı — sınırsız JSON/batch ile bellek DoS'unu engelle.
-  // 1mb: chat history (≤50×8000 char) + büyük graph apply rahat sığar; MB'lık abuse durur.
+// Body size limit — prevent memory DoS with unlimited JSON/batch.
+// 1mb: chat history (≤50×8000 char) + large graph apply fits comfortably; MB abuse stops.
   app.useBodyParser("json", { limit: "1mb" });
   app.useBodyParser("urlencoded", { limit: "1mb", extended: true });
   app.setGlobalPrefix("api/v1");
-  // Cookie tabanlı oturum için credentials zorunlu (Clerk __session). Same-origin
-  // proxy'de (dev Vite, prod reverse proxy) CORS zaten devreye girmez.
   app.enableCors({ origin: env.CORS_ORIGIN, credentials: true });
-  // Clerk: cookie (__session) veya Authorization Bearer'dan oturumu çözer, req'e
-  // ekler. getAuth(req) bu middleware'den sonra kullanılabilir.
-  app.use(
-    clerkMiddleware({
-      authorizedParties: env.CLERK_AUTHORIZED_PARTIES
-        ? env.CLERK_AUTHORIZED_PARTIES.split(",").map((s) => s.trim())
-        : undefined,
-    }),
-  );
-  // Eksik env değerlerini tek tek raporla (hangi özellik neden çalışmaz).
+// Report missing env values ​​one by one (which feature does not work and why).
   warnMissingEnv();
-  // nestjs-zod global pipe — DTO class'ından otomatik Zod schema alır,
-  // Swagger Module DTO metadata'sını da bu pipe ile tanır.
+// nestjs-zod global pipe — Gets automatic Zod schema from DTO class,
+// Swagger Module also recognizes DTO metadata with this pipe.
   app.useGlobalPipes(new ZodPipe());
   app.useGlobalFilters(
     new InternalFilter(),
     new UnauthorizedFilter(),
     new ForbiddenFilter(),
-    new PaymentRequiredFilter(),
     new ConflictFilter(),
     new NotFoundFilter(),
     new SchemaErrorFilter(),
   );
 
-  // OpenAPI + Scalar yalnızca dev/test — production'da tam API yüzeyi sızdırılmasın.
+// OpenAPI + Scalar dev/test only — do not leak full API surface in production.
   if (env.NODE_ENV !== "production") {
     const config = new DocumentBuilder()
       .setTitle("Solarch Backend API")
@@ -132,8 +117,8 @@ async function bootstrap() {
     );
   }
 
-  // SIGTERM/SIGINT'te Nest onModuleDestroy zinciri çalışsın (Neo4j driver.close) +
-  // HTTP server graceful kapansın. Manuel sinyal handler GEREKMEZ.
+// Run Nest onModuleDestroy chain in SIGTERM/SIGINT (Neo4j driver.close) +
+// Let the HTTP server gracefully shut down. NO manual signal handler required.
   app.enableShutdownHooks();
 
   // Bind to env.HOST (default 127.0.0.1): on a single box only the local reverse proxy
@@ -148,9 +133,9 @@ async function bootstrap() {
 
 bootstrap();
 
-/** OpenAPI document'inde her $ref'i resolve edip inline schema ile değiştirir.
- *  Scalar Models paneli boş kalsın diye components.schemas'ı sonra
- *  güvenle silebiliriz. */
+/** Resolves each $ref in the OpenAPI document and replaces it with an inline schema.
+* Then add components.schemas so that the Scalar Models panel remains empty.
+* we can safely delete it. */
 function inlineAllRefs(doc: any): void {
   const schemas = doc.components?.schemas ?? {};
   const resolve = (ref: string): unknown => {

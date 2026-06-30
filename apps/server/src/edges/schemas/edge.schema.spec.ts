@@ -13,12 +13,12 @@ const validEdge = {
 };
 
 describe("EdgeSchema", () => {
-  it("geçerli edge'i parse eder", () => {
+  it("parses valid edge'i", () => {
     const e = EdgeSchema.parse(validEdge);
     expect(e.kind).toBe("CALLS");
   });
 
-  it("16 EDGE_KINDS içerir", () => {
+  it("contains 16 EDGE_KINDS", () => {
     expect(EDGE_KINDS).toHaveLength(16);
     expect(EDGE_KINDS).toContain("CALLS");
     expect(EDGE_KINDS).toContain("THROWS");
@@ -29,7 +29,7 @@ describe("EdgeSchema", () => {
     expect(() => EdgeSchema.parse({ ...validEdge, kind: "FOO" })).toThrow();
   });
 
-  it("sourceNodeId UUID değilse reddeder", () => {
+  it("rejects non-UUID sourceNodeId", () => {
     expect(() => EdgeSchema.parse({ ...validEdge, sourceNodeId: "abc" })).toThrow();
   });
 
@@ -40,7 +40,7 @@ describe("EdgeSchema", () => {
     })).toThrow();
   });
 
-  it("bilinmeyen properties alanı reddeder (strict)", () => {
+  it("rejects unknown properties field (strict)", () => {
     expect(() => EdgeSchema.parse({
       ...validEdge,
       properties: { IsAsync: false, Foo: "bar" } as any,

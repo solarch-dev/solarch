@@ -11,7 +11,7 @@ const props = {
 };
 
 describe("PatternsRepository", () => {
-  it("search vektör index'i çağırır ve hit map'ler", async () => {
+it("search calls vector index and hit maps", async () => {
     neo4j.run.mockResolvedValueOnce({
       records: [{ get: (k: string) => (k === "score" ? 0.91 : { properties: props }) }],
     });
@@ -22,12 +22,12 @@ describe("PatternsRepository", () => {
     expect(neo4j.run.mock.calls[0][1]).toEqual({ k: 3, embedding: [0.1, 0.2], minScore: 0.7 });
   });
 
-  it("getById yoksa null döner", async () => {
+it("getById otherwise returns null", async () => {
     neo4j.run.mockResolvedValueOnce({ records: [] });
     expect(await repo.getById("x")).toBeNull();
   });
 
-  it("list summary (nodeCount/edgeCount) döner", async () => {
+it("list summary (nodeCount/edgeCount) returns", async () => {
     neo4j.run.mockResolvedValueOnce({ records: [{ get: () => ({ properties: props }) }] });
     const list = await repo.list();
     expect(list[0].nodeCount).toBe(1);

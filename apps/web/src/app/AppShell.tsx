@@ -11,16 +11,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConfirmProvider } from "../components/ui/confirm-dialog";
 import { Toaster } from "sonner";
 import { Z_LAYERS } from "../lib/z-layers";
-import { useClaimGuestProject } from "../features/auth/useClaimGuestProject";
 import "./AppShell.css";
 
-/** Main app shell — TopBar + canvas main + BottomBar + global modals.
- *  Global keyboard shortcuts live here (⌘K, ⌘E, ⌘⇧C, F2, Delete, Esc). */
 export function AppShell() {
   const selectedNodeId = useSelection((s) => s.selectedNodeId);
   const selectNode = useSelection((s) => s.selectNode);
-  // After sign-up/login, migrate the guest sketch to the account (if a ticket exists, one-shot).
-  useClaimGuestProject();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
   const [docsSection, setDocsSection] = useState<DocsSection>("nodes");
@@ -31,14 +26,12 @@ export function AppShell() {
       const inForm = t?.tagName === "INPUT" || t?.tagName === "TEXTAREA" || t?.isContentEditable;
       const mod = e.metaKey || e.ctrlKey;
 
-      // ⌘K → toggle command palette (everywhere, even inside forms)
       if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
         return;
       }
 
-      // Esc hierarchical close: NameEditor → EditorModal → Selection (bypassed when inside form)
       if (e.key === "Escape" && !inForm) {
         const s = useSelection.getState();
         if (s.nameEditorOpen) { s.closeNameEditor(); return; }
@@ -48,7 +41,6 @@ export function AppShell() {
 
       if (inForm) return;
 
-      // ⌘E → toggle EditorModal (when a node is selected). openEditor/closeEditor are atomic.
       if (mod && !e.shiftKey && !e.altKey && e.key === "e" && selectedNodeId) {
         e.preventDefault();
         const s = useSelection.getState();
@@ -57,21 +49,18 @@ export function AppShell() {
         return;
       }
 
-      // ⌘⇧C → copy selected node (NodeActionBar registers canvas-commands.copy)
       if (mod && e.shiftKey && (e.key === "C" || e.key === "c") && selectedNodeId) {
         e.preventDefault();
         useCanvasCommands.getState().copy?.();
         return;
       }
 
-      // F2 → rename (inline NameEditor)
       if (e.key === "F2" && selectedNodeId) {
         e.preventDefault();
         useSelection.getState().openNameEditor();
         return;
       }
 
-      // Delete / Backspace → directly delete selected node
       if ((e.key === "Delete" || e.key === "Backspace") && selectedNodeId) {
         e.preventDefault();
         useCanvasCommands.getState().deleteSelected?.();
@@ -79,7 +68,6 @@ export function AppShell() {
       }
     };
 
-    // Global event for ⌘K toggle from BottomBar or other UI elements
     const onCmdkEvent = () => setPaletteOpen((v) => !v);
     const onDocsEvent = (e: Event) => {
       const detail = (e as CustomEvent<{ section?: DocsSection }>).detail;
@@ -139,12 +127,10 @@ export function AppShell() {
   );
 }
 
-/** Toggle ⌘K palette from UI — used by BottomBar button. */
 export function openCommandPalette(): void {
   window.dispatchEvent(new CustomEvent("solarch:cmdk-open"));
 }
 
-/** Toggle docs modal from UI. */
 export function openDocs(section: DocsSection = "nodes"): void {
   window.dispatchEvent(new CustomEvent("solarch:docs-open", { detail: { section } }));
 }

@@ -21,7 +21,7 @@ describe("Neo4jService", () => {
     await container.stop();
   });
 
-  it("ping çalışır (1 dönderir)", async () => {
+it("ping works (returns 1)", async () => {
     const result = await service.run("RETURN 1 AS n");
     expect(result.records[0].get("n")).toBe(1);
   });
@@ -30,7 +30,7 @@ describe("Neo4jService", () => {
     await expect(service.ping()).resolves.toBeUndefined();
   });
 
-  it("transaction içinde write yapar", async () => {
+it("writes in transaction", async () => {
     await service.write(async (tx) => {
       await tx.run("CREATE (n:Test {id: 't1'})");
     });

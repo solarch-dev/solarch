@@ -2,14 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { Neo4jService } from "../neo4j/neo4j.service";
 
 /* ────────────────────────────────────────────────────────────────────────
- * surgical-fill.repository.ts — Surgical AI'ın DOLDURDUĞU algoritma gövdelerini
- * BÖLGE-bazında (projectId, nodeId, member) kalıcı saklar.
+ * surgical-fill.repository.ts — Persist algorithm bodies filled by Surgical AI
+ * by REGION (projectId, nodeId, member).
  *
- * Constructor modeli: YAPI graftan deterministik türetilir; ALGORİTMA gövdesi ise
- * AI'ın (ya da insanın) yazdığı, türetilemeyen kullanıcı IP'sidir → saklanmalı.
- * Önceden hiç saklanmıyordu (fill yalnız frontend state'inde yaşıyordu) → panel
- * kapanınca/yenileyince uçuyordu. Artık her dolan bölge anında buraya yazılır;
- * generate, bu gövdeleri NOT_IMPLEMENTED yerine geri-enjekte eder.
+ * Constructor model: STRUCTURE derived deterministically from graph; ALGORITHM body is
+ * user IP written by AI (or human), not derivable -> must be stored. Previously never
+ * stored (fill lived only in frontend state) -> lost on panel close/refresh. Now every
+ * filled region writes here immediately; generate re-injects these bodies instead of NOT_IMPLEMENTED.
  * ──────────────────────────────────────────────────────────────────────── */
 
 export interface StoredFill {
@@ -23,8 +22,8 @@ export interface StoredFill {
 export class SurgicalFillRepository {
   constructor(private readonly neo4j: Neo4jService) {}
 
-  /** Bir bölgenin (nodeId#member) dolu gövdesini yaz/üzerine yaz (idempotent).
-   *  filledAt re-injection imzasında (@solarch:filled at=…) kullanılır. */
+  /** Write/overwrite filled body for a region (nodeId#member) (idempotent).
+   *  filledAt used in re-injection signature (@solarch:filled at=…). */
   async upsert(projectId: string, nodeId: string, member: string, body: string, filledAt: string): Promise<void> {
     await this.neo4j.run(
       `MERGE (f:SurgicalFill {projectId:$projectId, nodeId:$nodeId, member:$member})
@@ -33,7 +32,7 @@ export class SurgicalFillRepository {
     );
   }
 
-  /** Projenin tüm saklı gövdeleri — generate re-injection için. */
+  /** All stored bodies for project — for generate re-injection. */
   async getAllForProject(projectId: string): Promise<StoredFill[]> {
     const r = await this.neo4j.run(
       `MATCH (f:SurgicalFill {projectId:$projectId}) RETURN f`,
@@ -45,13 +44,13 @@ export class SurgicalFillRepository {
     });
   }
 
-  /** Tüm fill'leri sil (örn. "sıfırdan yeniden üret"). */
+  /** Delete all fills (e.g. "regenerate from scratch"). */
   async deleteForProject(projectId: string): Promise<void> {
     await this.neo4j.run(`MATCH (f:SurgicalFill {projectId:$projectId}) DETACH DELETE f`, { projectId });
   }
 
-  /** TEK bir bölgenin (nodeId#member) dolu gövdesini sil — "revert to stub". generate
-   *  artık o bölgeyi NOT_IMPLEMENTED iskeletiyle döndürür. Yoksa sessiz (idempotent). */
+  /** Delete filled body for ONE region (nodeId#member) — "revert to stub". generate
+   *  then returns NOT_IMPLEMENTED skeleton for that region. Silent if missing (idempotent). */
   async deleteOne(projectId: string, nodeId: string, member: string): Promise<void> {
     await this.neo4j.run(
       `MATCH (f:SurgicalFill {projectId:$projectId, nodeId:$nodeId, member:$member}) DETACH DELETE f`,

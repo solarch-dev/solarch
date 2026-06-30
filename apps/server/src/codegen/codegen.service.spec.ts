@@ -13,25 +13,25 @@ import type { GeneratedProject } from "./types";
 /* ────────────────────────────────────────────────────────────────────────
  * codegen.service.spec.ts — entegrasyon testi.
  *
- * Gerçekçi 9-node'luk fixture üzerinden TÜM montaj zincirini doğrular:
+ * Gercekci 9-node'luk fixture uzerinden TUM montaj zincirini dogrular:
  *   Module(UsersModule) ── ExposedServices: [UsersService]
  *   UsersController ─CALLS─> UsersService ─CALLS─> UserRepository ─WRITES─> users(Table)
  *   + CreateUserDto + UserDto + UserRole(Enum) + UserNotFoundException + User(Model)
  *
  * Assertion'lar:
- *   - doğru dosyalar üretildi (feature klasörü = "users")
- *   - Controller->Service DI'ı CALLS edge'inden geldi (Controller şemasında ref YOK)
- *   - Service DI'ı = Dependencies UNION CALLS
- *   - surgical marker sayısı > 0
- *   - import'lar çözümlendi (göreli yollar)
- *   - DETERMİNİZM: aynı graph iki kez -> byte-identical JSON
+ *   - dogru dosyalar uretildi (feature klasoru = "users")
+ *   - Controller->Service DI'i CALLS edge'inden geldi (Controller semasinda ref NONE)
+ *   - Service DI'i = Dependencies UNION CALLS
+ *   - surgical marker sayisi > 0
+ *   - import'lar cozumlendi (goreli yollar)
+ *   - DETERMINISM: same graph twice -> byte-identical JSON
  * ──────────────────────────────────────────────────────────────────────── */
 
 const PROJECT_ID = "00000000-0000-4000-8000-000000000000";
 const TAB_ID = "11111111-1111-4111-8111-111111111111";
 
 let seq = 0;
-/** Deterministik UUID üretici (test içi). */
+/** Deterministik UUID uretici (test ici). */
 function uid(): string {
   seq += 1;
   const h = seq.toString(16).padStart(12, "0");
@@ -66,11 +66,11 @@ function edge(kind: EdgeKind, source: StoredNode, target: StoredNode): StoredEdg
   };
 }
 
-/* ── Fixture inşası ──────────────────────────────────────────────────────── */
+/* ── Fixture insasi ──────────────────────────────────────────────────────── */
 function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
   const usersTable = node("Table", {
     TableName: "users",
-    Description: "Kullanıcı tablosu",
+    Description: "User table",
     Columns: [
       { Name: "id", DataType: "UUID", IsPrimaryKey: true, IsNotNull: true, IsUnique: false, AutoIncrement: false },
       { Name: "email", DataType: "VARCHAR", Length: 255, IsPrimaryKey: false, IsNotNull: true, IsUnique: true, AutoIncrement: false },
@@ -84,14 +84,14 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const userRole = node("Enum", {
     Name: "UserRole",
-    Description: "Kullanıcı rolü",
+    Description: "User rolu",
     BackingType: "string",
     Values: [{ Key: "ADMIN" }, { Key: "MEMBER" }],
   });
 
   const userModel = node("Model", {
     ClassName: "User",
-    Description: "Kullanıcı varlığı",
+    Description: "User varligi",
     TableRef: "users",
     Properties: [
       { Name: "id", Type: "string", IsNullable: false, IsCollection: false },
@@ -102,7 +102,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const createUserDto = node("DTO", {
     Name: "CreateUserDto",
-    Description: "Kullanıcı oluşturma girdisi",
+    Description: "User olusturma girdisi",
     Fields: [
       { Name: "email", DataType: "string", IsRequired: true, IsArray: false, ValidationRules: [{ Rule: "Email" }] },
       { Name: "role", DataType: "UserRole", IsRequired: true, IsArray: false, ValidationRules: [], EnumRef: "UserRole" },
@@ -111,7 +111,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const userDto = node("DTO", {
     Name: "UserDto",
-    Description: "Kullanıcı yanıtı",
+    Description: "User yaniti",
     Fields: [
       { Name: "id", DataType: "string", IsRequired: true, IsArray: false, ValidationRules: [] },
       { Name: "email", DataType: "string", IsRequired: true, IsArray: false, ValidationRules: [{ Rule: "Email" }] },
@@ -120,7 +120,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const notFoundExc = node("Exception", {
     ExceptionName: "UserNotFoundException",
-    Description: "Kullanıcı bulunamadı",
+    Description: "User bulunamadi",
     HttpStatusCode: 404,
     LogSeverity: "Warning",
     ErrorCode: "ERR_USER_NOT_FOUND",
@@ -128,7 +128,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const userRepository = node("Repository", {
     RepositoryName: "UserRepository",
-    Description: "Kullanıcı veri erişimi",
+    Description: "User veri erisimi",
     EntityReference: "User",
     IsCached: false,
     CustomQueries: [
@@ -138,7 +138,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const usersService = node("Service", {
     ServiceName: "UsersService",
-    Description: "Kullanıcı iş mantığı",
+    Description: "User is mantigi",
     IsTransactionScoped: true,
     Methods: [
       {
@@ -156,7 +156,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const usersController = node("Controller", {
     ControllerName: "UsersController",
-    Description: "Kullanıcı HTTP arayüzü",
+    Description: "User HTTP arayuzu",
     BaseRoute: "users",
     Version: "v1",
     Endpoints: [
@@ -188,7 +188,7 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
 
   const usersModule = node("Module", {
     ModuleName: "UsersModule",
-    Description: "Kullanıcı modülü",
+    Description: "User modulu",
     StrictBoundaries: true,
     ExposedServices: ["UsersService"],
     Dependencies: [],
@@ -208,13 +208,13 @@ function buildFixture(): { nodes: StoredNode[]; edges: StoredEdge[] } {
   ];
 
   const edges = [
-    // KRİTİK: Controller->Service yalnız CALLS edge'inden gelir.
+    // CRITICAL: Controller->Service yalniz CALLS edge'inden gelir.
     edge("CALLS", usersController, usersService),
-    // Service -> Repository (Dependencies + CALLS birleşimi test edilir).
+    // Service -> Repository (Dependencies + CALLS birlesimi test edilir).
     edge("CALLS", usersService, userRepository),
     // Repository -> Table (WRITES).
     edge("WRITES", userRepository, usersTable),
-    // Module -> Service (USES) — moduleOf için ek bağ.
+    // Module -> Service (USES) — moduleOf icin ek bag.
     edge("USES", usersModule, usersService),
     // Service -> Exception (THROWS).
     edge("THROWS", usersService, notFoundExc),
@@ -235,34 +235,34 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
   const fileByPath = new Map(project.files.map((f) => [f.path, f]));
   const path = (p: string) => {
     const f = fileByPath.get(p);
-    if (!f) throw new Error(`Beklenen dosya yok: ${p}\nÜretilenler:\n${[...fileByPath.keys()].join("\n")}`);
+    if (!f) throw new Error(`Expected file missing: ${p}\nGenerated:\n${[...fileByPath.keys()].join("\n")}`);
     return f;
   };
 
-  it("doğru çekirdek dosyaları üretildi (users feature klasörü, idiomatik isimler)", () => {
+  it("dogru cekirdek dosyalari uretildi (users feature klasoru, idiomatik isimler)", () => {
     const paths = [...fileByPath.keys()];
-    // Feature/TS dosyaları montajda "src/" altına toplanır (scaffold + tsconfig
-    // include ile tek ağaç). SQL migration'ları KÖKTE kalır (derlenmez).
-    // MİMARİ-FARKINDA: dosya adları rol son-ekini TEKRARLAMAZ (users.controller.ts,
-    // user.repository.ts), feature başına TEK module (users.module.ts).
+    // Feature/TS dosyalari montajda "src/" altina toplanir (scaffold + tsconfig
+    // include ile tek agac). SQL migration'lari KOKTE kalir (derlenmez).
+    // ARCHITECTURE-FARKINDA: dosya adlari rol son-ekini TEKRARLAMAZ (users.controller.ts,
+    // user.repository.ts), feature basina TEK module (users.module.ts).
     expect(paths).toContain("src/users/users.module.ts");
     expect(paths).toContain("src/users/users.controller.ts");
     expect(paths).toContain("src/users/users.service.ts");
     expect(paths).toContain("src/users/user.repository.ts");
-    // Model entity bağlı Table ("users") ile aynı feature'da (DI co-location).
+    // Model entity bagli Table ("users") ile ayni feature'da (DI co-location).
     expect(paths).toContain("src/users/entities/user.entity.ts");
-    // DTO'lar onları tüketen Controller/Service'in feature'ında (users/dto).
+    // DTO'lar onlari tuketen Controller/Service'in feature'inda (users/dto).
     expect(paths).toContain("src/users/dto/create-user.dto.ts");
     expect(paths).toContain("src/users/dto/user.dto.ts");
-    // Exception THROWS eden UsersService ile aynı feature'da (users/exceptions).
+    // Exception THROWS eden UsersService ile ayni feature'da (users/exceptions).
     expect(paths).toContain("src/users/exceptions/user-not-found.exception.ts");
-    // Enum (paylaşımlı kabul edilir) -> common/enums.
+    // Enum (paylasimli kabul edilir) -> common/enums.
     expect(paths).toContain("src/common/enums/user-role.enum.ts");
-    // TableName "users" fiziksel ad sayılır (çoğullanmaz) -> "001_create_users.sql".
+    // TableName "users" fiziksel ad sayilir (cogullanmaz) -> "001_create_users.sql".
     expect(paths).toContain("migrations/001_create_users.sql");
   });
 
-  it("scaffold (proje-genel) dosyaları üretildi", () => {
+  it("scaffold (proje-genel) dosyalari uretildi", () => {
     const paths = [...fileByPath.keys()];
     expect(paths).toContain("package.json");
     expect(paths).toContain("tsconfig.json");
@@ -270,10 +270,10 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     expect(paths).toContain("nest-cli.json");
     expect(paths).toContain("src/main.ts");
     expect(paths).toContain("src/app.module.ts");
-    // H3/H1: çekirdek altyapı + global filter.
+    // H3/H1: cekirdek altyapi + global filter.
     expect(paths).toContain("src/core/core.module.ts");
     expect(paths).toContain("src/shared/filters/all-exceptions.filter.ts");
-    // H4: .env.example KÖKTE (src/ altında değil).
+    // H4: .env.example KOKTE (src/ altinda degil).
     expect(paths).toContain(".env.example");
     expect(paths).not.toContain("src/.env.example");
     // H5: TypeORM CLI data-source.
@@ -284,10 +284,10 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     expect(paths).toContain("README.md");
   });
 
-  it("H5: SQL migration başına çalıştırılabilir TypeORM TS migration üretildi", () => {
+  it("H5: SQL migration basina calistirilabilir TypeORM TS migration uretildi", () => {
     const paths = [...fileByPath.keys()];
     // users tablosu -> migrations/001_create_users.sql (ham referans) +
-    //   src/migrations/<ts>-CreateUsers.ts (TypeORM geleneği: <timestamp>-<Name>.ts).
+    //   src/migrations/<ts>-CreateUsers.ts (TypeORM gelenegi: <timestamp>-<Name>.ts).
     expect(paths).toContain("migrations/001_create_users.sql");
     const tsMig = paths.find((p) => /^src\/migrations\/\d{13}-Create\w+\.ts$/.test(p));
     expect(tsMig).toBeDefined();
@@ -297,9 +297,9 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     expect(mig).toContain("public async down(queryRunner: QueryRunner)");
     expect(mig).toContain('CREATE TABLE "users"');
     expect(mig).toContain('DROP TABLE IF EXISTS "users" CASCADE');
-    // TypeORM, sınıf adının SON 13 hanesini timestamp olarak parseInt eder
-    //   (MigrationExecutor: name.substr(-13)); salt "001" soneki NaN -> CLI fırlatır.
-    //   Sınıf adı 13-haneli zaman damgasıyla bitmeli ve parseInt edilebilmeli.
+    // TypeORM, sinif adinin SON 13 hanesini timestamp olarak parseInt eder
+    //   (MigrationExecutor: name.substr(-13)); salt "001" soneki NaN -> CLI firlatir.
+    //   Sinif adi 13-haneli zaman damgasiyla bitmeli ve parseInt edilebilmeli.
     const className = mig.match(/export class (\w+) implements MigrationInterface/)?.[1];
     expect(className).toBeDefined();
     const last13 = className!.slice(-13);
@@ -307,47 +307,47 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     expect(Number.isNaN(Number.parseInt(last13, 10))).toBe(false);
   });
 
-  it("DTO'lar üretildi (RequestDTORef/ResponseDTORef çözülebilir)", () => {
+  it("DTO'lar uretildi (RequestDTORef/ResponseDTORef cozulebilir)", () => {
     const paths = [...fileByPath.keys()];
     expect(paths.some((p) => p.endsWith("create-user.dto.ts"))).toBe(true);
     expect(paths.some((p) => p.endsWith("/user.dto.ts"))).toBe(true);
   });
 
-  it("Controller->Service DI'ı CALLS edge'inden geldi (şemada ref yok)", () => {
+  it("Controller->Service DI'i CALLS edge'inden geldi (semada ref yok)", () => {
     const controller = path("src/users/users.controller.ts").content;
-    // constructor injection UsersService üzerinden
+    // constructor injection UsersService uzerinden
     expect(controller).toContain("constructor(");
     expect(controller).toContain("private readonly usersService: UsersService");
-    // UsersService import'u göreli yoldan çözüldü (aynı feature klasörü)
+    // UsersService import'u goreli yoldan cozuldu (ayni feature klasoru)
     expect(controller).toMatch(/import \{ UsersService \} from "\.\/users\.service"/);
   });
 
-  it("Controller route Version öneki + endpoint metotları + auth guard", () => {
+  it("Controller route Version oneki + endpoint metotlari + auth guard", () => {
     const controller = path("src/users/users.controller.ts").content;
     expect(controller).toContain('@Controller("v1/users")');
     expect(controller).toContain("@Post()");
     expect(controller).toContain('@Get(":id")');
     expect(controller).toContain("@HttpCode(201)");
     expect(controller).toContain("@UseGuards(AuthGuard)");
-    // RequestDTORef çözüldü -> @Body() dto: CreateUserDto
+    // RequestDTORef cozuldu -> @Body() dto: CreateUserDto
     expect(controller).toContain("@Body() dto: CreateUserDto");
   });
 
-  it("Service DI'ı = Dependencies UNION CALLS (UserRepository tek kez)", () => {
+  it("Service DI'i = Dependencies UNION CALLS (UserRepository tek kez)", () => {
     const svc = path("src/users/users.service.ts").content;
     expect(svc).toContain("@Injectable()");
     expect(svc).toContain("constructor(");
     // Repository hem Dependencies'te hem CALLS edge'inde -> tek injection (dedup)
     const repoInjections = svc.match(/userRepository: UserRepository/g) ?? [];
     expect(repoInjections.length).toBe(1);
-    // import çözüldü (aynı feature)
+    // import cozuldu (ayni feature)
     expect(svc).toMatch(/from "\.\/user\.repository"/);
   });
 
-  it("Repository @InjectRepository + entity import çözüldü", () => {
+  it("Repository @InjectRepository + entity import cozuldu", () => {
     const repo = path("src/users/user.repository.ts").content;
     expect(repo).toContain("@Injectable()");
-    // EntityReference -> User Model entity import'u (entity aynı feature'da -> ./entities).
+    // EntityReference -> User Model entity import'u (entity ayni feature'da -> ./entities).
     expect(repo).toMatch(/from "\.\/entities\/user\.entity"/);
     // CustomQuery -> async imza + surgical marker
     expect(repo).toContain("findByEmail");
@@ -358,73 +358,73 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     const sql = path("migrations/001_create_users.sql");
     expect(sql.language).toBe("sql");
     expect(sql.content).toContain('CREATE TABLE "users"');
-    // Entity @Entity adı ile migration tablo adı AYNI (ayrışmaz).
+    // Entity @Entity adi ile migration tablo adi AYNI (ayrismaz).
     const entity = path("src/users/entities/user.entity.ts").content;
     expect(entity).toContain('@Entity("users")');
     expect(sql.surgicalMarkers).toBe(0);
   });
 
-  it("Feature module SENTEZLENDİ: @Module dekoratörü + DI listeleri (repository kayıtlı)", () => {
+  it("Feature module SYNTHESIZED: @Module dekoratoru + DI listeleri (repository kayitli)", () => {
     const mod = path("src/users/users.module.ts").content;
     expect(mod).toContain("@Module(");
     expect(mod).toContain("controllers: [UsersController],");
-    // providers repository'yi de içerir -> DI tam, uygulama BOOT EDER.
+    // providers repository'yi de icerir -> DI tam, uygulama BOOT BOOTS.
     expect(mod).toContain("providers: [UsersService, UserRepository],");
     expect(mod).toContain("TypeOrmModule.forFeature([User])");
     expect(mod).toContain("export class UsersModule {}");
   });
 
-  it("app.module feature modülünü import eder (ham controller/provider DEĞİL)", () => {
+  it("app.module feature modulunu import eder (ham controller/provider NOT)", () => {
     const app = path("src/app.module.ts").content;
     expect(app).toContain('import { UsersModule } from "./users/users.module";');
     expect(app).toContain("    UsersModule,");
-    // Ham controller/provider app.module'e GİRMEZ.
+    // Ham controller/provider app.module'e GIRMEZ.
     expect(app).not.toContain("controllers:");
     expect(app).not.toContain("providers:");
     expect(app).not.toContain("UsersController");
   });
 
-  it("surgical marker sayısı > 0 (Service/Controller/Repository gövdeleri)", () => {
+  it("surgical marker sayisi > 0 (Service/Controller/Repository govdeleri)", () => {
     expect(project.summary.surgicalMarkerCount).toBeGreaterThan(0);
     const total = project.files.reduce((s, f) => s + f.surgicalMarkers, 0);
     expect(total).toBe(project.summary.surgicalMarkerCount);
   });
 
-  it("summary: fileCount/nodeCount doğru, skippedKinds boş (12 tip yok)", () => {
+  it("summary: fileCount/nodeCount dogru, skippedKinds bos (12 tip yok)", () => {
     expect(project.summary.nodeCount).toBe(10);
     expect(project.summary.fileCount).toBe(project.files.length);
-    // Fixture'da desteklenmeyen 12 tip YOK -> skippedKinds boş.
+    // Fixture'da desteklenmeyen 12 tip NONE -> skippedKinds bos.
     expect(project.summary.skippedKinds).toEqual({});
   });
 
-  it("summary.version = CODEGEN_VERSION = 6 (çıktı kendi nesli ile etiketlenir)", () => {
+  it("summary.version = CODEGEN_VERSION = 6 (cikti kendi nesli ile etiketlenir)", () => {
     expect(project.summary.version).toBe(CODEGEN_VERSION);
     expect(CODEGEN_VERSION).toBe(6);
   });
 
-  it("SURGICAL_PLAN.md üretildi (proje KÖKÜNDE, markdown, İngilizce prompt)", () => {
+  it("SURGICAL_PLAN.md uretildi (proje KOKUNDE, markdown, Ingilizce prompt)", () => {
     const plan = path("SURGICAL_PLAN.md");
     expect(plan.language).toBe("markdown");
-    // Proje KÖKÜNDE (src/ altında DEĞİL).
+    // Proje KOKUNDE (src/ altinda NOT).
     expect([...fileByPath.keys()]).toContain("SURGICAL_PLAN.md");
     expect([...fileByPath.keys()]).not.toContain("src/SURGICAL_PLAN.md");
-    // İki bölüm + kapanış talimatı.
+    // Iki bolum + kapanis talimati.
     expect(plan.content).toContain("## 1. Codebase introduction");
     expect(plan.content).toContain("## 2. Surgical implementation plan");
     expect(plan.content).toContain("## Instructions");
-    // Codebase tanıtımı: NestJS + Solarch.
+    // Codebase tanitimi: NestJS + Solarch.
     expect(plan.content).toContain("NestJS");
     expect(plan.content).toContain("Solarch");
-    // Feature listesi graph'tan (fixture'da "users" feature'ı var).
+    // Feature listesi graph'tan (fixture'da "users" feature'i var).
     expect(plan.content).toContain("`users`");
-    // Plan, üretilen marker'ları görür: UsersService.create gövdesi listelenir.
+    // Plan, uretilen marker'lari gorur: UsersService.create govdesi listelenir.
     expect(plan.content).toContain("src/users/users.service.ts");
     expect(plan.content).toContain("Implement:");
-    // MD'nin KENDİ marker'ı YOK (plan metnidir) -> surgicalMarkers 0.
+    // MD'nin KENDI marker'i NONE (plan metnidir) -> surgicalMarkers 0.
     expect(plan.surgicalMarkers).toBe(0);
   });
 
-  it("dosyalar path'e göre sıralı (determinizm)", () => {
+  it("dosyalar path'e gore sirali (determinizm)", () => {
     const paths = project.files.map((f) => f.path);
     const sorted = [...paths].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     expect(paths).toEqual(sorted);
@@ -437,7 +437,7 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     }
   });
 
-  it("DETERMİNİZM: aynı graph iki kez -> byte-identical JSON", () => {
+  it("DETERMINISM: same graph twice -> byte-identical JSON", () => {
     const { nodes, edges } = buildFixture();
     const graph = buildCodeGraph(nodes, edges);
     const service = new CodegenService(null as never, null as never, null as never, null as never);
@@ -446,10 +446,10 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it("SIRA-DEĞİŞMEZLİĞİ: girdi node/edge sırası ters çevrilince çıktı AYNI", () => {
-    // Gerçek nondeterminizm kaynağı DB'nin SIRASIZ list()'idir; IR her şeyi
-    // yeniden sıralar. Bu test, sıralamanın TAM (stabil tiebreak'li) olduğunu
-    // KANITLAR: aynı node'lar ters sırada verildiğinde çıktı birebir aynı kalmalı.
+  it("SIRA-DEGISMEZLIGI: girdi node/edge sirasi ters cevrilince cikti AYNI", () => {
+    // Gercek nondeterminizm kaynagi DB'nin SIRASIZ list()'idir; IR her seyi
+    // yeniden siralar. Bu test, siralamanin TAM (stabil tiebreak'li) oldugunu
+    // KANITLAR: ayni node'lar ters sirada verildiginde cikti birebir ayni kalmali.
     const { nodes, edges } = buildFixture();
     const service = new CodegenService(null as never, null as never, null as never, null as never);
 
@@ -461,12 +461,12 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     expect(JSON.stringify(reversed.files)).toBe(JSON.stringify(forward.files));
   });
 
-  it("SIRA-DEĞİŞMEZLİĞİ: rastgele karıştırılmış girdi -> byte-identical çıktı", () => {
+  it("SIRA-DEGISMEZLIGI: rastgele karistirilmis girdi -> byte-identical cikti", () => {
     const { nodes, edges } = buildFixture();
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const base = service.assemble(buildCodeGraph(nodes, edges), "nestjs");
 
-    // Deterministik (seed'siz ama sabit) bir permütasyon: index'e göre döndür.
+    // Deterministik (seed'siz ama sabit) bir permutasyon: index'e gore dondur.
     const rotate = <T>(arr: T[], by: number): T[] => {
       const k = ((by % arr.length) + arr.length) % arr.length;
       return [...arr.slice(k), ...arr.slice(0, k)];
@@ -480,11 +480,11 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
     }
   });
 
-  it("auth guard + roles decorator stub'ları üretildi (controller import'ları çözülür)", () => {
-    // Controller RequiresAuth=true + RequiredRoles olan endpoint kullanır;
-    // import edilen stub dosyalar montajda gerçekten üretilmeli (TS2307 önlenir).
+  it("auth guard + roles decorator stub'lari uretildi (controller import'lari cozulur)", () => {
+    // Controller RequiresAuth=true + RequiredRoles olan endpoint kullanir;
+    // import edilen stub dosyalar montajda gercekten uretilmeli (TS2307 onlenir).
     const paths = [...fileByPath.keys()];
-    // shared/ standardizasyonu: guard/decorator artık shared/ altında (common/ değil).
+    // shared/ standardizasyonu: guard/decorator artik shared/ altinda (common/ degil).
     expect(paths).toContain("src/shared/guards/auth.guard.ts");
     const guard = path("src/shared/guards/auth.guard.ts").content;
     expect(guard).toContain("export class AuthGuard");
@@ -493,10 +493,10 @@ describe("CodegenService (orchestrator entegrasyon)", () => {
 });
 
 describe("CodegenService.generate — secret redaksiyonu (defense-in-depth)", () => {
-  it("nodes.list redaksiyon yapmasa da codegen sınırında secret IR'a girmez", async () => {
-    // Legacy: write-guard öncesi yazılmış secret EnvironmentVariable (düz-metin
-    // DefaultValue). Repository.list redaksiyon yapmaz; generate() sınırda redakte
-    // etmeli, böylece koruma yapısaldır (her emitter'ın IsSecret kontrolüne bağlı değil).
+  it("nodes.list redaksiyon yapmasa da codegen sinirinda secret IR'a girmez", async () => {
+    // Legacy: write-guard oncesi yazilmis secret EnvironmentVariable (duz-metin
+    // DefaultValue). Repository.list redaksiyon yapmaz; generate() sinirda redakte
+    // etmeli, boylece koruma yapisaldir (her emitter'in IsSecret kontrolune bagli degil).
     const PROJECT = "00000000-0000-4000-8000-00000000abcd";
     const secretNode: StoredNode = {
       id: "aaaaaaaa-aaaa-4aaa-8aaa-000000000abc",
@@ -510,7 +510,7 @@ describe("CodegenService.generate — secret redaksiyonu (defense-in-depth)", ()
       version: 1,
       properties: {
         Key: "JWT_SECRET",
-        Description: "imza anahtarı",
+        Description: "imza anahtari",
         DataType: "String",
         IsSecret: true,
         Environment: ["Prod"],
@@ -522,13 +522,13 @@ describe("CodegenService.generate — secret redaksiyonu (defense-in-depth)", ()
     let observed: StoredNode[] | null = null;
     const projects = { exists: async () => true } as never;
     const nodes = {
-      list: async () => [secretNode], // RAW (redaksiyonsuz) — repository davranışı.
+      list: async () => [secretNode], // RAW (redaksiyonsuz) — repository davranisi.
     } as never;
     const edges = { list: async () => [] } as never;
     const surgicalFills = { getAllForProject: async () => [] } as never;
 
     const service = new CodegenService(projects, nodes, edges, surgicalFills);
-    // assemble'ı sarmalayıp generate'in ona verdiği graph'ı yakala.
+    // assemble'i sarmalayip generate'in ona verdigi graph'i yakala.
     const origAssemble = service.assemble.bind(service);
     service.assemble = ((graph, target) => {
       observed = graph.nodes.map((n) => ({ ...n }));
@@ -537,22 +537,22 @@ describe("CodegenService.generate — secret redaksiyonu (defense-in-depth)", ()
 
     const project = await service.generate(PROJECT, "nestjs");
 
-    // Düz-metin secret HİÇBİR üretilen dosyada görünmemeli.
+    // Duz-metin secret HICBIR uretilen dosyada gorunmemeli.
     for (const f of project.files) {
       expect(f.content).not.toContain("super-secret-plaintext-value");
     }
-    // IR'a giren node'un DefaultValue'su redakte edilmiş olmalı (boş).
+    // IR'a giren node'un DefaultValue'su redakte edilmis olmali (bos).
     expect(observed).not.toBeNull();
     const envNode = observed!.find((n) => n.type === "EnvironmentVariable");
     expect((envNode!.properties as Record<string, unknown>).DefaultValue).toBe("");
   });
 });
 
-describe("CodegenService — mimari altyapı tam üretim (Cache/Worker artık supported)", () => {
-  it("Cache + Worker -> GERÇEK kod (stub DEĞİL) + skippedKinds boş", () => {
+describe("CodegenService — mimari altyapi tam uretim (Cache/Worker artik supported)", () => {
+  it("Cache + Worker -> GERCEK kod (stub NOT) + skippedKinds bos", () => {
     const cache = node("Cache", {
       CacheName: "SessionCache",
-      Description: "Oturum önbelleği",
+      Description: "Session cache",
       KeyPattern: "session:{id}",
       TTL_Seconds: 3600,
       Engine: "Redis",
@@ -560,43 +560,43 @@ describe("CodegenService — mimari altyapı tam üretim (Cache/Worker artık su
     });
     const worker = node("Worker", {
       WorkerName: "EmailWorker",
-      Description: "E-posta kuyruğu işçisi",
+      Description: "E-posta kuyrugu iscisi",
       Schedule: "0 * * * *",
-      TaskToExecute: "Bekleyen e-postaları gönder",
+      TaskToExecute: "Send pending emails",
     });
     const graph = buildCodeGraph([cache, worker], []);
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const project = service.assemble(graph, "nestjs");
 
-    // Artık GERÇEK kod üretilir; .stub.ts YOK.
+    // Artik GERCEK kod uretilir; .stub.ts NONE.
     expect(project.files.some((f) => f.path.endsWith(".cache.ts"))).toBe(true);
     expect(project.files.some((f) => f.path.endsWith(".worker.ts"))).toBe(true);
     expect(project.files.some((f) => f.path.endsWith(".stub.ts"))).toBe(false);
-    // Cache/Worker artık supported -> skippedKinds boş.
+    // Cache/Worker artik supported -> skippedKinds bos.
     expect(project.summary.skippedKinds).toEqual({});
-    // Worker @Cron handler'ı surgical marker taşır.
+    // Worker @Cron handler'i surgical marker tasir.
     expect(project.summary.surgicalMarkerCount).toBeGreaterThan(0);
 
-    // nodeFiles haritası: her node kendi dosyasına eşlenir.
+    // nodeFiles haritasi: her node kendi dosyasina eslenir.
     expect(project.nodeFiles[cache.id]?.some((p) => p.endsWith(".cache.ts"))).toBe(true);
     expect(project.nodeFiles[worker.id]?.some((p) => p.endsWith(".worker.ts"))).toBe(true);
 
-    // H3: root forRoot/register artık CoreModule'de (app.module değil).
+    // H3: root forRoot/register artik CoreModule'de (app.module degil).
     const core = project.files.find((f) => f.path === "src/core/core.module.ts")!.content;
-    // Worker -> ScheduleModule.forRoot() (@Cron ateşlensin).
+    // Worker -> ScheduleModule.forRoot() (@Cron ateslensin).
     expect(core).toContain("ScheduleModule.forRoot()");
     // Cache -> CacheModule app root'a kaydedilir.
     expect(core).toContain("CacheModule.register({ isGlobal: true })");
-    // package.json gerekli deps'i aldı (graph-farkında).
+    // package.json gerekli deps'i aldi (graph-farkinda).
     const pkg = project.files.find((f) => f.path === "package.json")!.content;
     expect(pkg).toContain("@nestjs/cache-manager");
     expect(pkg).toContain("@nestjs/schedule");
   });
 
-  it("EnvironmentVariable -> .stub.ts ÜRETİLMEZ (config; tek temsil .env.example), skippedKinds'e sayılır", () => {
+  it("EnvironmentVariable -> .stub.ts URETILMEZ (config; tek temsil .env.example), skippedKinds'e sayilir", () => {
     const env = node("EnvironmentVariable", {
       Key: "DATABASE_URL",
-      Description: "DB bağlantısı",
+      Description: "DB baglantisi",
       DataType: "String",
       IsSecret: false,
       Environment: ["Prod"],
@@ -606,23 +606,23 @@ describe("CodegenService — mimari altyapı tam üretim (Cache/Worker artık su
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const project = service.assemble(graph, "nestjs");
 
-    // Bir ortam değişkeni kod modülü DEĞİL -> anlamsız `export class XStub {}` üretilmez.
+    // Bir ortam degiskeni kod modulu NOT -> anlamsiz `export class XStub {}` uretilmez.
     expect(project.files.some((f) => f.path.includes("environment-variable"))).toBe(false);
     expect(project.files.some((f) => f.path.endsWith(".stub.ts"))).toBe(false);
-    // Tek temsili .env.example (H4: KÖKTE).
+    // Tek temsili .env.example (H4: KOKTE).
     const envExample = project.files.find((f) => f.path === ".env.example");
     expect(envExample?.content).toContain("DATABASE_URL");
-    // Kayıtsız kind -> skippedKinds'e sayılır (sessizce düşmez).
+    // Kayitsiz kind -> skippedKinds'e sayilir (sessizce dusmez).
     expect(project.summary.skippedKinds).toEqual({ EnvironmentVariable: 1 });
   });
 });
 
-describe("CodegenService — fault-isolation (M5: bozuk node TÜM codegen'i düşürmez)", () => {
-  it("emitter PATLARSA o node skippedKinds'e sayılır, geri kalan graph üretilir", () => {
-    // Cache emitter'ı (supported) tek bir node'da patlatılır. Beklenen: Cache
-    //   dosyası ÜRETİLMEZ + skippedKinds.Cache=1; ama Worker (sağlam) emit edilir
-    //   ve scaffold/feature montajı kesilmez. Try/catch yoksa assemble TÜMÜYLE
-    //   throw eder ve hiçbir dosya çıkmazdı.
+describe("CodegenService — fault-isolation (M5: bozuk node TUM codegen'i dusurmez)", () => {
+  it("emitter PATLARSA o node skippedKinds'e sayilir, geri kalan graph uretilir", () => {
+    // Cache emitter'i (supported) tek bir node'da patlatilir. Beklenen: Cache
+    //   dosyasi URETILMEZ + skippedKinds.Cache=1; ama Worker (saglam) emit edilir
+    //   ve scaffold/feature montaji kesilmez. Try/catch yoksa assemble TUMUYLE
+    //   throw eder ve hicbir dosya cikmazdi.
     const cache = node("Cache", {
       CacheName: "SessionCache",
       Description: "x",
@@ -634,13 +634,13 @@ describe("CodegenService — fault-isolation (M5: bozuk node TÜM codegen'i dü�
       WorkerName: "EmailWorker",
       Description: "x",
       Schedule: "0 * * * *",
-      TaskToExecute: "Bekleyenleri gönder",
+      TaskToExecute: "Send pending items",
     });
     const graph = buildCodeGraph([cache, worker], []);
     const service = new CodegenService(null as never, null as never, null as never, null as never);
 
-    // Cache emitter'ını GEÇİCİ olarak patlat (gerçek "emitter undefined alana
-    //   patlar" senaryosunu simüle eder), sonra mutlaka geri yükle.
+    // Cache emitter'ini GECICI olarak patlat (gercek "emitter undefined alana
+    //   patlar" senaryosunu simule eder), sonra mutlaka geri yukle.
     const entry = EMITTER_REGISTRY.Cache!;
     const original = entry.emit;
     entry.emit = () => {
@@ -653,18 +653,18 @@ describe("CodegenService — fault-isolation (M5: bozuk node TÜM codegen'i dü�
       entry.emit = original;
     }
 
-    // Bozuk Cache atlandı: dosya YOK + skippedKinds'e sayıldı (sessizce düşmedi).
+    // Bozuk Cache atlandi: dosya NONE + skippedKinds'e sayildi (sessizce dusmedi).
     expect(project.files.some((f) => f.path.endsWith(".cache.ts"))).toBe(false);
     expect(project.summary.skippedKinds).toEqual({ Cache: 1 });
 
-    // Sağlam Worker emit edilmeye devam etti (codegen düşmedi).
+    // Saglam Worker emit edilmeye devam etti (codegen dusmedi).
     expect(project.files.some((f) => f.path.endsWith(".worker.ts"))).toBe(true);
-    // Scaffold montajı da kesilmedi.
+    // Scaffold montaji da kesilmedi.
     expect(project.files.some((f) => f.path === "src/main.ts")).toBe(true);
     expect(project.files.some((f) => f.path === "src/app.module.ts")).toBe(true);
   });
 
-  it("DETERMİNİZM: aynı bozuk node iki kez -> byte-identical çıktı (hangi node patlar sabittir)", () => {
+  it("DETERMINISM: ayni bozuk node iki kez -> byte-identical cikti (hangi node patlar sabittir)", () => {
     const cache = node("Cache", { CacheName: "C", Description: "x" });
     const worker = node("Worker", { WorkerName: "W", Description: "x", Schedule: "0 * * * *", TaskToExecute: "t" });
     const service = new CodegenService(null as never, null as never, null as never, null as never);
@@ -682,11 +682,11 @@ describe("CodegenService — fault-isolation (M5: bozuk node TÜM codegen'i dü�
     }
   });
 
-  it("adı OLMAYAN (name-property string değil/boş) bozuk node atlanır + sayılır, GARBAGE üretmez", () => {
-    // Gerçek bozuk girdi: ServiceName bir SAYI, Methods bir DİZİ DEĞİL. ir.toCodeNode
-    //   name'i ""e zorlar; orchestrator boş-adlı node'u atlar. Emitter çağrılmadan
-    //   skippedKinds'e sayılır -> geçersiz "export class { }" + "undefined()" GARBAGE
-    //   ÇIKMAZ; sağlam node üretilmeye devam eder (feature-inference de patlamaz).
+  it("adi WITHOUT (name-property string degil/bos) bozuk node atlanir + sayilir, GARBAGE uretmez", () => {
+    // Gercek bozuk girdi: ServiceName bir SAYI, Methods bir DIZI NOT. ir.toCodeNode
+    //   name'i ""e zorlar; orchestrator bos-adli node'u atlar. Emitter cagrilmadan
+    //   skippedKinds'e sayilir -> gecersiz "export class { }" + "undefined()" GARBAGE
+    //   CIKMAZ; saglam node uretilmeye devam eder (feature-inference de patlamaz).
     const broken = node("Service", { ServiceName: 12345, Methods: "not-an-array", Dependencies: null });
     const good = node("Service", {
       ServiceName: "GoodService",
@@ -697,23 +697,23 @@ describe("CodegenService — fault-isolation (M5: bozuk node TÜM codegen'i dü�
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const project = service.assemble(buildCodeGraph([broken, good], []), "nestjs");
 
-    // Bozuk node skippedKinds'e sayıldı; hiçbir dosya üretmedi.
+    // Bozuk node skippedKinds'e sayildi; hicbir dosya uretmedi.
     expect(project.summary.skippedKinds).toEqual({ Service: 1 });
     expect(project.nodeFiles[broken.id]).toBeUndefined();
-    // GARBAGE yok: boş sınıf adı ya da "undefined()" metodu içeren dosya üretilmemeli.
+    // GARBAGE yok: bos sinif adi ya da "undefined()" metodu iceren dosya uretilmemeli.
     const tsContent = project.files.filter((f) => f.language === "typescript").map((f) => f.content).join("\n");
     expect(tsContent).not.toMatch(/export class\s+\{/);
     expect(tsContent).not.toContain("undefined(): void");
-    // Sağlam servis hâlâ üretildi (codegen düşmedi).
+    // Saglam servis hâlâ uretildi (codegen dusmedi).
     expect(project.files.some((f) => f.path === "src/good/good.service.ts")).toBe(true);
   });
 });
 
-describe("CodegenService — warnings çıktıya taşınır (M4: döngüsel module import)", () => {
-  it("karşılıklı feature CALLS (A<->B): döngü kırılır + project.warnings'e uyarı yazılır", () => {
-    // alpha <-> beta servisleri karşılıklı CALLS -> module import döngüsü. Orchestrator
-    //   bir geri-kenarı forwardRef ile kırar (kenar KORUNUR, lazy emit) ve bunu
-    //   project.warnings'te BİLDİRİR; eskiden uyarı yalnız graph içinde kalıp kaybolurdu.
+describe("CodegenService — warnings ciktiya tasinir (M4: dongusel module import)", () => {
+  it("karsilikli feature CALLS (A<->B): dongu kirilir + project.warnings'e uyari yazilir", () => {
+    // alpha <-> beta servisleri karsilikli CALLS -> module import dongusu. Orchestrator
+    //   bir geri-kenari forwardRef ile kirar (kenar KORUNUR, lazy emit) ve bunu
+    //   project.warnings'te BILDIRIR; eskiden uyari yalniz graph icinde kalip kaybolurdu.
     const alphaCtrl = node("Controller", { ControllerName: "AlphaController", Description: "a", BaseRoute: "alpha", Endpoints: [] });
     const alphaSvc = node("Service", { ServiceName: "AlphaService", Description: "a", Dependencies: [], Methods: [] });
     const betaCtrl = node("Controller", { ControllerName: "BetaController", Description: "b", BaseRoute: "beta", Endpoints: [] });
@@ -722,7 +722,7 @@ describe("CodegenService — warnings çıktıya taşınır (M4: döngüsel modu
       edge("CALLS", alphaCtrl, alphaSvc),
       edge("CALLS", betaCtrl, betaSvc),
       edge("CALLS", alphaSvc, betaSvc), // alpha -> beta
-      edge("CALLS", betaSvc, alphaSvc), // beta -> alpha (karşılıklı)
+      edge("CALLS", betaSvc, alphaSvc), // beta -> alpha (karsilikli)
     ];
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const project = service.assemble(buildCodeGraph([alphaCtrl, alphaSvc, betaCtrl, betaSvc], edges), "nestjs");
@@ -733,7 +733,7 @@ describe("CodegenService — warnings çıktıya taşınır (M4: döngüsel modu
     expect(project.warnings[0]).toContain("forwardRef");
   });
 
-  it("döngü yoksa project.warnings boş dizidir", () => {
+  it("dongu yoksa project.warnings bos dizidir", () => {
     const ctrl = node("Controller", { ControllerName: "SoloController", Description: "x", BaseRoute: "solo", Endpoints: [] });
     const svc = node("Service", { ServiceName: "SoloService", Description: "x", Dependencies: [], Methods: [] });
     const service = new CodegenService(null as never, null as never, null as never, null as never);
@@ -742,15 +742,15 @@ describe("CodegenService — warnings çıktıya taşınır (M4: döngüsel modu
   });
 });
 
-describe("CodegenService — module wiring EMIT doğrulaması (Bug 1 + Bug 2 uçtan-uca)", () => {
-  /** Üretilen dosyanın içeriğini path-son-eki ile bulur. */
+describe("CodegenService — module wiring EMIT dogrulamasi (Bug 1 + Bug 2 uctan-uca)", () => {
+  /** Uretilen dosyanin icerigini path-son-eki ile bulur. */
   function fileEndingWith(project: GeneratedProject, suffix: string): GeneratedFile {
     const f = project.files.find((x) => x.path.endsWith(suffix));
-    if (!f) throw new Error(`üretilmedi: ${suffix} (mevcut: ${project.files.map((x) => x.path).join(", ")})`);
+    if (!f) throw new Error(`not generated: ${suffix} (existing: ${project.files.map((x) => x.path).join(", ")})`);
     return f;
   }
 
-  it("Bug 1: 3'lü döngüde üretilen module forwardRef(() => XModule) EMIT eder", () => {
+  it("Bug 1: 3'lu dongude uretilen module forwardRef(() => XModule) EMIT eder", () => {
     const authCtrl = node("Controller", { ControllerName: "AuthController", Description: "x", BaseRoute: "auth", Endpoints: [] });
     const authSvc = node("Service", { ServiceName: "AuthService", Description: "x", Dependencies: [], Methods: [] });
     const chatCtrl = node("Controller", { ControllerName: "ChatController", Description: "x", BaseRoute: "chat", Endpoints: [] });
@@ -768,16 +768,16 @@ describe("CodegenService — module wiring EMIT doğrulaması (Bug 1 + Bug 2 uç
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const project = service.assemble(buildCodeGraph([authCtrl, authSvc, chatCtrl, chatSvc, msgCtrl, msgSvc], edges), "nestjs");
 
-    // messaging->auth geri-kenarı forwardRef olur (to="auth" en küçük).
+    // messaging->auth geri-kenari forwardRef olur (to="auth" en kucuk).
     const msgModule = fileEndingWith(project, "messaging/messaging.module.ts");
     expect(msgModule.content).toContain("forwardRef(() => AuthModule)");
     expect(msgModule.content).toContain('import { Module, forwardRef } from "@nestjs/common"');
-    // Eager kenarlar düz emit edilir (forwardRef YOK).
+    // Eager kenarlar duz emit edilir (forwardRef NONE).
     expect(fileEndingWith(project, "auth/auth.module.ts").content).toContain("imports: [ChatModule]");
     expect(fileEndingWith(project, "chat/chat.module.ts").content).toContain("imports: [MessagingModule]");
   });
 
-  it("Bug 2: property-dep'li cross-feature Repository → tüketici module sahibi import eder", () => {
+  it("Bug 2: property-dep'li cross-feature Repository → tuketici module sahibi import eder", () => {
     const userCtrl = node("Controller", { ControllerName: "UserController", Description: "x", BaseRoute: "users", Endpoints: [] });
     const userSvc = node("Service", { ServiceName: "UserService", Description: "x", Dependencies: [], Methods: [] });
     const userRepo = node("Repository", { RepositoryName: "UserRepository", Description: "x", EntityReference: "users", CustomQueries: [] });
@@ -787,24 +787,24 @@ describe("CodegenService — module wiring EMIT doğrulaması (Bug 1 + Bug 2 uç
       edge("CALLS", userCtrl, userSvc),
       edge("CALLS", userSvc, userRepo),
       edge("CALLS", tokenCtrl, tokenSvc),
-      // tokenSvc -> userRepo CALLS edge'i YOK (yalnız property-dep).
+      // tokenSvc -> userRepo CALLS edge'i NONE (yalniz property-dep).
     ];
     const service = new CodegenService(null as never, null as never, null as never, null as never);
     const project = service.assemble(buildCodeGraph([userCtrl, userSvc, userRepo, tokenCtrl, tokenSvc], edges), "nestjs");
 
-    // TokenModule UserModule'ü import eder; UserModule UserRepository'yi export eder.
+    // TokenModule UserModule'u import eder; UserModule UserRepository'yi export eder.
     expect(fileEndingWith(project, "token/token.module.ts").content).toContain("UserModule");
     expect(fileEndingWith(project, "user/user.module.ts").content).toMatch(/exports:\s*\[[^\]]*UserRepository/);
   });
 });
 
-describe("CodegenService — Table-only graph BOOT garantisi (mimari-farkında)", () => {
+describe("CodegenService — Table-only graph BOOT garantisi (mimari-farkinda)", () => {
   it("Model'siz Table + cross-feature Service->Repository: sentetik entity + module export -> boot eder", () => {
     // image feature ImageGenerationService -CALLS-> UserRepository (auth).
     // Tablolar Model'siz (Users/GeneratedImages). Beklenen:
-    //   - Repository<any> + string token YOK; sentetik entity import + Repository<Entity>.
+    //   - Repository<any> + string token NONE; sentetik entity import + Repository<Entity>.
     //   - AuthModule UserRepository EXPORT eder; ImageModule AuthModule import eder.
-    //   - app.module yalnız feature modüllerini import eder (ham provider değil).
+    //   - app.module yalniz feature modullerini import eder (ham provider degil).
     const usersTable = node("Table", { TableName: "Users", Description: "x", Columns: [{ Name: "id", DataType: "UUID", IsPrimaryKey: true, IsNotNull: true, IsUnique: true, AutoIncrement: false }] });
     const imagesTable = node("Table", { TableName: "GeneratedImages", Description: "x", Columns: [{ Name: "id", DataType: "UUID", IsPrimaryKey: true, IsNotNull: true, IsUnique: true, AutoIncrement: false }] });
     const userRepo = node("Repository", { RepositoryName: "UserRepository", Description: "x", EntityReference: "Users", BaseClass: "BaseRepository", CustomQueries: [{ QueryName: "FindById", QueryType: "findOne", Parameters: [{ Name: "id", Type: "UUID" }], ReturnType: "Users" }] });
@@ -831,11 +831,11 @@ describe("CodegenService — Table-only graph BOOT garantisi (mimari-farkında)"
     const project = service.assemble(graph, "nestjs");
     const byPath = new Map(project.files.map((f) => [f.path, f]));
 
-    // Sentetik entity'ler üretildi.
+    // Sentetik entity'ler uretildi.
     expect(byPath.has("src/auth/entities/user.entity.ts")).toBe(true);
     expect(byPath.has("src/image/entities/generated-image.entity.ts")).toBe(true);
 
-    // UserRepository sentetik entity'ye bağlandı (Repository<any> YOK).
+    // UserRepository sentetik entity'ye baglandi (Repository<any> NONE).
     const userRepoFile = byPath.get("src/auth/user.repository.ts")!.content;
     expect(userRepoFile).toContain("Repository<User>");
     expect(userRepoFile).not.toContain("Repository<any>");
@@ -851,13 +851,13 @@ describe("CodegenService — Table-only graph BOOT garantisi (mimari-farkında)"
     const imageMod = byPath.get("src/image/image.module.ts")!.content;
     expect(imageMod).toContain("AuthModule");
     expect(imageMod).toContain("TypeOrmModule.forFeature([GeneratedImage])");
-    // Cache artık TAM emitter -> gerçek provider sınıfı (Stub eki YOK).
+    // Cache artik TAM emitter -> gercek provider sinifi (Stub eki NONE).
     expect(imageMod).toContain("ImageCache");
     expect(imageMod).not.toContain("ImageCacheStub");
     // CacheModule.register() feature module imports'a girer (CACHE_MANAGER token).
     expect(imageMod).toContain("CacheModule.register()");
 
-    // app.module yalnız feature modüllerini import eder.
+    // app.module yalniz feature modullerini import eder.
     const app = byPath.get("src/app.module.ts")!.content;
     expect(app).toContain("AuthModule,");
     expect(app).toContain("ImageModule,");
@@ -866,9 +866,9 @@ describe("CodegenService — Table-only graph BOOT garantisi (mimari-farkında)"
 });
 
 describe("CodegenService — orphan-prevention (B2 gateway / B3 common / B4 config)", () => {
-  it("B2: APIGateway gerçek @Controller -> feature module controllers'ına girer (orphan değil)", () => {
-    // Gateway -CALLS-> UsersService -> gateway, users feature'ına düşer; gerçek
-    //   @Controller olarak users.module controllers'ına girer (UsersController ile).
+  it("B2: APIGateway gercek @Controller -> feature module controllers'ina girer (orphan degil)", () => {
+    // Gateway -CALLS-> UsersService -> gateway, users feature'ina duser; gercek
+    //   @Controller olarak users.module controllers'ina girer (UsersController ile).
     const usersSvc = node("Service", { ServiceName: "UsersService", Description: "x", Methods: [], Dependencies: [] });
     const usersCtrl = node("Controller", { ControllerName: "UsersController", Description: "x", BaseRoute: "users", Endpoints: [] });
     const gateway = node("APIGateway", {
@@ -881,24 +881,24 @@ describe("CodegenService — orphan-prevention (B2 gateway / B3 common / B4 conf
     const project = new CodegenService(null as never, null as never, null as never, null as never).assemble(graph, "nestjs");
     const byPath = new Map(project.files.map((f) => [f.path, f]));
 
-    // Gateway dosyası users feature'ında + gerçek @Controller (Injectable DEĞİL).
+    // Gateway dosyasi users feature'inda + gercek @Controller (Injectable NOT).
     const gw = byPath.get("src/users/public.gateway.ts");
     expect(gw).toBeDefined();
     expect(gw!.content).toContain("@Controller()");
     expect(gw!.content).not.toContain("@Injectable()");
-    // Service enjekte eder (Controller değil -> anti-pattern yok).
+    // Service enjekte eder (Controller degil -> anti-pattern yok).
     expect(gw!.content).toContain("private readonly usersService: UsersService,");
     expect(gw!.content).not.toContain("UsersController");
 
-    // users.module controllers'ına gateway GİRER (orphan KALMAZ).
+    // users.module controllers'ina gateway GIRER (orphan KALMAZ).
     const mod = byPath.get("src/users/users.module.ts")!.content;
     expect(mod).toContain("controllers: [UsersController, PublicApiGateway],");
   });
 
-  it("B3: common/'a düşen MessageQueue+EventHandler+Cache -> CommonModule sentezlenir + AppModule import", () => {
-    // Hiçbir feature'a bağlanamayan altyapı -> common. CommonModule onları toplar,
+  it("B3: common/'a dusen MessageQueue+EventHandler+Cache -> CommonModule sentezlenir + AppModule import", () => {
+    // Hicbir feature'a baglanamayan altyapi -> common. CommonModule onlari toplar,
     //   BullModule.registerQueue + CacheModule.register() wiring'i yapar; AppModule
-    //   import eder -> hiçbiri orphan kalmaz.
+    //   import eder -> hicbiri orphan kalmaz.
     const queue = node("MessageQueue", { QueueName: "EventsQueue", Description: "x", Type: "Queue", Provider: "RabbitMQ", MessageFormat: "EventDto" });
     const handler = node("EventHandler", { HandlerName: "EventsHandler", Description: "x", EventName: "evt", IsAsync: true, QueueRef: "EventsQueue" });
     const cache = node("Cache", { CacheName: "SharedCache", Description: "x", KeyPattern: "k:{id}", TTL_Seconds: 60, Engine: "Redis" });
@@ -911,13 +911,13 @@ describe("CodegenService — orphan-prevention (B2 gateway / B3 common / B4 conf
     // CommonModule sentezlendi.
     const common = byPath.get("src/common/common.module.ts");
     expect(common).toBeDefined();
-    // BullModule.registerQueue GERÇEKTEN çağrılır (sessiz başarısızlık DEĞİL).
+    // BullModule.registerQueue GERCEKTEN cagrilir (sessiz basarisizlik NOT).
     expect(common!.content).toContain("BullModule.registerQueue({ name: EVENTS_QUEUE })");
     expect(common!.content).toContain("CacheModule.register()");
-    // Tüm common altyapı provider'ları @Module.providers'a girer (orphan değil).
+    // Tum common altyapi provider'lari @Module.providers'a girer (orphan degil).
     expect(common!.content).toContain("providers: [EventsHandler, EventsQueue, SharedCache]");
 
-    // AppModule CommonModule'ü import eder.
+    // AppModule CommonModule'u import eder.
     const app = byPath.get("src/app.module.ts")!.content;
     expect(app).toContain('import { CommonModule } from "./common/common.module";');
     expect(app).toContain("CommonModule,");
@@ -929,7 +929,7 @@ describe("CodegenService — orphan-prevention (B2 gateway / B3 common / B4 conf
     const project = new CodegenService(null as never, null as never, null as never, null as never).assemble(graph, "nestjs");
     const byPath = new Map(project.files.map((f) => [f.path, f]));
 
-    // H3: root forRoot CoreModule'de; app.module ince (yalnız CoreModule + feature).
+    // H3: root forRoot CoreModule'de; app.module ince (yalniz CoreModule + feature).
     const app = byPath.get("src/app.module.ts")!.content;
     expect(app).toContain("    CoreModule,");
     expect(app).not.toContain("ConfigModule.forRoot");
@@ -939,13 +939,13 @@ describe("CodegenService — orphan-prevention (B2 gateway / B3 common / B4 conf
     expect(core).toContain("TypeOrmModule.forRootAsync({");
     expect(core).toContain('config.getOrThrow<string>("DATABASE_URL")');
 
-    // env.validation.ts (Joi) DAİMA üretilir; DATABASE_URL zorunlu (fail-fast).
+    // env.validation.ts (Joi) DAIMA uretilir; DATABASE_URL zorunlu (fail-fast).
     const v = byPath.get("src/config/env.validation.ts");
     expect(v).toBeDefined();
     expect(v!.content).toContain('import Joi from "joi";');
     expect(v!.content).toContain("DATABASE_URL: Joi.string().required(),");
 
-    // package.json @nestjs/config + joi içerir.
+    // package.json @nestjs/config + joi icerir.
     const pkg = byPath.get("package.json")!.content;
     expect(pkg).toContain('"@nestjs/config"');
     expect(pkg).toContain('"joi"');
@@ -962,7 +962,7 @@ describe("CodegenService — orphan-prevention (B2 gateway / B3 common / B4 conf
   });
 });
 
-describe("applySurgicalFills — saklı gövdeyi NOT_IMPLEMENTED yerine enjekte", () => {
+describe("applySurgicalFills — sakli govdeyi NOT_IMPLEMENTED yerine enjekte", () => {
   const SKELETON: GeneratedFile = {
     path: "src/users/users.service.ts",
     language: "typescript",
@@ -980,7 +980,7 @@ export class UsersService {
 `,
   };
 
-  it("saklı gövde varsa throw'u gövde + @solarch:filled ile değiştirir, marker'ı korur, girintiyi tutar", () => {
+  it("sakli govde varsa throw'u govde + @solarch:filled ile degistirir, marker'i korur, girintiyi tutar", () => {
     const [out] = applySurgicalFills(
       [SKELETON],
       [{ nodeId: "n1", member: "getById", body: "const u = await this.repo.findById(id);\nif (!u) throw new NotFoundException();\nreturn u;", filledAt: "2026-06-17T00:00:00Z" }],
@@ -988,17 +988,17 @@ export class UsersService {
     expect(out.content).toContain("// @solarch:surgical id=n1#getById"); // marker korundu
     expect(out.content).toContain("// throws: NotFoundException"); // bilgi yorumu korundu
     expect(out.content).toContain("// @solarch:filled by=ai at=2026-06-17T00:00:00Z");
-    expect(out.content).toContain("    const u = await this.repo.findById(id);"); // 4-boşluk girinti
+    expect(out.content).toContain("    const u = await this.repo.findById(id);"); // 4-bosluk girinti
     expect(out.content).not.toContain("NOT_IMPLEMENTED"); // iskelet throw'u gitti
   });
 
-  it("saklı gövdesi olmayan bölge iskelet kalır (re-fill seçsin) — referans değişmez", () => {
+  it("sakli govdesi olmayan bolge iskelet kalir (re-fill secsin) — referans degismez", () => {
     const [out] = applySurgicalFills([SKELETON], [{ nodeId: "other", member: "x", body: "return 1;", filledAt: "t" }]);
     expect(out.content).toContain("NOT_IMPLEMENTED");
     expect(out).toBe(SKELETON);
   });
 
-  it("surgical içermeyen dosyaya dokunmaz", () => {
+  it("surgical icermeyen dosyaya dokunmaz", () => {
     const plain: GeneratedFile = { path: "x.ts", language: "typescript", surgicalMarkers: 0, content: "export const x = 1;\n" };
     const [out] = applySurgicalFills([plain], [{ nodeId: "n1", member: "getById", body: "return 1;", filledAt: "t" }]);
     expect(out).toBe(plain);

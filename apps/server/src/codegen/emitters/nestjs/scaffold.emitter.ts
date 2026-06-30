@@ -6,46 +6,46 @@ import { countSurgicalMarkers } from "../../surgical";
 import { isLoginEndpoint } from "./controller.emitter";
 import type { EnvironmentVariableNode } from "../../../nodes/schemas";
 
-/** EnvironmentVariable, foundation IR'ın PropsByKind tablosunda yer almaz; bu
- *  yüzden propsOf<"EnvironmentVariable"> yoktur. Şema tipiyle doğrudan daraltırız
- *  (DB zaten Zod-doğrulanmış — yalnız tip daraltma, çalışma zamanı dönüşümü yok). */
+/** EnvironmentVariable, foundation IR'in PropsByKind tablosunda yer almaz; bu
+ *  yuzden propsOf<"EnvironmentVariable"> yoktur. Sema tipiyle dogrudan daraltiriz
+ *  (DB zaten Zod-dogrulanmis — yalniz tip daraltma, calisma zamani donusumu yok). */
 type EnvProps = EnvironmentVariableNode["properties"];
 const envPropsOf = (node: CodeNode): EnvProps => node.properties as EnvProps;
 
 /* ────────────────────────────────────────────────────────────────────────
  * scaffold.emitter.ts — GRAPH-FARKINDA proje-seviyesi iskelet (ScaffoldEmitter).
  *
- * Çekirdekteki sabit `scaffold.ts` (emitScaffold) bir PLACEHOLDER'dır. Bu emitter
- * onun graph-farkında, üretim-kalitesinde sürümüdür. Entegrasyon fazı montaj
- * noktasında (codegen.service) emitScaffoldProject çağırır (registry'de yer almaz —
- * ScaffoldEmitter node'a bağlı değildir).
+ * Cekirdekteki sabit `scaffold.ts` (emitScaffold) bir PLACEHOLDER'dir. Bu emitter
+ * onun graph-farkinda, uretim-kalitesinde surumudur. Entegrasyon fazi montaj
+ * noktasinda (codegen.service) emitScaffoldProject cagirir (registry'de yer almaz —
+ * ScaffoldEmitter node'a bagli degildir).
  *
- * Sözleşme:
- *   - named export, default YOK: `export const emitScaffoldProject: ScaffoldEmitter`.
+ * Sozlesme:
+ *   - named export, default NONE: `export const emitScaffoldProject: ScaffoldEmitter`.
  *   - SAF fonksiyon: (ctx) -> GeneratedFile[]. I/O yok, throw yok.
- *   - Yollar her zaman filePathFor / relativeImportPath ile (hardcode'lar SABİT).
- *   - import'lar ImportCollector ile sıralı (elle "import ..." YASAK).
- *   - DETERMİNİSTİK: tüm koleksiyonlar isme göre sıralı (graph.allOf zaten sıralı),
- *     timestamp/random YOK, sabit version pin'leri. Aynı graph -> byte-identical.
- *   - Her içerik tek "\n" ile biter. surgicalMarkers countSurgicalMarkers ile.
+ *   - Yollar her zaman filePathFor / relativeImportPath ile (hardcode'lar SABIT).
+ *   - import'lar ImportCollector ile sirali (elle "import ..." YASAK).
+ *   - DETERMINISTIC: tum koleksiyonlar isme gore sirali (graph.allOf zaten sirali),
+ *     timestamp/random NONE, sabit version pin'leri. Ayni graph -> byte-identical.
+ *   - Her icerik tek "\n" ile biter. surgicalMarkers countSurgicalMarkers ile.
  *
- * MİMARİ (modern + optimize NestJS, Encore best-practice):
+ * ARCHITECTURE (modern + optimize NestJS, Encore best-practice):
  *   package.json, tsconfig.json, tsconfig.build.json, nest-cli.json   — sabit
  *   .gitignore, jest-e2e.json                                          — sabit (H6)
  *   src/main.ts            — NestFactory(bufferLogs) + Pino logger + ValidationPipe
- *   src/app.module.ts      — İNCE: yalnız CoreModule + CommonModule + feature module
- *   src/core/core.module.ts— TÜM root forRoot/register (Config/TypeORM/Cache/Bull/
+ *   src/app.module.ts      — INCE: yalniz CoreModule + CommonModule + feature module
+ *   src/core/core.module.ts— TUM root forRoot/register (Config/TypeORM/Cache/Bull/
  *                            Schedule/EventEmitter/Pino) + APP_FILTER (H1/H2/H3)
  *   src/shared/filters/all-exceptions.filter.ts        — global exception filter (H1)
- *   src/shared/guards/auth.guard.ts                     — gerçek JWT guard (jsonwebtoken)
- *   src/shared/decorators/roles.decorator.ts            — paylaşımlı stub decorator
+ *   src/shared/guards/auth.guard.ts                     — gercek JWT guard (jsonwebtoken)
+ *   src/shared/decorators/roles.decorator.ts            — paylasimli stub decorator
  *   src/shared/decorators/current-user.decorator.ts     — @CurrentUser + AuthUser/AuthResponse
- *   src/config/env.validation.ts                        — Joi fail-fast şeması
+ *   src/config/env.validation.ts                        — Joi fail-fast semasi
  *   src/config/configuration.ts                         — (EnvVar varsa) tipli config
  *   src/data-source.ts                                  — TypeORM CLI DataSource (H5)
- *   .env.example  (KÖKTE)                               — EnvVar node'ları (H4)
+ *   .env.example  (KOKTE)                               — EnvVar node'lari (H4)
  *   test/app.e2e-spec.ts                                — smoke e2e (H6)
- *   README.md                                           — üretim + surgical notları
+ *   README.md                                           — uretim + surgical notlari
  * ──────────────────────────────────────────────────────────────────────── */
 
 export const emitScaffoldProject: ScaffoldEmitter = (ctx: EmitterContext): GeneratedFile[] => {
@@ -60,79 +60,79 @@ export const emitScaffoldProject: ScaffoldEmitter = (ctx: EmitterContext): Gener
     file(".gitignore", GITIGNORE, "markdown"),
     ts("src/main.ts", MAIN_TS),
     ts("src/app.module.ts", buildAppModule(ctx)),
-    // core/core.module.ts — TÜM root forRoot/register + APP_FILTER + Pino logger.
-    //   AppModule artık yalnız bunu (+ CommonModule + feature'lar) import eder.
+    // core/core.module.ts — TUM root forRoot/register + APP_FILTER + Pino logger.
+    //   AppModule artik yalniz bunu (+ CommonModule + feature'lar) import eder.
     ts("src/core/core.module.ts", buildCoreModule(infra)),
-    // shared/filters/all-exceptions.filter.ts — global exception filter (tutarlı zarf).
+    // shared/filters/all-exceptions.filter.ts — global exception filter (tutarli zarf).
     ts("src/shared/filters/all-exceptions.filter.ts", ALL_EXCEPTIONS_FILTER_TS),
-    // env.validation.ts — Joi şeması. DAİMA üretilir: en az DATABASE_URL zorunlu +
-    //   EnvVar node'larından türetilen kurallar. Geçersiz/eksik env BOOT'ta fırlatır.
+    // env.validation.ts — Joi semasi. DAIMA uretilir: en az DATABASE_URL zorunlu +
+    //   EnvVar node'larindan turetilen kurallar. Gecersiz/eksik env BOOT'ta firlatir.
     ts("src/config/env.validation.ts", buildEnvValidation(infra)),
-    // data-source.ts — TypeORM CLI DataSource (migration:run için). DAİMA üretilir;
-    //   migration yoksa bile derlenebilir (boş migrations dizini glob'u).
+    // data-source.ts — TypeORM CLI DataSource (migration:run icin). DAIMA uretilir;
+    //   migration yoksa bile derlenebilir (bos migrations dizini glob'u).
     ts("src/data-source.ts", buildDataSource()),
-    // test/app.e2e-spec.ts — smoke e2e: AppModule boot + GET / 404 (Nest 404 zarfı).
+    // test/app.e2e-spec.ts — smoke e2e: AppModule boot + GET / 404 (Nest 404 zarfi).
     ts("test/app.e2e-spec.ts", APP_E2E_SPEC_TS),
     file(".env.example", buildEnvExample(ctx, infra), "env"),
     file("README.md", README_MD, "markdown"),
   ];
 
-  // ENV -> TİPLİ CONFIG: graph'ta EnvironmentVariable node'ları VARSA src/config/
-  // configuration.ts üretilir (ConfigModule.forRoot load: [configuration]).
+  // ENV -> TIPLI CONFIG: graph'ta EnvironmentVariable node'lari VARSA src/config/
+  // configuration.ts uretilir (ConfigModule.forRoot load: [configuration]).
   if (infra.envNodes.length > 0) {
     files.push(ts("src/config/configuration.ts", buildConfiguration(infra.envNodes)));
   }
 
-  // controller.emitter, RequiresAuth/RequiredRoles olan endpoint'ler için
+  // controller.emitter, RequiresAuth/RequiredRoles olan endpoint'ler icin
   // `shared/guards/auth.guard` ve `shared/decorators/roles.decorator` import eder.
-  // O dosyalar başka HİÇBİR yerde üretilmez -> derleme TS2307 verir. Graph'ta en
-  // az bir kullanan endpoint VARSA stub'larını üret (yollar controller import'larıyla
-  // aynı: src/shared/...). Kullanılmıyorsa üretme.
+  // O dosyalar baska HICBIR yerde uretilmez -> derleme TS2307 verir. Graph'ta en
+  // az bir kullanan endpoint VARSA stub'larini uret (yollar controller import'lariyla
+  // ayni: src/shared/...). Kullanilmiyorsa uretme.
   const usage = scanAuthUsage(ctx);
   if (usage.usesAuth) {
     files.push(ts("src/shared/guards/auth.guard.ts", AUTH_GUARD_TS));
-    // Auth capability primitive'leri — Login/Register fill'i bunları KULLANIR
-    // (düz-metin şifre / sahte token yerine). AuthGuard ile JWT tek-kaynak.
+    // Auth capability primitive'leri — Login/Register fill'i bunlari KULLANIR
+    // (duz-metin sifre / sahte token yerine). AuthGuard ile JWT tek-kaynak.
     files.push(ts("src/shared/auth/password.ts", PASSWORD_TS));
     files.push(ts("src/shared/auth/auth-token.ts", AUTH_TOKEN_TS));
   }
   if (usage.usesRoles) {
     files.push(ts("src/shared/decorators/roles.decorator.ts", ROLES_DECORATOR_TS));
-    // RBAC WIRE (#39): @Roles metadata'sını OKUYAN gerçek guard. roles.decorator
-    // tek başına ölü olurdu; RolesGuard Reflector ile metadata'yı enforce eder.
+    // RBAC WIRE (#39): @Roles metadata'sini OKUYAN gercek guard. roles.decorator
+    // tek basina olu olurdu; RolesGuard Reflector ile metadata'yi enforce eder.
     files.push(ts("src/shared/guards/roles.guard.ts", ROLES_GUARD_TS));
   }
   // current-user.decorator.ts — @CurrentUser param decorator + AuthUser/AuthResponse
   //   tipleri. RequiresAuth endpoint'leri (Finding #8) ve login endpoint'leri buradan
-  //   import eder; başka yerde üretilmez -> emit etmezsek TS2307.
+  //   import eder; baska yerde uretilmez -> emit etmezsek TS2307.
   if (usage.usesCurrentUser)
     files.push(ts("src/shared/decorators/current-user.decorator.ts", CURRENT_USER_DECORATOR_TS));
 
   return files;
 };
 
-/* ── Mimari altyapı taraması (root registration + dependency kararları) ────
- * Graph'taki kind'lara göre hangi @nestjs altyapı modüllerinin app root'a
- * kaydedileceğini (artık CoreModule'de) ve package.json'a hangi deps'in
- * ekleneceğini belirler. Tek geçiş, tek kaynak — core.module + package.json
+/* ── Mimari altyapi taramasi (root registration + dependency kararlari) ────
+ * Graph'taki kind'lara gore hangi @nestjs altyapi modullerinin app root'a
+ * kaydedilecegini (artik CoreModule'de) ve package.json'a hangi deps'in
+ * eklenecegini belirler. Tek gecis, tek kaynak — core.module + package.json
  * AYNI flag'leri okur. */
 interface InfraUsage {
   /** @nestjs/cache-manager (Cache node varsa). */
   usesCache: boolean;
-  /** Cache.Engine === "Redis" olan en az bir Cache var mı? (Redis store dep). */
+  /** Cache.Engine === "Redis" olan en az bir Cache var mi? (Redis store dep). */
   usesRedisCache: boolean;
   /** @nestjs/bullmq + BullModule.forRoot (MessageQueue veya queue-handler varsa). */
   usesQueue: boolean;
   /** @nestjs/schedule + ScheduleModule.forRoot (Worker varsa). */
   usesSchedule: boolean;
-  /** @nestjs/event-emitter + EventEmitterModule.forRoot (event-tabanlı handler varsa). */
+  /** @nestjs/event-emitter + EventEmitterModule.forRoot (event-tabanli handler varsa). */
   usesEventEmitter: boolean;
   /** @nestjs/axios (ExternalService varsa). */
   usesHttp: boolean;
-  /** Auth kullanılıyor mu (RequiresAuth endpoint) — gerçek AuthGuard jsonwebtoken
-   *  ile JWT doğrular → jsonwebtoken + @types/jsonwebtoken dep'i koşullu eklenir. */
+  /** Auth kullaniliyor mu (RequiresAuth endpoint) — gercek AuthGuard jsonwebtoken
+   *  ile JWT dogrular → jsonwebtoken + @types/jsonwebtoken dep'i kosullu eklenir. */
   usesAuth: boolean;
-  /** EnvironmentVariable node'ları (tipli config + .env.example). */
+  /** EnvironmentVariable node'lari (tipli config + .env.example). */
   envNodes: CodeNode[];
 }
 
@@ -145,8 +145,8 @@ function scanInfraUsage(ctx: EmitterContext): InfraUsage {
   const handlers = graph.allOf("EventHandler");
   const envNodes = graph.allOf("EnvironmentVariable");
 
-  // Her EventHandler kuyruk-tabanlı (SUBSCRIBES/QueueRef) mı, olay-tabanlı
-  //   (@OnEvent) mı? -> BullModule vs EventEmitterModule kararı.
+  // Her EventHandler kuyruk-tabanli (SUBSCRIBES/QueueRef) mi, olay-tabanli
+  //   (@OnEvent) mi? -> BullModule vs EventEmitterModule karari.
   let usesEventEmitter = false;
   let usesQueueHandler = false;
   for (const h of handlers) {
@@ -171,8 +171,8 @@ function scanInfraUsage(ctx: EmitterContext): InfraUsage {
   };
 }
 
-/** Bir EventHandler kuyruk-tabanlı mı? (SUBSCRIBES edge'i veya QueueRef property'si
- *  ile bir MessageQueue'ya bağlı.) event-handler.emitter ile aynı çözüm. */
+/** Bir EventHandler kuyruk-tabanli mi? (SUBSCRIBES edge'i veya QueueRef property'si
+ *  ile bir MessageQueue'ya bagli.) event-handler.emitter ile ayni cozum. */
 function handlerIsQueueBased(handler: CodeNode, graph: EmitterContext["graph"]): boolean {
   for (const e of graph.outEdges(handler.id, "SUBSCRIBES")) {
     const tgt = graph.byId(e.targetNodeId);
@@ -186,14 +186,14 @@ function handlerIsQueueBased(handler: CodeNode, graph: EmitterContext["graph"]):
 }
 
 /** Graph'taki Controller endpoint'lerinde RequiresAuth / RequiredRoles /
- *  current-user.decorator kullanımı var mı? (controller.emitter ile AYNI koşullar.)
+ *  current-user.decorator kullanimi var mi? (controller.emitter ile AYNI kosullar.)
  *
  *  usesCurrentUser: controller.emitter `shared/decorators/current-user.decorator`
- *  dosyasından import üretiyor mu? İki yol:
+ *  dosyasindan import uretiyor mu? Iki yol:
  *    - RequiresAuth bir endpoint  -> @CurrentUser() user: AuthUser parametresi
- *    - ResponseDTORef OLMAYAN login endpoint -> Promise<AuthResponse> dönüş
- *  Her iki durumda da o dosya BAŞKA hiçbir yerde üretilmez -> TS2307. Bu yüzden
- *  bu koşullardan biri tutuyorsa current-user.decorator.ts emit edilmeli. */
+ *    - ResponseDTORef WITHOUT login endpoint -> Promise<AuthResponse> donus
+ *  Her iki durumda da o dosya BASKA hicbir yerde uretilmez -> TS2307. Bu yuzden
+ *  bu kosullardan biri tutuyorsa current-user.decorator.ts emit edilmeli. */
 function scanAuthUsage(
   ctx: EmitterContext,
 ): { usesAuth: boolean; usesRoles: boolean; usesCurrentUser: boolean } {
@@ -207,19 +207,19 @@ function scanAuthUsage(
         usesCurrentUser = true; // @CurrentUser() user: AuthUser
       }
       if ((ep.RequiredRoles ?? []).length > 0) usesRoles = true;
-      // ResponseDTORef OLMAYAN login endpoint -> Promise<AuthResponse> dönüş.
+      // ResponseDTORef WITHOUT login endpoint -> Promise<AuthResponse> donus.
       if (!ep.ResponseDTORef && isLoginEndpoint(ep)) usesCurrentUser = true;
     }
   }
   return { usesAuth, usesRoles, usesCurrentUser };
 }
 
-/* ── src/app.module.ts (İNCE — yalnız kompozisyon) ─────────────────────────
- * H3: app.module artık root forRoot/register İÇERMEZ. Yalnız:
- *   - CoreModule          (tüm root altyapı + APP_FILTER + Pino — TEK import)
- *   - CommonModule        (varsa; feature-bağsız altyapı)
- *   - <Feature>Module'ler (slug'a sıralı)
- * Feature listesi slug'a göre sıralı (determinizm).
+/* ── src/app.module.ts (INCE — yalniz kompozisyon) ─────────────────────────
+ * H3: app.module artik root forRoot/register ICERMEZ. Yalniz:
+ *   - CoreModule          (tum root altyapi + APP_FILTER + Pino — TEK import)
+ *   - CommonModule        (varsa; feature-bagsiz altyapi)
+ *   - <Feature>Module'ler (slug'a sirali)
+ * Feature listesi slug'a gore sirali (determinizm).
  * ──────────────────────────────────────────────────────────────────────── */
 function buildAppModule(ctx: EmitterContext): string {
   const graph = ctx.graph;
@@ -231,15 +231,15 @@ function buildAppModule(ctx: EmitterContext): string {
 
   const moduleClassNames: string[] = ["CoreModule"];
 
-  // Tüm feature modüllerini import et (slug'a sıralı) -> imports[].
+  // Tum feature modullerini import et (slug'a sirali) -> imports[].
   for (const feature of graph.features()) {
     const className = `${pascalCase(feature.slug)}Module`;
     const modPath = `src/${feature.slug}/${feature.slug}.module.ts`;
     imports.add(className, importPathOf(relativeImportPath(appModulePath, modPath)));
     moduleClassNames.push(className);
   }
-  // CommonModule (feature-bağsız altyapı: kuyruk/handler/cache + paylaşımlı HTTP
-  //   giriş katmanı) varsa onu da import et -> orphan provider KALMAZ.
+  // CommonModule (feature-bagsiz altyapi: kuyruk/handler/cache + paylasimli HTTP
+  //   giris katmani) varsa onu da import et -> orphan provider KALMAZ.
   if (graph.commonFeature()) {
     imports.add("CommonModule", importPathOf(relativeImportPath(appModulePath, "src/common/common.module.ts")));
     moduleClassNames.push("CommonModule");
@@ -258,18 +258,18 @@ function buildAppModule(ctx: EmitterContext): string {
   return lines.join("\n");
 }
 
-/* ── src/core/core.module.ts (TÜM ROOT ALTYAPI — H1/H2/H3) ────────────────
- * Uygulama genelinde TEK kez kaydedilen her şey burada toplanır:
+/* ── src/core/core.module.ts (TUM ROOT ALTYAPI — H1/H2/H3) ────────────────
+ * Uygulama genelinde TEK kez kaydedilen her sey burada toplanir:
  *   - ConfigModule.forRoot         (isGlobal + Joi validationSchema, fail-fast)
  *   - LoggerModule.forRoot         (nestjs-pino structured logging — H2)
  *   - TypeOrmModule.forRootAsync   (ConfigService -> DATABASE_URL)
  *   - CacheModule.register         (Cache varsa)
  *   - BullModule.forRoot           (Queue varsa)
  *   - ScheduleModule.forRoot       (Worker varsa)
- *   - EventEmitterModule.forRoot   (event-tabanlı handler varsa)
+ *   - EventEmitterModule.forRoot   (event-tabanli handler varsa)
  *   - APP_FILTER -> AllExceptionsFilter  (global exception filter — H1)
- * @Global DEĞİLDİR: AppModule'de tek import yeter (Nest root altyapı modülleri
- * zaten kendi global token'larını —ConfigService/Logger/DataSource— yayar).
+ * @Global NOTDIR: AppModule'de tek import yeter (Nest root altyapi modulleri
+ * zaten kendi global token'larini —ConfigService/Logger/DataSource— yayar).
  * ──────────────────────────────────────────────────────────────────────── */
 function buildCoreModule(infra: InfraUsage): string {
   const coreModulePath = "src/core/core.module.ts";
@@ -283,7 +283,7 @@ function buildCoreModule(infra: InfraUsage): string {
 
   const rootImportLines: string[] = [];
 
-  // ── ConfigModule.forRoot — DAİMA + FAIL-FAST. ─────────────────────────────
+  // ── ConfigModule.forRoot — DAIMA + FAIL-FAST. ─────────────────────────────
   imports.add("ConfigModule", "@nestjs/config");
   imports.add("validationSchema", importPathOf(relativeImportPath(coreModulePath, "src/config/env.validation.ts")));
   if (infra.envNodes.length > 0) {
@@ -293,9 +293,9 @@ function buildCoreModule(infra: InfraUsage): string {
     rootImportLines.push("    ConfigModule.forRoot({ isGlobal: true, validationSchema }),");
   }
 
-  // ── LoggerModule.forRoot (nestjs-pino) — yapılandırılmış JSON loglama (H2). ─
+  // ── LoggerModule.forRoot (nestjs-pino) — yapilandirilmis JSON loglama (H2). ─
   //   DI'lanabilir Logger (@nestjs/common veya PinoLogger) her serviste mevcut
-  //   olur; console.log yerine bu kullanılır. Dev'de pino-pretty (NODE_ENV ile).
+  //   olur; console.log yerine bu kullanilir. Dev'de pino-pretty (NODE_ENV ile).
   imports.add("LoggerModule", "nestjs-pino");
   rootImportLines.push(
     "    LoggerModule.forRoot({",
@@ -310,11 +310,11 @@ function buildCoreModule(infra: InfraUsage): string {
   );
 
   // ── TypeOrmModule.forRootAsync(ConfigService) — daima (Postgres). ─────────
-  //   M1: bağlantı havuzu + timeout + sınırlı retry. ConfigService-gated; ilgili
-  //   env yoksa makul sabit default'lara düşer (sonsuz retry'i ÖNLER). Havuz
-  //   ayarları `extra` ile pg sürücüsüne geçer (max açık bağlantı + bağlantı
-  //   kurma timeout'u). retryAttempts/retryDelay TypeOrmModule'ün kendi
-  //   yeniden-bağlanma davranışını sınırlar.
+  //   M1: baglanti havuzu + timeout + sinirli retry. ConfigService-gated; ilgili
+  //   env yoksa makul sabit default'lara duser (sonsuz retry'i ONLER). Havuz
+  //   ayarlari `extra` ile pg surucusune gecer (max acik baglanti + baglanti
+  //   kurma timeout'u). retryAttempts/retryDelay TypeOrmModule'un kendi
+  //   yeniden-baglanma davranisini sinirlar.
   imports.add("ConfigService", "@nestjs/config");
   imports.add("TypeOrmModule", "@nestjs/typeorm");
   imports.add("SnakeNamingStrategy", "typeorm-naming-strategies");
@@ -347,7 +347,7 @@ function buildCoreModule(infra: InfraUsage): string {
     rootImportLines.push("    CacheModule.register({ isGlobal: true }),");
   }
 
-  // BullModule.forRoot({ connection }) — Redis bağlantısı (Queue varsa).
+  // BullModule.forRoot({ connection }) — Redis baglantisi (Queue varsa).
   if (infra.usesQueue) {
     imports.add("BullModule", "@nestjs/bullmq");
     rootImportLines.push(
@@ -360,13 +360,13 @@ function buildCoreModule(infra: InfraUsage): string {
     );
   }
 
-  // ScheduleModule.forRoot() — @Cron handler'ları (Worker varsa) ateşlensin.
+  // ScheduleModule.forRoot() — @Cron handler'lari (Worker varsa) ateslensin.
   if (infra.usesSchedule) {
     imports.add("ScheduleModule", "@nestjs/schedule");
     rootImportLines.push("    ScheduleModule.forRoot(),");
   }
 
-  // EventEmitterModule.forRoot() — @OnEvent handler'ları (event-tabanlı) çalışsın.
+  // EventEmitterModule.forRoot() — @OnEvent handler'lari (event-tabanli) calissin.
   if (infra.usesEventEmitter) {
     imports.add("EventEmitterModule", "@nestjs/event-emitter");
     rootImportLines.push("    EventEmitterModule.forRoot(),");
@@ -390,11 +390,11 @@ function buildCoreModule(infra: InfraUsage): string {
   return lines.join("\n");
 }
 
-/* ── .env.example (KÖKTE — H4; graph-farkında) ─────────────────────────────
- * EnvironmentVariable node'larından (isme göre sıralı) anahtar=değer satırları.
- * GÜVENLİK: IsSecret=true ise değer ASLA yazılmaz -> "<your-...-here>" placeholder.
- * Proje köküne yazılır (".env" geleneksel olarak kökten okunur); src/.env.example
- * DEĞİL.
+/* ── .env.example (KOKTE — H4; graph-farkinda) ─────────────────────────────
+ * EnvironmentVariable node'larindan (isme gore sirali) anahtar=deger satirlari.
+ * GUVENLIK: IsSecret=true ise deger ASLA yazilmaz -> "<your-...-here>" placeholder.
+ * Proje kokune yazilir (".env" geleneksel olarak kokten okunur); src/.env.example
+ * NOT.
  * ──────────────────────────────────────────────────────────────────────── */
 function buildEnvExample(ctx: EmitterContext, infra: InfraUsage): string {
   const envNodes = ctx.graph.allOf("EnvironmentVariable");
@@ -421,9 +421,9 @@ function buildEnvExample(ctx: EmitterContext, infra: InfraUsage): string {
     }
   }
 
-  // ── Çekirdek çalışma-zamanı ayarları (graph'tan bağımsız; daima). ─────────
-  //   M1: TypeORM havuz/timeout/retry. L2: CORS + gövde sınırı. Hepsi opsiyonel
-  //   (Joi default'ları var); değerler yorum satırında varsayılanı gösterir.
+  // ── Cekirdek calisma-zamani ayarlari (graph'tan bagimsiz; daima). ─────────
+  //   M1: TypeORM havuz/timeout/retry. L2: CORS + govde siniri. Hepsi opsiyonel
+  //   (Joi default'lari var); degerler yorum satirinda varsayilani gosterir.
   lines.push("", "# TypeORM connection pool + timeout + bounded retry (M1)");
   lines.push("DB_POOL_MAX=10");
   lines.push("DB_CONNECTION_TIMEOUT_MS=10000");
@@ -437,15 +437,15 @@ function buildEnvExample(ctx: EmitterContext, infra: InfraUsage): string {
   lines.push("# Additive to CORS_ORIGIN; leave empty in prod (does NOT loosen CORS_ORIGIN).");
   lines.push("DOCS_CORS_ORIGIN=");
 
-  // ── Mimari altyapı env anahtarları (graph kind'larına göre, deterministik) ──
+  // ── Mimari altyapi env anahtarlari (graph kind'larina gore, deterministik) ──
   appendInfraEnvKeys(lines, ctx, infra);
 
   return lines.join("\n");
 }
 
-/** Queue (Redis) + ExternalService env anahtarlarını .env.example'a ekler.
- *  external-service.emitter ile aynı PREFIX (snakeCase(name).toUpperCase()) ve
- *  anahtar adları (_BASE_URL/_TIMEOUT_SECONDS/_AUTH_TOKEN|_API_KEY). */
+/** Queue (Redis) + ExternalService env anahtarlarini .env.example'a ekler.
+ *  external-service.emitter ile ayni PREFIX (snakeCase(name).toUpperCase()) ve
+ *  anahtar adlari (_BASE_URL/_TIMEOUT_SECONDS/_AUTH_TOKEN|_API_KEY). */
 function appendInfraEnvKeys(lines: string[], ctx: EmitterContext, infra: InfraUsage): void {
   if (infra.usesQueue) {
     lines.push("", "# BullMQ Redis connection (queues)");
@@ -480,7 +480,7 @@ function snakeUpper(input: string): string {
     .join("_");
 }
 
-/** Bir env değişkeninin .env.example değeri. Secret ASLA gerçek değer almaz. */
+/** Bir env degiskeninin .env.example degeri. Secret ASLA gercek deger almaz. */
 function envValueFor(p: EnvProps): string {
   if (p.IsSecret) {
     return "<your-secret-here>";
@@ -498,7 +498,7 @@ function envValueFor(p: EnvProps): string {
   }
 }
 
-/* ── GeneratedFile yardımcıları (scaffold.ts ile aynı desen) ──────────────── */
+/* ── GeneratedFile yardimcilari (scaffold.ts ile ayni desen) ──────────────── */
 function file(path: string, content: string, language: GeneratedFile["language"]): GeneratedFile {
   const normalized = content.endsWith("\n") ? content : `${content}\n`;
   return { path, content: normalized, language, surgicalMarkers: countSurgicalMarkers(normalized) };
@@ -506,9 +506,9 @@ function file(path: string, content: string, language: GeneratedFile["language"]
 const ts = (p: string, c: string) => file(p, c, "typescript");
 const json = (p: string, c: string) => file(p, c, "json");
 
-/* ── package.json (GRAPH-FARKINDA dependency seçimi) ───────────────────────
- * Çekirdek deps daima; mimari altyapı deps KULLANILAN kind'lara göre eklenir.
- * Sürüm pin'leri SABİT (determinizm); deps anahtarları sıralı. */
+/* ── package.json (GRAPH-FARKINDA dependency secimi) ───────────────────────
+ * Cekirdek deps daima; mimari altyapi deps KULLANILAN kind'lara gore eklenir.
+ * Surum pin'leri SABIT (determinizm); deps anahtarlari sirali. */
 function buildPackageJson(infra: InfraUsage): string {
   const deps: Record<string, string> = {
     "@nestjs/common": "^11.0.0",
@@ -528,13 +528,13 @@ function buildPackageJson(infra: InfraUsage): string {
     // dotenv: data-source.ts (TypeORM CLI) loads .env manually outside NestFactory
     //   (H5). It is imported directly there, so it must be an explicit dependency.
     dotenv: "^17.0.0",
-    // express: main.ts json/urlencoded body-limit + CORS için (L2). Platform
-    //   altında zaten var; doğrudan import edildiği için açık dep yapılır.
+    // express: main.ts json/urlencoded body-limit + CORS icin (L2). Platform
+    //   altinda zaten var; dogrudan import edildigi icin acik dep yapilir.
     express: "^5.0.0",
-    // helmet: güvenlik HTTP başlıkları (main.ts, L2).
+    // helmet: guvenlik HTTP basliklari (main.ts, L2).
     helmet: "^8.0.0",
     joi: "^17.13.0",
-    // nestjs-pino + pino-http: yapılandırılmış JSON loglama (CoreModule, H2).
+    // nestjs-pino + pino-http: yapilandirilmis JSON loglama (CoreModule, H2).
     "nestjs-pino": "^4.1.0",
     pg: "^8.13.1",
     "pino-http": "^10.0.0",
@@ -552,13 +552,13 @@ function buildPackageJson(infra: InfraUsage): string {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
     // @types/express: main.ts daima express json/urlencoded import eder (L2);
-    //   Middleware emitter'ı da Request/Response tiplerini kullanır.
+    //   Middleware emitter'i da Request/Response tiplerini kullanir.
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.0",
     "@types/node": "^22.10.0",
     "@types/supertest": "^6.0.0",
     jest: "^29.7.0",
-    // pino-pretty: dev'de okunaklı log (production'da devre dışı).
+    // pino-pretty: dev'de okunakli log (production'da devre disi).
     "pino-pretty": "^11.0.0",
     supertest: "^7.0.0",
     "ts-jest": "^29.2.0",
@@ -581,8 +581,8 @@ function buildPackageJson(infra: InfraUsage): string {
   }
   if (infra.usesSchedule) deps["@nestjs/schedule"] = "^5.0.0";
   if (infra.usesEventEmitter) deps["@nestjs/event-emitter"] = "^3.0.0";
-  // Auth: gerçek AuthGuard Bearer JWT'yi doğrular (jsonwebtoken) + login servisi
-  //   şifreyi bcrypt ile hash'ler/karşılaştırır (bcryptjs — saf JS, native derleme yok).
+  // Auth: gercek AuthGuard Bearer JWT'yi dogrular (jsonwebtoken) + login servisi
+  //   sifreyi bcrypt ile hash'ler/karsilastirir (bcryptjs — saf JS, native derleme yok).
   if (infra.usesAuth) {
     deps["jsonwebtoken"] = "^9.0.0";
     deps["bcryptjs"] = "^2.4.3";
@@ -594,22 +594,22 @@ function buildPackageJson(infra: InfraUsage): string {
     name: "solarch-generated",
     version: "0.1.0",
     private: true,
-    // L4: paket-yöneticisi pin. README pnpm komutları kullanır; Corepack bu alanı
-    //   okuyarak doğru pnpm sürümünü etkinleştirir (tutarlı kurulum). SABİT sürüm
-    //   (determinizm); deterministik üretimde lockfile yazılmaz, pin yeterlidir.
+    // L4: paket-yoneticisi pin. README pnpm komutlari kullanir; Corepack bu alani
+    //   okuyarak dogru pnpm surumunu etkinlestirir (tutarli kurulum). SABIT surum
+    //   (determinizm); deterministik uretimde lockfile yazilmaz, pin yeterlidir.
     packageManager: "pnpm@10.0.0",
     scripts: {
       build: "nest build",
       start: "node dist/main.js",
       "start:dev": "nest start --watch",
-      // H5: TypeORM CLI migration:run, data-source.ts üzerinden.
+      // H5: TypeORM CLI migration:run, data-source.ts uzerinden.
       "db:migrate": "typeorm migration:run -d dist/data-source.js",
       "db:migrate:revert": "typeorm migration:revert -d dist/data-source.js",
       // H6: jest unit + e2e.
       test: "jest",
       "test:e2e": "jest --config jest-e2e.json",
     },
-    // H6: jest unit konfigürasyonu (ts-jest, src/ kökü, *.spec.ts).
+    // H6: jest unit konfigurasyonu (ts-jest, src/ koku, *.spec.ts).
     jest: {
       moduleFileExtensions: ["js", "json", "ts"],
       rootDir: "src",
@@ -624,10 +624,10 @@ function buildPackageJson(infra: InfraUsage): string {
   });
 }
 
-/** Sunucu-tarafı DOĞRULANMIŞ fill için node_modules cache'inin kurulacağı KANONİK
- *  SÜPERSET package.json — buildPackageJson'ın TÜM koşullu deps'leri (cache/queue/
- *  http/schedule/event-emitter) açık. Cache bundan kurulur → codegen'in emit
- *  edebileceği HER import tsc tarafından çözülür. Tek kaynak buildPackageJson →
+/** Sunucu-tarafi DOGRULANMIS fill icin node_modules cache'inin kurulacagi KANONIK
+ *  SUPERSET package.json — buildPackageJson'in TUM kosullu deps'leri (cache/queue/
+ *  http/schedule/event-emitter) acik. Cache bundan kurulur → codegen'in emit
+ *  edebilecegi HER import tsc tarafindan cozulur. Tek kaynak buildPackageJson →
  *  yeni bir dep eklenince cache de otomatik kapsar (drift yok). */
 export function fillDepsPackageJson(): string {
   const pkg = JSON.parse(
@@ -642,10 +642,10 @@ export function fillDepsPackageJson(): string {
       envNodes: [],
     }),
   ) as { devDependencies?: Record<string, string> };
-  // tsgo (TypeScript 7.0 native): YALNIZ fill-deps cache'ine ekle → in-app DOĞRULANMIŞ fill,
-  // SOLARCH_USE_TSGO=1 iken ~9x hızlı tsc geçidi için binary'yi bulur. Üretilen KULLANICI
-  // projelerine GİRMEZ (buildPackageJson'a dokunulmadı) — pre-release araç shipped output'a
-  // sızmasın. Flag yokken cache'te durur ama kullanılmaz. devDeps sıralı tutulur (determinizm).
+  // tsgo (TypeScript 7.0 native): YALNIZ fill-deps cache'ine ekle → in-app DOGRULANMIS fill,
+  // SOLARCH_USE_TSGO=1 iken ~9x hizli tsc gecidi icin binary'yi bulur. Uretilen KULLANICI
+  // projelerine GIRMEZ (buildPackageJson'a dokunulmadi) — pre-release arac shipped output'a
+  // sizmasin. Flag yokken cache'te durur ama kullanilmaz. devDeps sirali tutulur (determinizm).
   pkg.devDependencies = sortObject({
     ...(pkg.devDependencies ?? {}),
     "@typescript/native-preview": "latest",
@@ -653,12 +653,12 @@ export function fillDepsPackageJson(): string {
   return jsonStringify(pkg);
 }
 
-/** Deterministik 2-boşluk JSON (anahtar sırası verildiği gibi korunur). */
+/** Deterministik 2-bosluk JSON (anahtar sirasi verildigi gibi korunur). */
 function jsonStringify(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-/** Bir Record'un anahtarlarını alfabetik sıralayıp yeniden kurar (deterministik). */
+/** Bir Record'un anahtarlarini alfabetik siralayip yeniden kurar (deterministik). */
 function sortObject(rec: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const k of Object.keys(rec).sort()) out[k] = rec[k];
@@ -666,16 +666,16 @@ function sortObject(rec: Record<string, string>): Record<string, string> {
 }
 
 /* ── src/config/env.validation.ts (Joi -> FAIL-FAST) ──────────────────────
- * ConfigModule.forRoot({ validationSchema }) ile kullanılan Joi object şeması.
- * Geçersiz/eksik bir env BOOT'ta fırlatır.
+ * ConfigModule.forRoot({ validationSchema }) ile kullanilan Joi object semasi.
+ * Gecersiz/eksik bir env BOOT'ta firlatir.
  *
  * Kurallar:
- *   - DATABASE_URL: DAİMA Joi.string().required() (TypeORM forRootAsync bunu okur).
- *   - PORT: Joi.number().default(3000) (main.ts kullanır).
- *   - EnvironmentVariable node'ları: DataType -> Joi tipi; IsRequired -> required();
- *     (secret OLMAYAN) DefaultValue -> default(...). İsme göre sıralı (determinizm).
- *   - usesQueue ise REDIS_HOST/REDIS_PORT (BullMQ bağlantısı) eklenir.
- * Hiçbir gerçek secret DEĞERİ gömülmez (yalnız tip/zorunluluk kuralları). ──── */
+ *   - DATABASE_URL: DAIMA Joi.string().required() (TypeORM forRootAsync bunu okur).
+ *   - PORT: Joi.number().default(3000) (main.ts kullanir).
+ *   - EnvironmentVariable node'lari: DataType -> Joi tipi; IsRequired -> required();
+ *     (secret WITHOUT) DefaultValue -> default(...). Isme gore sirali (determinizm).
+ *   - usesQueue ise REDIS_HOST/REDIS_PORT (BullMQ baglantisi) eklenir.
+ * Hicbir gercek secret DEGERI gomulmez (yalniz tip/zorunluluk kurallari). ──── */
 function buildEnvValidation(infra: InfraUsage): string {
   const imports = new ImportCollector();
   imports.addDefault("Joi", "joi");
@@ -683,13 +683,13 @@ function buildEnvValidation(infra: InfraUsage): string {
   const entries = new Map<string, string>();
   entries.set("DATABASE_URL", "Joi.string().required()");
   entries.set("PORT", "Joi.number().default(3000)");
-  // M1: TypeORM havuz/timeout/retry ayarları (CoreModule forRootAsync okur).
+  // M1: TypeORM havuz/timeout/retry ayarlari (CoreModule forRootAsync okur).
   entries.set("DB_POOL_MAX", "Joi.number().default(10)");
   entries.set("DB_CONNECTION_TIMEOUT_MS", "Joi.number().default(10000)");
   entries.set("DB_RETRY_ATTEMPTS", "Joi.number().default(10)");
   entries.set("DB_RETRY_DELAY_MS", "Joi.number().default(3000)");
-  // L2: HTTP güvenliği. CORS_ORIGIN opsiyonel (boşsa CORS kapalı); BODY_LIMIT
-  //   express body-parser limit dizesi (ör. "1mb").
+  // L2: HTTP guvenligi. CORS_ORIGIN opsiyonel (bossa CORS kapali); BODY_LIMIT
+  //   express body-parser limit dizesi (or. "1mb").
   entries.set("CORS_ORIGIN", "Joi.string().allow(\"\").optional()");
   entries.set("BODY_LIMIT", "Joi.string().default(\"1mb\")");
   // Self-documenting app: separate dev/docs CORS allowance for the Scalar /docs
@@ -723,8 +723,8 @@ function buildEnvValidation(infra: InfraUsage): string {
   return lines.join("\n");
 }
 
-/** Bir EnvVar node'unun Joi kuralı (DataType + IsRequired + secret-olmayan
- *  DefaultValue). Secret değer ASLA gömülmez (yalnız tip/zorunluluk). */
+/** Bir EnvVar node'unun Joi kurali (DataType + IsRequired + secret-olmayan
+ *  DefaultValue). Secret deger ASLA gomulmez (yalniz tip/zorunluluk). */
 function joiRuleFor(p: EnvProps): string {
   let base: string;
   switch (p.DataType) {
@@ -748,8 +748,8 @@ function joiRuleFor(p: EnvProps): string {
   return base;
 }
 
-/* ── src/config/configuration.ts (ENV -> TİPLİ CONFIG) ─────────────────────
- * EnvironmentVariable node'larından tipli bir config nesnesi üretir. */
+/* ── src/config/configuration.ts (ENV -> TIPLI CONFIG) ─────────────────────
+ * EnvironmentVariable node'larindan tipli bir config nesnesi uretir. */
 function buildConfiguration(envNodes: CodeNode[]): string {
   const lines: string[] = [];
   lines.push("/**");
@@ -770,7 +770,7 @@ function buildConfiguration(envNodes: CodeNode[]): string {
   return lines.join("\n");
 }
 
-/** Bir env değişkeninin process.env okuma ifadesi (DataType'a göre dönüşümlü). */
+/** Bir env degiskeninin process.env okuma ifadesi (DataType'a gore donusumlu). */
 function envReadExpr(p: EnvProps, key: string): string {
   const raw = `process.env.${key}`;
   switch (p.DataType) {
@@ -783,7 +783,7 @@ function envReadExpr(p: EnvProps, key: string): string {
   }
 }
 
-/** Bir ENV anahtarını ("DATABASE_URL") camelCase alan adına ("databaseUrl"). */
+/** Bir ENV anahtarini ("DATABASE_URL") camelCase alan adina ("databaseUrl"). */
 function camelCaseKey(key: string): string {
   const words = key
     .split(/[\s\-_./]+/)
@@ -798,11 +798,11 @@ function byName(a: CodeNode, b: CodeNode): number {
 }
 
 /* ── src/data-source.ts (TypeORM CLI DataSource — H5) ──────────────────────
- * `typeorm migration:run -d dist/data-source.js` bunu yükler. Çalışma zamanı
- * uygulaması (TypeOrmModule.forRootAsync) ile AYNI bağlantı bilgisini paylaşır
+ * `typeorm migration:run -d dist/data-source.js` bunu yukler. Calisma zamani
+ * uygulamasi (TypeOrmModule.forRootAsync) ile AYNI baglanti bilgisini paylasir
  * (DATABASE_URL); entity'ler glob ile otomatik bulunur. migrations glob'u
- * src/migrations/*.ts TS migration sınıflarına bakar (orchestrator üretir).
- * synchronize:false KORUNUR — şema yalnız migration ile değişir. ──────────── */
+ * src/migrations/*.ts TS migration siniflarina bakar (orchestrator uretir).
+ * synchronize:false KORUNUR — sema yalniz migration ile degisir. ──────────── */
 function buildDataSource(): string {
   return `import "reflect-metadata";
 import { config as loadEnv } from "dotenv";
@@ -836,9 +836,9 @@ export default new DataSource({
 });`;
 }
 
-// NOT: baseUrl YOK — üretilen import'lar tamamen relative (ölüydü) + TS 7.0 (tsgo) baseUrl'i
-// kaldırdı (TS5102). "types" AÇIK: baseUrl gidince @types global çözümü explicit olmalı
-// (node = process/Buffer; jest = .spec.ts global'leri). Diğer @types (express/supertest/jwt)
+// NOT: baseUrl NONE — uretilen import'lar tamamen relative (oluydu) + TS 7.0 (tsgo) baseUrl'i
+// kaldirdi (TS5102). "types" ACIK: baseUrl gidince @types global cozumu explicit olmali
+// (node = process/Buffer; jest = .spec.ts global'leri). Diger @types (express/supertest/jwt)
 // import edilir → module-scoped, listelenmez. "lib":["ES2022"] DOM-collision fix'i (korunur).
 const TSCONFIG_JSON = `{
   "compilerOptions": {
@@ -859,8 +859,8 @@ const TSCONFIG_JSON = `{
   "exclude": ["node_modules", "dist"]
 }`;
 
-/* tsconfig.build.json (H6): nest build bunu kullanır — tsconfig'i extend eder,
- * test/spec dosyalarını derlemeden hariç tutar (dist temiz kalır). */
+/* tsconfig.build.json (H6): nest build bunu kullanir — tsconfig'i extend eder,
+ * test/spec dosyalarini derlemeden haric tutar (dist temiz kalir). */
 const TSCONFIG_BUILD_JSON = `{
   "extends": "./tsconfig.json",
   "exclude": ["node_modules", "dist", "test", "**/*.spec.ts", "**/*.e2e-spec.ts"]
@@ -875,7 +875,7 @@ const NEST_CLI_JSON = `{
   }
 }`;
 
-/* jest-e2e.json (H6): e2e testleri test/ kökünden, *.e2e-spec.ts ile çalıştırır. */
+/* jest-e2e.json (H6): e2e testleri test/ kokunden, *.e2e-spec.ts ile calistirir. */
 const JEST_E2E_JSON = `{
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": ".",
@@ -886,7 +886,7 @@ const JEST_E2E_JSON = `{
   }
 }`;
 
-/* .gitignore (H6): node_modules / dist / .env (secret sızıntısı önlenir). */
+/* .gitignore (H6): node_modules / dist / .env (secret sizintisi onlenir). */
 const GITIGNORE = `# Dependencies
 node_modules
 
@@ -904,10 +904,10 @@ coverage
 `;
 
 /* ── shared/filters/all-exceptions.filter.ts (GLOBAL EXCEPTION FILTER — H1) ──
- * @Catch() ile TÜM hataları yakalar; tutarlı JSON zarfı döner:
+ * @Catch() ile TUM hatalari yakalar; tutarli JSON zarfi doner:
  *   { statusCode, error, message, requestId, timestamp }
- * HttpException -> kendi status'u + mesajı korunur; generic hata -> 500 +
- * jenerik mesaj (iç hata DETAYI sızdırılmaz, yalnız sunucu tarafında loglanır). */
+ * HttpException -> kendi status'u + mesaji korunur; generic hata -> 500 +
+ * jenerik mesaj (ic hata DETAYI sizdirilmaz, yalniz sunucu tarafinda loglanir). */
 const ALL_EXCEPTIONS_FILTER_TS = `import {
   ArgumentsHost,
   Catch,
@@ -982,12 +982,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 }`;
 
-/* ── shared/guards/auth.guard.ts (GERÇEK, capability-layer) ─────────────────
- * controller.emitter @UseGuards(AuthGuard) ürettiğinde import edilen dosya. Artık
- * PLACEHOLDER/surgical DEĞİL: deterministik GERÇEK guard — Bearer JWT'yi JWT_SECRET
- * ile doğrular, çözülen claim'leri request.user'a koyar (@CurrentUser + RolesGuard
- * okur), her başarısızlıkta 401 atar. Auth strateji = JWT; token'ı login servisi
- * gövdesi aynı JWT_SECRET ile imzalar (sub=user id, role=rol). 'as any' KULLANMAZ. */
+/* ── shared/guards/auth.guard.ts (GERCEK, capability-layer) ─────────────────
+ * controller.emitter @UseGuards(AuthGuard) urettiginde import edilen dosya. Artik
+ * PLACEHOLDER/surgical NOT: deterministik GERCEK guard — Bearer JWT'yi JWT_SECRET
+ * ile dogrular, cozulen claim'leri request.user'a koyar (@CurrentUser + RolesGuard
+ * okur), her basarisizlikta 401 atar. Auth strateji = JWT; token'i login servisi
+ * govdesi ayni JWT_SECRET ile imzalar (sub=user id, role=rol). 'as any' KULLANMAZ. */
 const AUTH_GUARD_TS = `import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import type { Request } from "express";
 import { verifyAccessToken } from "../auth/auth-token";
@@ -1018,10 +1018,10 @@ export class AuthGuard implements CanActivate {
   }
 }`;
 
-/* ── shared/auth/auth-token.ts (JWT sign/verify — TEK KAYNAK) ────────────────
- * AuthGuard verifyAccessToken ile DOĞRULAR; login servisi signAccessToken ile
- * İMZALAR — aynı JWT_SECRET + algoritma. Login fill'i sahte 'token' yerine bunu
- * çağırır (apiSurface'te görünür; service.emitter auth servisine import eder). */
+/* ── shared/auth/auth-token.ts (JWT sign/verify — TEK SOURCE) ────────────────
+ * AuthGuard verifyAccessToken ile DOGRULAR; login servisi signAccessToken ile
+ * IMZALAR — ayni JWT_SECRET + algoritma. Login fill'i sahte 'token' yerine bunu
+ * cagirir (apiSurface'te gorunur; service.emitter auth servisine import eder). */
 const AUTH_TOKEN_TS = `import { sign, verify, type JwtPayload } from "jsonwebtoken";
 
 /** The JWT signing/verification secret (fail fast if not configured). */
@@ -1054,8 +1054,8 @@ export function verifyAccessToken(token: string): JwtPayload {
 }`;
 
 /* ── shared/auth/password.ts (bcrypt hash/compare) ──────────────────────────
- * Login/Register fill'i için: hashPassword (kullanıcı oluştururken passwordHash'e
- * yaz) + comparePassword (kimlik doğrularken). Düz-metin karşılaştırma yerine. */
+ * Login/Register fill'i icin: hashPassword (kullanici olustururken passwordHash'e
+ * yaz) + comparePassword (kimlik dogrularken). Duz-metin karsilastirma yerine. */
 const PASSWORD_TS = `import { hash, compare } from "bcryptjs";
 
 /** Cost factor for bcrypt hashing. */
@@ -1072,8 +1072,8 @@ export function comparePassword(plain: string, passwordHash: string): Promise<bo
 }`;
 
 /* ── shared/decorators/roles.decorator.ts (stub) ───────────────────────────
- * controller.emitter @Roles("admin", ...) ürettiğinde import edilen dosya.
- * Metadata yazan deterministik bir decorator (RolesGuard ile eşleşmek üzere). */
+ * controller.emitter @Roles("admin", ...) urettiginde import edilen dosya.
+ * Metadata yazan deterministik bir decorator (RolesGuard ile eslesmek uzere). */
 const ROLES_DECORATOR_TS = `import { SetMetadata } from "@nestjs/common";
 
 /** Metadata key that marks the roles required for a handler. */
@@ -1086,12 +1086,12 @@ export const ROLES_KEY = "roles";
  */
 export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);`;
 
-/* ── shared/guards/roles.guard.ts (GERÇEK guard, stub DEĞİL) ────────────────
- * RBAC WIRE (#39): @Roles(...) ile yazılan ROLES_KEY metadata'sını Reflector ile
- * OKUR ve enforce eder. Rol gerekmeyen route geçer; gerektiren route'ta
- * request.user.role gerekli rollerden biri olmalı. request.user'ı AuthGuard
- * (authentication) yerleştirir; RolesGuard yalnız authorization yapar. Reflector
- * NestJS çekirdeğinden otomatik enjekte edilir (provider kaydı gerekmez). */
+/* ── shared/guards/roles.guard.ts (GERCEK guard, stub NOT) ────────────────
+ * RBAC WIRE (#39): @Roles(...) ile yazilan ROLES_KEY metadata'sini Reflector ile
+ * OKUR ve enforce eder. Rol gerekmeyen route gecer; gerektiren route'ta
+ * request.user.role gerekli rollerden biri olmali. request.user'i AuthGuard
+ * (authentication) yerlestirir; RolesGuard yalniz authorization yapar. Reflector
+ * NestJS cekirdeginden otomatik enjekte edilir (provider kaydi gerekmez). */
 const ROLES_GUARD_TS = `import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY } from "../decorators/roles.decorator";
@@ -1115,18 +1115,18 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<{ user?: { role?: string } }>();
     const role = request.user?.role;
     if (role === undefined) return false;
-    // CASE-INSENSITIVE rol eşleşmesi: graf'taki @Roles("ADMIN") ile enum/token'daki
-    // "admin" casing'i uyuşmasa da RBAC çalışır (sessiz kırılma yok).
+    // CASE-INSENSITIVE rol eslesmesi: graf'taki @Roles("ADMIN") ile enum/token'daki
+    // "admin" casing'i uyusmasa da RBAC calisir (sessiz kirilma yok).
     const normalized = role.toLowerCase();
     return required.some((r) => r.toLowerCase() === normalized);
   }
 }`;
 
 /* ── shared/decorators/current-user.decorator.ts (stub) ────────────────────
- * controller.emitter @CurrentUser() user: AuthUser ürettiğinde (RequiresAuth)
- * VE login endpoint Promise<AuthResponse> döndüğünde import edilen dosya.
- * Tek dosyada üç export: AuthUser (request.user şekli), AuthResponse (login
- * token zarfı), CurrentUser (request.user'ı çıkaran param decorator). */
+ * controller.emitter @CurrentUser() user: AuthUser urettiginde (RequiresAuth)
+ * VE login endpoint Promise<AuthResponse> dondugunde import edilen dosya.
+ * Tek dosyada uc export: AuthUser (request.user sekli), AuthResponse (login
+ * token zarfi), CurrentUser (request.user'i cikaran param decorator). */
 const CURRENT_USER_DECORATOR_TS = `import { createParamDecorator, ExecutionContext } from "@nestjs/common";
 import type { Request } from "express";
 
@@ -1227,10 +1227,10 @@ async function bootstrap() {
 void bootstrap();`;
 
 /* ── test/app.e2e-spec.ts (SMOKE E2E — H6) ─────────────────────────────────
- * AppModule'ü gerçekten boot eder + bir HTTP isteği atar. Bilinmeyen bir rota
- * 404 döner (Nest varsayılan + AllExceptionsFilter zarfı); bu, uygulamanın DI
- * grafiğinin tam çözüldüğünü ve filter'ın bağlandığını KANITLAR. Strict altında
- * derlenir. Çalıştırmak için DATABASE_URL gerekir (TypeORM forRootAsync). */
+ * AppModule'u gercekten boot eder + bir HTTP istegi atar. Bilinmeyen bir rota
+ * 404 doner (Nest varsayilan + AllExceptionsFilter zarfi); bu, uygulamanin DI
+ * grafiginin tam cozuldugunu ve filter'in baglandigini KANITLAR. Strict altinda
+ * derlenir. Calistirmak icin DATABASE_URL gerekir (TypeORM forRootAsync). */
 const APP_E2E_SPEC_TS = `import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import request from "supertest";

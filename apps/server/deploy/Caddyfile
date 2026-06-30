@@ -1,10 +1,9 @@
-# Solarch — tek-origin reverse proxy (Caddy). /etc/caddy/Caddyfile'a kopyala.
-# DOMAIN'i gerçek alan adınla değiştir. Caddy otomatik HTTPS (Let's Encrypt) yapar.
+# Solarch — single-origin reverse proxy (Caddy). Copy to /etc/caddy/Caddyfile.
+# Replace DOMAIN with your hostname. Caddy handles HTTPS (Let's Encrypt) automatically.
 #
-# Neden tek origin: Clerk __session httpOnly+Secure cookie ancak frontend ile /api AYNI
-# origin'de akar. Bu yüzden hem frontend (statik) hem /api buradan servis edilir.
+# Single origin: frontend and /api share one host so cookies and API keys stay on one origin.
 
-# www → apex yönlendirme (Clerk authorizedParties tek host bekler, www kopukluğu olmasın).
+# www → apex redirect (avoid split-host issues).
 www.DOMAIN {
 	redir https://DOMAIN{uri} permanent
 }
@@ -12,20 +11,20 @@ www.DOMAIN {
 DOMAIN {
 	encode zstd gzip
 
-	# /api/* → backend (yalnız loopback'te dinler). Caddy X-Forwarded-* ekler;
-	# backend trust proxy=1 ile gerçek IP'yi alır (rate-limit doğru çalışır).
+	# /api/* → backend (listens on loopback only). Caddy adds X-Forwarded-*;
+	# backend trust proxy=1 for correct client IP (rate limits).
 	handle /api/* {
 		reverse_proxy 127.0.0.1:4000
 	}
 
-	# Geri kalan → Vite statik build (SPA). try_files derin route'ları index.html'e düşürür.
+	# Remaining paths → Vite static build (SPA). try_files falls back to index.html.
 	handle {
 		root * /var/www/solarch/dist
 		try_files {path} /index.html
 		file_server
 
-		# Hash'li asset'ler immutable; index.html no-cache (yeni deploy'da eski HTML cache'lenip
-		# kırık asset referansı vermesin).
+		# Hashed assets are immutable; index.html no-cache (new deploy must not serve stale HTML
+		# referencing old asset hashes).
 		@assets path /assets/*
 		header @assets Cache-Control "public, max-age=31536000, immutable"
 		@html path /index.html /

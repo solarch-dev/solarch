@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { api, unwrap } from "./client";
 import { API_URL } from "../lib/env";
-import { getGuestToken, openGuestSignupModal } from "../lib/guest";
 import type { TabGraphData, TabGraphEdge, TabGraphMember } from "./tabs";
-
-/** Session-less + guest-ticketed client (signup CTAs go to a modal instead of /billing). */
-const isGuestClient = (): boolean =>
-  !(window as unknown as { Clerk?: { user?: unknown } }).Clerk?.user && !!getGuestToken();
 
 export interface ChatResult {
   reply: string;
@@ -162,8 +156,7 @@ export function useAiChatStream(projectId: string, tabId: string | null, callbac
       textBufferRef.current = [];
       lastReqRef.current = { message, mode }; // store for "Continue"
 
-      // Empty = relative (same-origin). EventSource in same-origin automatically
-      // sends Clerk cookie (cannot send Authorization header).
+    // Same-origin EventSource uses credentials; no Authorization header needed.
       const baseUrl = API_URL;
       const params = new URLSearchParams({ message, mode });
       if (tabId) params.set("tabId", tabId);
@@ -172,7 +165,7 @@ export function useAiChatStream(projectId: string, tabId: string | null, callbac
       if (continueRun) params.set("continue", "true");
       // Idempotency key — once per submission. EventSource auto-reconnect reopens
       // the same URL (same requestId) → backend rejects duplicate generation
-      // (double billing + double nodes).
+      // (duplicate generation + duplicate nodes).
       params.set("requestId", crypto.randomUUID());
       const url = `${baseUrl}/api/v1/projects/${projectId}/ai/chat/stream?${params.toString()}`;
 
@@ -272,7 +265,6 @@ export function useAiChatStream(projectId: string, tabId: string | null, callbac
           qc.invalidateQueries({ queryKey: ["tabs", projectId] });
         }
         // 4h quota counter consumed → refresh the remaining-allowance badge.
-        qc.invalidateQueries({ queryKey: ["subscription"] });
       });
 
       es.addEventListener("paused", (e) => {
@@ -284,7 +276,6 @@ export function useAiChatStream(projectId: string, tabId: string | null, callbac
         // Partial generation written to DB → align cache with backend.
         qc.invalidateQueries({ queryKey: ["tab-graph", projectId, tabId] });
         qc.invalidateQueries({ queryKey: ["tabs", projectId] });
-        qc.invalidateQueries({ queryKey: ["subscription"] });
       });
 
       es.addEventListener("error", (e) => {
@@ -301,34 +292,6 @@ export function useAiChatStream(projectId: string, tabId: string | null, callbac
         // Duplicate connection (reconnect dedupe) — original stream continues, don't show error to user.
         if (code === "ERR_DUPLICATE_REQUEST") {
           close();
-          return;
-        }
-        // Plan / quota denial — SSE errors never reach the global mutationCache.
-        if (code && (code.startsWith("ERR_PLAN_") || code.startsWith("ERR_QUOTA"))) {
-          const notice = errMsg && errMsg !== "AI connection lost." ? errMsg : "You've reached your plan limit.";
-          toast.error(notice); // show immediately (on the AI page)
-          setState((s) => ({ ...s, status: "error", error: notice, retryable: false }));
-          close();
-          // Refresh subscription cache → OmniBar returns to the quota-full bar (countdown + CTA).
-          qc.invalidateQueries({ queryKey: ["subscription"] });
-
-          // 4h window elapsed (ERR_PLAN_METER): stay on page — the bar already
-          // shows "resets in Xh" + signup/upgrade CTA; no hard redirect.
-          if (code === "ERR_PLAN_METER") return;
-
-          // Plan block (not quota): guests to the signup modal, registered users to /billing.
-          if (isGuestClient()) {
-            openGuestSignupModal();
-            return;
-          }
-          try {
-            sessionStorage.setItem("solarch:billing-notice", notice); // re-show on /billing after reload
-          } catch {
-            /* sessionStorage unavailable → toast + panel still show it */
-          }
-          if (window.location.pathname !== "/billing") {
-            setTimeout(() => window.location.assign("/billing"), 1400);
-          }
           return;
         }
         // Provider/timeout/connection error → retryable (retry via lastReqRef).

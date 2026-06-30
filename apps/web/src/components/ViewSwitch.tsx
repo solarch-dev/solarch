@@ -12,8 +12,7 @@
  *  Calm, no-slop: real surface tones + soft shadow + a sliding chip, no gradient/glassmorphism. The
  *  inner sub-switch is keyboard-reachable (real buttons); the inactive segments are buttons too.
  *
- *  The Code segment is entitlement-gated: selecting it calls onCodeRequested (the TopBar gate redirects
- *  to /billing if there is no plan, and the switch does not flip). Canvas / API / Docs are free. */
+ *  The Code segment calls onCodeRequested when selected (opens the codegen panel). */
 
 import type { KeyboardEvent, ReactNode } from "react";
 import { BookOpen, Braces, Code2, Eye, MessageSquare, Network } from "lucide-react";

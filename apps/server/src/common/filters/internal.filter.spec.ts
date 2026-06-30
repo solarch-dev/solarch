@@ -15,34 +15,34 @@ function makeHostMock() {
 }
 
 describe("InternalFilter", () => {
-  it("HttpException'ı kendi status + code'uyla döner", () => {
+  it("returns HttpException with its own status + code", () => {
     const filter = new InternalFilter();
     const { host, status, json } = makeHostMock();
-    filter.catch(new BadRequestException({ code: "ERR_X", message: "neden" }), host);
+    filter.catch(new BadRequestException({ code: "ERR_X", message: "reason" }), host);
     expect(status).toHaveBeenCalledWith(400);
     expect(json.mock.calls[0][0].error.code).toBe("ERR_X");
   });
 
-  it("code'suz BadRequest (NestJS builtin, ör. bozuk JSON) → ERR_BAD_JSON + ham mesaj sızmaz", () => {
+  it("BadRequest without code (NestJS builtin, e.g. malformed JSON) → ERR_BAD_JSON + raw message does not leak", () => {
     const filter = new InternalFilter();
     const { host, status, json } = makeHostMock();
-    // NestJS mapExternalException, body-parser SyntaxError'ını böyle bir BadRequest'e çevirir.
+    // NestJS mapExternalException converts body-parser SyntaxError into this BadRequest.
     filter.catch(new BadRequestException("Unexpected token } in JSON at position 6 {\"a\": }"), host);
     expect(status).toHaveBeenCalledWith(400);
     expect(json.mock.calls[0][0].error.code).toBe("ERR_BAD_JSON");
-    expect(json.mock.calls[0][0].error.message).not.toContain("position"); // ham parser mesajı sızmamalı
+    expect(json.mock.calls[0][0].error.message).not.toContain("position"); // raw parser message must not leak
   });
 
   it("body-parser PayloadTooLarge (413) → ERR_PAYLOAD_TOO_LARGE", () => {
     const filter = new InternalFilter();
     const { host, status, json } = makeHostMock();
-    // http-errors şekli (NestJS HttpException değil)
+    // http-errors shape (not NestJS HttpException)
     filter.catch({ statusCode: 413, type: "entity.too.large", message: "too large" }, host);
     expect(status).toHaveBeenCalledWith(413);
     expect(json.mock.calls[0][0].error.code).toBe("ERR_PAYLOAD_TOO_LARGE");
   });
 
-  it("bozuk JSON (400 entity.parse.failed) → ERR_BAD_JSON", () => {
+  it("malformed JSON (400 entity.parse.failed) → ERR_BAD_JSON", () => {
     const filter = new InternalFilter();
     const { host, status, json } = makeHostMock();
     filter.catch({ statusCode: 400, type: "entity.parse.failed", message: "bad json" }, host);
@@ -50,10 +50,10 @@ describe("InternalFilter", () => {
     expect(json.mock.calls[0][0].error.code).toBe("ERR_BAD_JSON");
   });
 
-  it("bilinmeyen hata → 500 ERR_INTERNAL", () => {
+  it("unknown error → 500 ERR_INTERNAL", () => {
     const filter = new InternalFilter();
     const { host, status, json } = makeHostMock();
-    filter.catch(new Error("patladı"), host);
+    filter.catch(new Error("boom"), host);
     expect(status).toHaveBeenCalledWith(500);
     expect(json.mock.calls[0][0].error.code).toBe("ERR_INTERNAL");
   });

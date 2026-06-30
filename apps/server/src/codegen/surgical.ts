@@ -1,39 +1,39 @@
 /* ────────────────────────────────────────────────────────────────────────
- * surgical.ts — Surgical marker + NOT_IMPLEMENTED gövdesi.
+ * surgical.ts — Surgical marker + NOT_IMPLEMENTED body.
  *
- * Metot gövdeleri "algoritma alanıdır" — Constructor bunları YAZMAZ, yapılandırılmış
- * bir marker bırakır. Surgical AI (ayrı, sonraki aşama) yalnız bu işaretli
- * bölgeleri doldurur. Marker formatı SABİTTİR ve makinece ayrıştırılabilir.
+ * Method bodies are "algorithm fields" — Constructor does NOT write them, leaves a structured
+ * marker. Surgical AI (separate, later stage) fills only these marked
+ * regions. Marker format is FIXED and machine-parseable.
  *
- * Format (tek satır comment + bilgi satırları):
+ * Format (single-line comment + info lines):
  *
  *   // @solarch:surgical id=<nodeId>#<member>
- *   // <iş açıklaması>                         (varsa)
- *   // throws: ExceptionA, ExceptionB          (varsa)
- *   // deps: dep1, dep2                         (varsa)
+ *   // <work description>                         (optional)
+ *   // throws: ExceptionA, ExceptionB          (optional)
+ *   // deps: dep1, dep2                         (optional)
  *
- * Gövde her zaman:
+ * Body is always:
  *   throw new Error("NOT_IMPLEMENTED: <Class>.<member>");
  * ──────────────────────────────────────────────────────────────────────── */
 
 export interface SurgicalMarkerInput {
-  /** İşaretin ait olduğu node'un kalıcı UUID'si. */
+  /** Persistent UUID of the node this marker belongs to. */
   nodeId: string;
-  /** Metot/üye adı (ör. "createUser"). */
+  /** Method/member name (e.g. "createUser"). */
   member: string;
-  /** İş açıklaması — ne yapması gerektiği (tek/çok satır; satıra bölünür). */
+  /** Work description — what it should do (single/multi line; split per line). */
   description?: string;
-  /** Fırlatılabilir Exception node Name'leri. */
+  /** Throwable Exception node Names. */
   throws?: string[];
-  /** Erişilebilir bağımlılıklar (DI alan adları / repo / servis Name'leri). */
+  /** Accessible dependencies (DI field names / repo / service Names). */
   deps?: string[];
 }
 
 const MARKER_PREFIX = "@solarch:surgical";
 
-/** Yapılandırılmış surgical yorum bloku üretir (satır sonu DAHİL DEĞİL —
- *  çağıran kendi girintisini ekler). Determinizm: listeler verildiği SIRADA
- *  yazılır (emitter sıralamayı garanti eder), boşlar düşer. */
+/** Emit structured surgical comment block (does NOT include trailing newline —
+ *  caller adds own indent). Determinism: lists written in given ORDER
+ *  (emitter guarantees sort), empty entries dropped. */
 export function surgicalMarker(input: SurgicalMarkerInput): string {
   const lines: string[] = [`// ${MARKER_PREFIX} id=${input.nodeId}#${input.member}`];
 
@@ -52,21 +52,21 @@ export function surgicalMarker(input: SurgicalMarkerInput): string {
   return lines.join("\n");
 }
 
-/** Standart NOT_IMPLEMENTED gövde satırı.
+/** Standard NOT_IMPLEMENTED body line.
  *  notImplemented("UsersService", "create") ->
  *    throw new Error("NOT_IMPLEMENTED: UsersService.create"); */
 export function notImplemented(className: string, member: string): string {
   return `throw new Error("NOT_IMPLEMENTED: ${className}.${member}");`;
 }
 
-/** Bir içerik bloğundaki surgical marker sayısını (GeneratedFile.surgicalMarkers
- *  için) sayar. Tek kaynak: emitter'lar bunu kullanır, elle saymaz. */
+/** Count surgical markers in a content block (for GeneratedFile.surgicalMarkers).
+ *  Single source: emitters use this, do not count manually. */
 export function countSurgicalMarkers(content: string): number {
   const markers = content.match(new RegExp(MARKER_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"))?.length ?? 0;
-  // DOLDURULACAK bölge sayısı = marker − dolu damgası. Codegen bir bölgeyi DETERMİNİSTİK
-  // olarak tam üretip `@solarch:filled by=codegen` damgaladıysa (ör. BullMQ queue producer),
-  // o "doldurulacak" SAYILMAZ. Aksi halde gösterilen toplam (marker) fill'in işlediğinden
-  // (NOT_IMPLEMENTED iskeletler) fazla olur → kullanıcı "71 yerine 69 ile başlıyor" görür.
+  // TO-FILL region count = markers − filled stamps. When codegen DETERMINISTICALLY
+  // completes a region and stamps `@solarch:filled by=codegen` (e.g. BullMQ queue producer),
+  // that does NOT count as "to fill". Otherwise displayed total (markers) exceeds what
+  // fill processes (NOT_IMPLEMENTED skeletons) -> user sees "starting with 69 instead of 71".
   const filled = content.match(/@solarch:filled\b/g)?.length ?? 0;
   return Math.max(0, markers - filled);
 }

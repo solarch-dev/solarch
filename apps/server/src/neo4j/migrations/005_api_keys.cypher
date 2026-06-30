@@ -1,5 +1,5 @@
--- API anahtarları (CLI/MCP istemci kimliği) — anahtar düz metin saklanmaz,
--- yalnız SHA-256 hash. Hash lookup'ı ve kullanıcı listesi için index'ler.
+-- API keys (CLI/MCP client identity) — keys are not stored in plain text,
+-- only SHA-256 hash. Indexes for hash lookup and per-user listing.
 
 CREATE CONSTRAINT api_key_id_unique IF NOT EXISTS
   FOR (k:ApiKey) REQUIRE k.id IS UNIQUE;

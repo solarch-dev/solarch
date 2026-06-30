@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ComponentName: "UserDataTable",
-  Description: "Kullanıcı tablosu",
+  Description: "User table",
   Props: [{ Name: "users", Type: "User[]", Required: true }],
   State: [{ Name: "selectedId", Type: "string | null" }],
 };
@@ -20,7 +20,7 @@ const parse = (properties: unknown) =>
   UIComponentNodeSchema.parse({ ...validBase, type: "UIComponent", properties });
 
 describe("UIComponentNodeSchema (enriched)", () => {
-  it("geçerli UIComponent'i parse eder", () => {
+  it("parses valid UIComponent", () => {
     const node = parse(validProperties);
     expect(node.properties.Props[0].Name).toBe("users");
     expect(node.properties.Props[0].Required).toBe(true);
@@ -31,7 +31,7 @@ describe("UIComponentNodeSchema (enriched)", () => {
     expect(node.properties.Props[0].Required).toBe(false);
   });
 
-  it("Events + ChildComponentRefs kabul eder", () => {
+  it("accepts Events + ChildComponentRefs", () => {
     const node = parse({
       ...validProperties,
       Events: [{ Name: "onRowClick", PayloadType: "User" }],
@@ -41,14 +41,14 @@ describe("UIComponentNodeSchema (enriched)", () => {
     expect(node.properties.ChildComponentRefs).toEqual(["UserRow", "Pagination"]);
   });
 
-  it("Props/State/Events/ChildComponentRefs default boş array", () => {
+  it("Props/State/Events/ChildComponentRefs default to empty array", () => {
     const node = parse({ ComponentName: "X", Description: "x" });
     expect(node.properties.Props).toEqual([]);
     expect(node.properties.Events).toEqual([]);
     expect(node.properties.ChildComponentRefs).toEqual([]);
   });
 
-  it("Description zorunlu", () => {
+  it("Description is required", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });

@@ -4,7 +4,7 @@ import { buildCodeGraph } from "../../ir";
 import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function storedNode(
   type: StoredNode["type"],
   properties: Record<string, unknown>,
@@ -33,7 +33,7 @@ const DTO_ID = "11111111-1111-4111-8111-111111111111";
 const ADDRESS_DTO_ID = "33333333-3333-4333-8333-333333333333";
 const ROLE_ENUM_ID = "44444444-4444-4444-8444-444444444444";
 
-/** İç içe DTO referansı (CreateUserDto.addresses -> AddressDto). */
+/** Ic ice DTO referansi (CreateUserDto.addresses -> AddressDto). */
 const ADDRESS_DTO = storedNode(
   "DTO",
   {
@@ -46,24 +46,24 @@ const ADDRESS_DTO = storedNode(
   ADDRESS_DTO_ID,
 );
 
-/** Enum referansı (CreateUserDto.role -> UserRole). */
+/** Enum referansi (CreateUserDto.role -> UserRole). */
 const ROLE_ENUM = storedNode(
   "Enum",
   {
     Name: "UserRole",
-    Description: "Kullanıcı rolü",
+    Description: "User rolu",
     BackingType: "string",
     Values: [{ Key: "ADMIN" }, { Key: "MEMBER" }],
   },
   ROLE_ENUM_ID,
 );
 
-/** Zengin, gerçekçi DTO: primitif + doğrulama + opsiyonel + dizi + enum + nested. */
+/** Zengin, gercekci DTO: primitif + dogrulama + opsiyonel + dizi + enum + nested. */
 const CREATE_USER_DTO = storedNode(
   "DTO",
   {
     Name: "CreateUserDto",
-    Description: "Kullanıcı oluşturma payload'ı",
+    Description: "User olusturma payload'i",
     Fields: [
       {
         Name: "email",
@@ -120,7 +120,7 @@ describe("emitDto", () => {
       import { UserRole } from "../enums/user-role.enum";
       import { AddressDto } from "./address.dto";
 
-      /** Kullanıcı oluşturma payload'ı */
+      /** User olusturma payload'i */
       export class CreateUserDto {
         /** Benzersiz e-posta */
         @IsString()
@@ -162,20 +162,20 @@ describe("emitDto", () => {
     `);
   });
 
-  it("dosya yolu kebab-case <feature>/dto altında", () => {
+  it("dosya yolu kebab-case <feature>/dto altinda", () => {
     const ctx = ctxFor(CREATE_USER_DTO, ADDRESS_DTO, ROLE_ENUM);
     const [file] = emitDto(ctx.graph.byId(DTO_ID)!, ctx);
-    // DTO tek başına (tüketen Controller/Service yok) -> "common" feature; dosya
-    // adı rol son-ekini ("DTO"/"Dto") TEKRARLAMAZ (create-user.dto.ts).
+    // DTO tek basina (tuketen Controller/Service yok) -> "common" feature; dosya
+    // adi rol son-ekini ("DTO"/"Dto") TEKRARLAMAZ (create-user.dto.ts).
     expect(file.path).toBe("common/dto/create-user.dto.ts");
     expect(file.path).toMatch(/\/dto\/.+\.dto\.ts$/);
     expect(file.language).toBe("typescript");
   });
 
-  it("class-validator + class-transformer import'ları sıralı ve doğru", () => {
+  it("class-validator + class-transformer import'lari sirali ve dogru", () => {
     const ctx = ctxFor(CREATE_USER_DTO, ADDRESS_DTO, ROLE_ENUM);
     const [file] = emitDto(ctx.graph.byId(DTO_ID)!, ctx);
-    // Paket import'ları göreli import'lardan önce gelir.
+    // Paket import'lari goreli import'lardan once gelir.
     expect(file.content).toContain('from "class-validator";');
     expect(file.content).toContain('import { Type } from "class-transformer";');
     const validatorIdx = file.content.indexOf('from "class-validator"');
@@ -184,7 +184,7 @@ describe("emitDto", () => {
     expect(enumImportIdx).toBeGreaterThan(validatorIdx);
   });
 
-  it("EnumRef -> @IsEnum + göreli import; NestedDTORef -> @ValidateNested + @Type + import", () => {
+  it("EnumRef -> @IsEnum + goreli import; NestedDTORef -> @ValidateNested + @Type + import", () => {
     const ctx = ctxFor(CREATE_USER_DTO, ADDRESS_DTO, ROLE_ENUM);
     const [file] = emitDto(ctx.graph.byId(DTO_ID)!, ctx);
     expect(file.content).toContain("@IsEnum(UserRole)");
@@ -205,7 +205,7 @@ describe("emitDto", () => {
     expect(file.content).toContain("@IsString({ each: true })");
   });
 
-  it("DTO gövdesi yok -> surgical marker 0; içerik tek satır sonu ile biter", () => {
+  it("DTO govdesi yok -> surgical marker 0; content ends with single newline", () => {
     const ctx = ctxFor(CREATE_USER_DTO, ADDRESS_DTO, ROLE_ENUM);
     const [file] = emitDto(ctx.graph.byId(DTO_ID)!, ctx);
     expect(file.surgicalMarkers).toBe(0);
@@ -213,29 +213,29 @@ describe("emitDto", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const ctx = ctxFor(CREATE_USER_DTO, ADDRESS_DTO, ROLE_ENUM);
     const a = emitDto(ctx.graph.byId(DTO_ID)!, ctx)[0].content;
     const b = emitDto(ctx.graph.byId(DTO_ID)!, ctx)[0].content;
     expect(a).toBe(b);
   });
 
-  it("EDGE-CASE: kayıp Enum/NestedDTO ref -> throw YOK, import atlanır, TODO bırakılır", () => {
-    // Sadece DTO eklenir; UserRole enum ve AddressDto graph'ta YOK.
+  it("EDGE-CASE: kayip Enum/NestedDTO ref -> throw NONE, import atlanir, TODO birakilir", () => {
+    // Sadece DTO eklenir; UserRole enum ve AddressDto graph'ta NONE.
     const ctx = ctxFor(CREATE_USER_DTO);
     const [file] = emitDto(ctx.graph.byId(DTO_ID)!, ctx);
-    // Tip dekoratörü/tip hâlâ yazılır.
+    // Tip dekoratoru/tip hâlâ yazilir.
     expect(file.content).toContain("@IsEnum(UserRole)");
     expect(file.content).toContain("@Type(() => AddressDto)");
-    // Çözülemeyen import'lar eklenmez.
+    // Cozulemeyen import'lar eklenmez.
     expect(file.content).not.toContain('from "../../common/enums/user-role.enum"');
     expect(file.content).not.toContain('from "./address.dto"');
-    // TODO işaretleri bırakılır.
+    // TODO isaretleri birakilir.
     expect(file.content).toContain('// TODO(solarch): Enum ref "UserRole" could not be resolved');
     expect(file.content).toContain('// TODO(solarch): NestedDTO ref "AddressDto" could not be resolved');
   });
 
-  it("EDGE-CASE: bilinmeyen DataType -> tip olduğu gibi, primitif dekoratör eklenmez", () => {
+  it("EDGE-CASE: bilinmeyen DataType -> tip oldugu gibi, primitif dekorator eklenmez", () => {
     const weird = storedNode(
       "DTO",
       {
@@ -254,17 +254,17 @@ describe("emitDto", () => {
     expect(file.content).not.toContain("@IsNumber");
   });
 
-  /* ── SELF-REFERENTIAL DTO (tree/özyinelemeli — CategoryResponse.children) ──
-   * Audit #5/#28: ağaç DTO'su temsil edilemiyordu. NestedDTORef DTO'nun KENDİSİNE
-   * işaret ederse (children: CategoryResponse[]), tip+@Type üretilir ama sınıf KENDİ
-   * dosyasından import EDİLMEZ (zaten kapsamda; self-import = TS hatası). Bu, ağaç/
-   * özyinelemeli DTO'ları mümkün kılar (kardinalite ReturnsCollection ile zaten dizi). */
+  /* ── SELF-REFERENTIAL DTO (tree/ozyinelemeli — CategoryResponse.children) ──
+   * Audit #5/#28: agac DTO'su temsil edilemiyordu. NestedDTORef DTO'nun KENDISINE
+   * isaret ederse (children: CategoryResponse[]), tip+@Type uretilir ama sinif KENDI
+   * dosyasindan import EDILMEZ (zaten kapsamda; self-import = TS hatasi). Bu, agac/
+   * ozyinelemeli DTO'lari mumkun kilar (kardinalite ReturnsCollection ile zaten dizi). */
   it("self-referential nested DTO (children) -> Self[] + @Type, kendini import ETMEZ", () => {
     const cat = storedNode(
       "DTO",
       {
         Name: "CategoryResponse",
-        Description: "kategori ağacı düğümü",
+        Description: "kategori agaci dugumu",
         Fields: [
           { Name: "id", DataType: "string", IsRequired: true, IsArray: false },
           { Name: "children", DataType: "CategoryResponse", IsRequired: false, IsArray: true, NestedDTORef: "CategoryResponse" },
@@ -274,11 +274,11 @@ describe("emitDto", () => {
     );
     const ctx = ctxFor(cat);
     const [file] = emitDto(ctx.graph.byId(cat.id)!, ctx);
-    // Özyinelemeli alan: tip Self[] + @Type(() => Self) + @ValidateNested.
+    // Ozyinelemeli alan: tip Self[] + @Type(() => Self) + @ValidateNested.
     expect(file.content).toMatch(/children\??:\s*CategoryResponse\[\]/);
     expect(file.content).toContain("@Type(() => CategoryResponse)");
     expect(file.content).toContain("@ValidateNested");
-    // KENDİNİ import ETMEZ (self-import kırık olurdu).
+    // KENDINI import ETMEZ (self-import kirik olurdu).
     expect(file.content).not.toMatch(/import \{[^}]*CategoryResponse[^}]*\} from/);
   });
 

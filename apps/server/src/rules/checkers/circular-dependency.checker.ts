@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Neo4jService } from "../../neo4j/neo4j.service";
 import type { EvaluationContext, EvaluationResult } from "../types";
 
-/** ERR_COND_001 — Service → CALLS → Service path'inde reverse var mı? */
+/** ERR_COND_001 — is there a reverse path on Service → CALLS → Service? */
 @Injectable()
 export class CircularDependencyChecker {
   constructor(private readonly neo4j: Neo4jService) {}
@@ -11,7 +11,7 @@ export class CircularDependencyChecker {
     if (ctx.edgeKind !== "CALLS") return { allowed: true };
     if (ctx.sourceNode.type !== "Service" || ctx.targetNode.type !== "Service") return { allowed: true };
 
-    // Eğer (target)-[:CALLS*1..10]->(source) path'i varsa yeni (source → target) circular yapar.
+    // If (target)-[:CALLS*1..10]->(source) path exists, new (source → target) creates a cycle.
     const result = await this.neo4j.run(
       `MATCH path = (t:Node {id: $targetId, projectId: $projectId})-[:CALLS*1..10]->(s:Node {id: $sourceId, projectId: $projectId})
        RETURN [n IN nodes(path) | coalesce(apoc.convert.fromJsonMap(n.properties).ServiceName, n.id)] AS chain

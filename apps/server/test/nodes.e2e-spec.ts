@@ -32,7 +32,7 @@ describe("Nodes E2E", () => {
     await neo4j.onModuleInit();
     await neo4j.run("CREATE CONSTRAINT node_id_unique IF NOT EXISTS FOR (n:Node) REQUIRE n.id IS UNIQUE");
     await neo4j.run("CREATE INDEX node_project_idx IF NOT EXISTS FOR (n:Node) ON (n.projectId)");
-    // Strict referential integrity — node create için project var olmalı
+// Strict referential integrity — project must exist to create node
     await neo4j.run(
       `CREATE (p:Project {id: $id, name: 'E2E Test', description: 'test', status: 'draft', createdAt: datetime(), updatedAt: datetime()})`,
       { id: projectId },
@@ -170,7 +170,7 @@ describe("Nodes E2E", () => {
     expect(res.body.error.details).toBeDefined();
   });
 
-  it("ERR_PROJECT_MISMATCH — URL ile body uyuşmuyor", async () => {
+it("ERR_PROJECT_MISMATCH — URL and body do not match", async () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/projects/${"550e8400-e29b-41d4-a716-446655449999"}/nodes`)
       .send(fixtures.Table)
@@ -178,7 +178,7 @@ describe("Nodes E2E", () => {
     expect(res.body.error.code).toBe("ERR_PROJECT_MISMATCH");
   });
 
-  it("ERR_NAME_DUPLICATE — aynı TableName ikinci kez", async () => {
+it("ERR_NAME_DUPLICATE — same TableName second time", async () => {
     await request(app.getHttpServer())
       .post(`/api/v1/projects/${projectId}/nodes`)
       .send(fixtures.Table)
@@ -190,7 +190,7 @@ describe("Nodes E2E", () => {
     expect(res.body.error.code).toBe("ERR_NAME_DUPLICATE");
   });
 
-  it("ERR_KIND_IMMUTABLE — PATCH type değiştirmeye çalışırsa", async () => {
+it("ERR_KIND_IMMUTABLE — If PATCH tries to change type", async () => {
     const created = await request(app.getHttpServer())
       .post(`/api/v1/projects/${projectId}/nodes`)
       .send(fixtures.Table);

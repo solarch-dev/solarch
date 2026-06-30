@@ -62,16 +62,16 @@ describe("Health E2E (liveness + readiness)", () => {
     try {
       const res = await request(app.getHttpServer()).get("/api/v1/health/ready").expect(503);
       expect(res.body.error.code).toBe("ERR_NOT_READY");
-      // liveness hâlâ 200 (DB down'da process öldürülmemeli)
+// liveness is still 200 (process should not be killed in DB down)
       await request(app.getHttpServer()).get("/api/v1/health").expect(200);
     } finally {
       (neo4j as { ping: typeof spy }).ping = spy;
     }
   });
 
-  it("readiness: ping asılı kalırsa timeout ile hızlı 503 (network partition)", async () => {
-    // ping hiç resolve etmesin (paket düşen partition) → controller pingWithTimeout(2s)
-    // ile yarışmalı; probe ~2s'de 503 dönmeli, 30-60s driver timeout'unu beklememeli.
+it("readiness: fast 503 (network partition) with timeout if ping hangs", async () => {
+// ping should not resolve at all (partition dropping packet) → controller pingWithTimeout(2s)
+// must compete with; The probe should return 503 in ~2s, it should not wait for the 30-60s driver timeout.
     const spy = neo4j.ping;
     (neo4j as { ping: () => Promise<void> }).ping = () => new Promise<void>(() => {});
     const start = Date.now();

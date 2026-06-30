@@ -1,39 +1,36 @@
 import { Global, Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ProjectsRepository } from "../projects/projects.repository";
-import { ClerkAuthGuard } from "./clerk-auth.guard";
+import { LocalAuthGuard } from "./local-auth.guard";
 import { ProjectAccessGuard } from "./project-access.guard";
-import { GuestController } from "./guest.controller";
-import { GuestCleanupService } from "./guest-cleanup.service";
 import { ApiKeysController } from "./api-keys/api-keys.controller";
 import { ApiKeysService } from "./api-keys/api-keys.service";
 import { ApiKeysRepository } from "./api-keys/api-keys.repository";
 
-/** Global auth katmanı: ClerkAuthGuard tüm route'lara APP_GUARD olarak uygulanır;
- *  ProjectAccessGuard alt-kaynak controller'larında @UseGuards ile kullanılır ve
- *  global export edilir.
+/** Global auth layer: LocalAuthGuard applies to all routes as APP_GUARD;
+ *  ProjectAccessGuard is used via @UseGuards on sub-resource controllers and
+ *  exported globally.
  *
- *  ProjectsRepository'yi ProjectsModule'ü import etmeden DOĞRUDAN sağlıyoruz:
- *  ProjectsModule → TabsModule zincirini import etmek (TabsController guard'ı
- *  tükettiği için) döngüsel init'e yol açıyordu. ProjectsRepository'nin tek
- *  bağımlılığı @Global Neo4jService olduğundan kendi instance'ımızı vermek güvenli. */
+ *  We provide ProjectsRepository directly without importing ProjectsModule:
+ *  importing ProjectsModule → TabsModule chain (because TabsController consumes
+ *  the guard) caused circular init. ProjectsRepository's only dependency is
+ *  @Global Neo4jService, so providing our own instance is safe. */
 @Global()
 @Module({
-  controllers: [GuestController, ApiKeysController],
+  controllers: [ApiKeysController],
   providers: [
-    // useExisting → APP_GUARD ClerkAuthGuard provider'ını yeniden kullanır; böylece
-    // testlerde overrideProvider(ClerkAuthGuard) global guard'ı da değiştirebilir.
-    ClerkAuthGuard,
-    { provide: APP_GUARD, useExisting: ClerkAuthGuard },
+    // useExisting → reuses LocalAuthGuard provider for APP_GUARD so tests can
+    // overrideProvider(LocalAuthGuard) and affect the global guard too.
+    LocalAuthGuard,
+    { provide: APP_GUARD, useExisting: LocalAuthGuard },
     ProjectsRepository,
     ProjectAccessGuard,
-    GuestCleanupService,
     ApiKeysService,
     ApiKeysRepository,
   ],
-  // ProjectsRepository de export edilir: @UseGuards(ProjectAccessGuard) guard'ı her
-  // host modülde ad-hoc instantiate ettiğinden, bağımlılığının da global görünür
-  // olması gerekir (ProjectAccessGuard'ın kendisi yetmez).
+  // ProjectsRepository is also exported: @UseGuards(ProjectAccessGuard) instantiates
+  // the guard ad hoc in each host module, so its dependency must be globally visible
+  // (exporting ProjectAccessGuard alone is not enough).
   exports: [ProjectAccessGuard, ProjectsRepository, ApiKeysService],
 })
 export class AuthModule {}

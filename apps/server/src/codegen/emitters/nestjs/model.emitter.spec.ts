@@ -6,7 +6,7 @@ import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function modelNode(properties: Record<string, unknown>, id: string): StoredNode {
   return {
     id,
@@ -48,7 +48,7 @@ const TABLE_ID = "cccccccc-3333-4333-8333-333333333333";
 
 const USER_MODEL = {
   ClassName: "User",
-  Description: "Uygulama kullanıcısı",
+  Description: "Uygulama kullanicisi",
   TableRef: "users",
   Properties: [
     { Name: "id", Type: "uuid" },
@@ -77,7 +77,7 @@ const USER_MODEL = {
 
 const POST_MODEL = {
   ClassName: "Post",
-  Description: "Kullanıcı gönderisi",
+  Description: "User gonderisi",
   Properties: [
     { Name: "id", Type: "uuid" },
     { Name: "title", Type: "string" },
@@ -86,7 +86,7 @@ const POST_MODEL = {
 };
 
 describe("emitModel", () => {
-  it("tam model (PK + kolonlar + ilişki + method) — snapshot", () => {
+  it("tam model (PK + kolonlar + iliski + method) — snapshot", () => {
     const user = modelNode(USER_MODEL, USER_ID);
     const post = modelNode(POST_MODEL, POST_ID);
     const table = tableNode({ TableName: "users", Columns: [] }, TABLE_ID);
@@ -96,7 +96,7 @@ describe("emitModel", () => {
       {
         "content": "import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
-      /** Uygulama kullanıcısı */
+      /** Uygulama kullanicisi */
       @Entity("users")
       export class User {
         @PrimaryGeneratedColumn("uuid")
@@ -126,7 +126,7 @@ describe("emitModel", () => {
     `);
   });
 
-  it("@Entity adı bağlı Table node'unun fiziksel adından gelir (tekrar çoğullanmaz)", () => {
+  it("@Entity adi bagli Table node'unun fiziksel adindan gelir (tekrar cogullanmaz)", () => {
     const model = modelNode(
       { ClassName: "Category", Description: "kategori", TableRef: "categories", Properties: [{ Name: "id", Type: "uuid" }] },
       USER_ID,
@@ -137,19 +137,19 @@ describe("emitModel", () => {
     expect(file.content).toContain('@Entity("categories")');
   });
 
-  it("@Entity adı, tekil/PascalCase TableName için table.emitter ile AYNI (ayrışmaz)", () => {
-    // Tekil/PascalCase TableName: eski hata burada ortaya çıkardı (entity 'user',
-    // migration 'users'). Artık ikisi de tableSqlName -> 'user' (birebir aynı).
+  it("@Entity adi, tekil/PascalCase TableName icin table.emitter ile AYNI (ayrismaz)", () => {
+    // Tekil/PascalCase TableName: eski hata burada ortaya cikardi (entity 'user',
+    // migration 'users'). Artik ikisi de tableSqlName -> 'user' (birebir ayni).
     const table = tableNode(
       {
         TableName: "User",
-        Description: "kullanıcı",
+        Description: "kullanici",
         Columns: [{ Name: "id", DataType: "UUID", IsPrimaryKey: true, IsNotNull: true, IsUnique: true }],
       },
       TABLE_ID,
     );
     const model = modelNode(
-      { ClassName: "User", Description: "kullanıcı", TableRef: "User", Properties: [{ Name: "id", Type: "uuid" }] },
+      { ClassName: "User", Description: "kullanici", TableRef: "User", Properties: [{ Name: "id", Type: "uuid" }] },
       USER_ID,
     );
     const { ctx } = ctxFor([model, table]);
@@ -157,30 +157,30 @@ describe("emitModel", () => {
     const entityFile = emitModel(ctx.graph.byId(USER_ID)!, ctx)[0];
     const tableFile = emitTable(ctx.graph.byId(TABLE_ID)!, ctx)[0];
 
-    // table.emitter'ın CREATE TABLE adı.
+    // table.emitter'in CREATE TABLE adi.
     const createMatch = tableFile.content.match(/CREATE TABLE "([^"]+)"/);
     expect(createMatch).not.toBeNull();
     const physicalName = createMatch![1];
-    expect(physicalName).toBe("user"); // çoğullanmaz
+    expect(physicalName).toBe("user"); // cogullanmaz
 
-    // model.emitter'ın @Entity argümanı ile BİREBİR aynı.
+    // model.emitter'in @Entity argumani ile BIREBIR ayni.
     expect(entityFile.content).toContain(`@Entity("${physicalName}")`);
   });
 
-  it("TableRef yoksa @Entity ClassName'den TÜRETİLİR (pluralizeSnake — açık tablo yok)", () => {
+  it("TableRef yoksa @Entity ClassName'den TURETILIR (pluralizeSnake — acik tablo yok)", () => {
     const model = modelNode(
       { ClassName: "OrderItem", Description: "kalem", Properties: [{ Name: "id", Type: "uuid" }] },
       USER_ID,
     );
     const { ctx } = ctxFor([model]);
     const [file] = emitModel(ctx.graph.byId(USER_ID)!, ctx);
-    // Açık TableName yok -> class adından tablo adı türetilir ("order_items"),
-    // bu da böyle bir Table eklendiğinde doğal/çoğul TableName ile tutarlıdır.
+    // Acik TableName yok -> class adindan tablo adi turetilir ("order_items"),
+    // bu da boyle bir Table eklendiginde dogal/cogul TableName ile tutarlidir.
     expect(file.content).toContain('@Entity("order_items")');
     expect(file.path).toBe("order-item/entities/order-item.entity.ts");
   });
 
-  it("PK 'id' yoksa ilk property primary key olur (uuid değil)", () => {
+  it("PK 'id' yoksa ilk property primary key olur (uuid degil)", () => {
     const model = modelNode(
       { ClassName: "Token", Description: "token", Properties: [{ Name: "value", Type: "string" }] },
       USER_ID,
@@ -191,7 +191,7 @@ describe("emitModel", () => {
     expect(file.content).toContain("value!: string;");
   });
 
-  it("EDGE-CASE: kayıp ilişki referansı -> TODO satırı, throw YOK, import YOK", () => {
+  it("EDGE-CASE: kayip iliski referansi -> TODO satiri, throw NONE, import NONE", () => {
     const model = modelNode(
       {
         ClassName: "Comment",
@@ -212,32 +212,32 @@ describe("emitModel", () => {
     expect(() => emitModel(ctx.graph.byId(USER_ID)!, ctx)).not.toThrow();
     const [file] = emitModel(ctx.graph.byId(USER_ID)!, ctx);
     expect(file.content).toContain("// TODO: relation \"author\"");
-    // Kayıp ref -> import YOK, dekoratör satırı YOK (yalnız TODO yorumu).
+    // Kayip ref -> import NONE, dekorator satiri NONE (yalniz TODO yorumu).
     expect(file.content).not.toContain("ghost.entity");
     expect(file.content).not.toContain("@ManyToOne");
   });
 
-  it("TypeORM import sıralı; OneToMany inverse-side yoksa TODO'ya düşer (decorator/import yok)", () => {
+  it("TypeORM import sirali; OneToMany inverse-side yoksa TODO'ya duser (decorator/import yok)", () => {
     const user = modelNode(USER_MODEL, USER_ID);
     const post = modelNode(POST_MODEL, POST_ID);
     const { ctx } = ctxFor([user, post]);
     const [file] = emitModel(ctx.graph.byId(USER_ID)!, ctx);
-    // OneToMany'de inverseSide ZORUNLU (TS2554); şemada InverseSide yok → ilişki TODO,
-    // OneToMany ve ilişki entity'si (Post) import EDİLMEZ.
+    // OneToMany'de inverseSide ZORUNLU (TS2554); semada InverseSide yok → iliski TODO,
+    // OneToMany ve iliski entity'si (Post) import EDILMEZ.
     expect(file.content).toMatch(/import \{ Column, Entity, PrimaryGeneratedColumn \} from "typeorm";/);
-    expect(file.content).not.toContain("@OneToMany"); // decorator emit edilmez (TODO yorumu hariç)
+    expect(file.content).not.toContain("@OneToMany"); // decorator emit edilmez (TODO yorumu haric)
     expect(file.content).not.toContain("import { Post }");
     expect(file.content).toContain('// TODO: relation "posts" (OneToMany -> Post)');
   });
 
-  it("OneToMany ters-yön: ilişkili Model'de geri-dönen @ManyToOne varsa inverse üretilir", () => {
-    // User.posts (OneToMany -> Post) + Post.author (ManyToOne -> User) → karşılıklı.
+  it("OneToMany ters-yon: iliskili Model'de geri-donen @ManyToOne varsa inverse uretilir", () => {
+    // User.posts (OneToMany -> Post) + Post.author (ManyToOne -> User) → karsilikli.
     // Beklenen: @OneToMany(() => Post, (post) => post.author) + Post import + Post[] tipi.
     const user = modelNode(USER_MODEL, USER_ID);
     const postWithAuthor = modelNode(
       {
         ClassName: "Post",
-        Description: "Kullanıcı gönderisi",
+        Description: "User gonderisi",
         Properties: [
           { Name: "id", Type: "uuid" },
           { Name: "title", Type: "string" },
@@ -256,7 +256,7 @@ describe("emitModel", () => {
     expect(file.content).not.toContain('// TODO: relation "posts"');
   });
 
-  it("PascalCase property + .NET Guid → camelCase TS üye + string + @Column uuid", () => {
+  it("PascalCase property + .NET Guid → camelCase TS uye + string + @Column uuid", () => {
     const id = "aaaa1111-2222-3333-4444-555566667777";
     const model = modelNode(
       {
@@ -277,7 +277,7 @@ describe("emitModel", () => {
     expect(file.content).toContain('type: "uuid"'); // @Column Guid→uuid
   });
 
-  it("method gövdesi surgical marker + NOT_IMPLEMENTED içerir", () => {
+  it("method govdesi surgical marker + NOT_IMPLEMENTED icerir", () => {
     const user = modelNode(USER_MODEL, USER_ID);
     const post = modelNode(POST_MODEL, POST_ID);
     const { ctx } = ctxFor([user, post]);
@@ -287,7 +287,7 @@ describe("emitModel", () => {
     expect(file.surgicalMarkers).toBe(1);
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const user = modelNode(USER_MODEL, USER_ID);
     const post = modelNode(POST_MODEL, POST_ID);
     const { ctx } = ctxFor([user, post]);
@@ -296,7 +296,7 @@ describe("emitModel", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const user = modelNode(USER_MODEL, USER_ID);
     const post = modelNode(POST_MODEL, POST_ID);
     const { ctx } = ctxFor([user, post]);
@@ -306,8 +306,8 @@ describe("emitModel", () => {
   });
 
   /* ── ENUM property -> @Column({ type: "varchar" }) + TS tipi generated enum ───
-   * #56: native Postgres enum DEĞİL (migration de VARCHAR + CHECK üretir -> tutarlı).
-   * TS alan tipi yine generated enum sınıfı (status!: OrderStatus) ve import edilir. */
+   * #56: native Postgres enum NOT (migration de VARCHAR + CHECK uretir -> tutarli).
+   * TS alan tipi yine generated enum sinifi (status!: OrderStatus) ve import edilir. */
   it("ENUM property -> @Column({ type: 'varchar' }), TS tipi generated enum + import", () => {
     const orderStatus: StoredNode = {
       id: "e1e1e1e1-1111-4111-8111-e1e1e1e1e1e1",
@@ -321,7 +321,7 @@ describe("emitModel", () => {
       version: 1,
       properties: {
         Name: "OrderStatus",
-        Description: "Sipariş durumu",
+        Description: "Order status",
         BackingType: "string",
         Values: [{ Key: "PENDING", Value: "pending" }, { Key: "PAID", Value: "paid" }],
       },
@@ -329,7 +329,7 @@ describe("emitModel", () => {
     const order = modelNode(
       {
         ClassName: "Order",
-        Description: "Sipariş",
+        Description: "Order",
         Properties: [
           { Name: "id", Type: "uuid" },
           { Name: "status", Type: "OrderStatus" },
@@ -339,7 +339,7 @@ describe("emitModel", () => {
     );
     const { ctx } = ctxFor([order, orderStatus]);
     const [file] = emitModel(ctx.graph.byId(order.id)!, ctx);
-    // @Column VARCHAR (native enum DEĞİL), TS tipi yine generated enum + import.
+    // @Column VARCHAR (native enum NOT), TS tipi yine generated enum + import.
     expect(file.content).toMatch(/@Column\(\{ type: "varchar" \}\)\s*\n\s*status!: OrderStatus;/);
     expect(file.content).toContain('import { OrderStatus }');
     expect(file.content).not.toContain('type: "enum"');

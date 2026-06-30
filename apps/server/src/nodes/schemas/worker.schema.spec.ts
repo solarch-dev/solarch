@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   WorkerName: "DailyReportWorker",
-  Description: "Günlük rapor oluşturur",
+  Description: "Generates daily report",
   Schedule: "0 0 * * *",
   TaskToExecute: "generateDailyReport",
   TimeoutSeconds: 300,
@@ -22,36 +22,36 @@ const parse = (properties: unknown) =>
   WorkerNodeSchema.parse({ ...validBase, type: "Worker", properties });
 
 describe("WorkerNodeSchema (enriched)", () => {
-  it("geçerli Worker'ı parse eder", () => {
+  it("parses valid Worker", () => {
     const node = parse(validProperties);
     expect(node.properties.RetryPolicy.MaxRetries).toBe(3);
     expect(node.properties.RetryPolicy.BackoffStrategy).toBe("exponential");
   });
 
-  it("IsEnabled default true, Concurrency opsiyonel", () => {
+  it("IsEnabled defaults to true, Concurrency optional", () => {
     const node = parse(validProperties);
     expect(node.properties.IsEnabled).toBe(true);
     expect(node.properties.Concurrency).toBeUndefined();
   });
 
-  it("RetryPolicy object olmalı (eski number reddedilir)", () => {
+  it("RetryPolicy must be object (rejects legacy number)", () => {
     expect(() => parse({ ...validProperties, RetryPolicy: 3 })).toThrow();
   });
 
-  it("geçersiz BackoffStrategy reddeder", () => {
+  it("rejects invalid BackoffStrategy", () => {
     expect(() => parse({ ...validProperties, RetryPolicy: { MaxRetries: 1, BackoffStrategy: "linear" } })).toThrow();
   });
 
-  it("MaxRetries negatif olamaz", () => {
+  it("MaxRetries cannot be negative", () => {
     expect(() => parse({ ...validProperties, RetryPolicy: { MaxRetries: -1 } })).toThrow();
   });
 
-  it("Description zorunlu", () => {
+  it("Description is required", () => {
     const { Description, ...rest } = validProperties;
     expect(() => parse(rest)).toThrow();
   });
 
-  it("TimeoutSeconds pozitif olmalı", () => {
+  it("TimeoutSeconds must be positive", () => {
     expect(() => parse({ ...validProperties, TimeoutSeconds: 0 })).toThrow();
   });
 });

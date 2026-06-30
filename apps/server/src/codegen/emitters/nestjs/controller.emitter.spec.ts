@@ -5,7 +5,7 @@ import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { StoredEdge } from "../../../edges/edges.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 const PROJECT = "00000000-0000-4000-8000-000000000000";
 const TAB = "22222222-2222-4222-8222-222222222222";
 
@@ -48,7 +48,7 @@ const USER_DTO_ID = "d5555555-5555-4555-8555-555555555555";
 
 const USERS_SERVICE = node("Service", SVC_ID, {
   ServiceName: "UsersService",
-  Description: "Kullanıcı iş mantığı",
+  Description: "User is mantigi",
   IsTransactionScoped: false,
   Methods: [{ MethodName: "create", Visibility: "public", Parameters: [], ReturnType: "User", IsAsync: true, Throws: [] }],
   Dependencies: [],
@@ -56,19 +56,19 @@ const USERS_SERVICE = node("Service", SVC_ID, {
 
 const CREATE_USER_DTO = node("DTO", CREATE_DTO_ID, {
   Name: "CreateUserDto",
-  Description: "Yeni kullanıcı girdisi",
+  Description: "Yeni kullanici girdisi",
   Fields: [{ Name: "email", DataType: "string", IsRequired: true, IsArray: false }],
 });
 
 const USER_DTO = node("DTO", USER_DTO_ID, {
   Name: "UserDto",
-  Description: "Kullanıcı çıktısı",
+  Description: "User ciktisi",
   Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
 });
 
 const USERS_CONTROLLER = node("Controller", CTRL_ID, {
   ControllerName: "UsersController",
-  Description: "Kullanıcı HTTP yüzeyi",
+  Description: "User HTTP yuzeyi",
   BaseRoute: "users",
   Version: "v1",
   Endpoints: [
@@ -116,7 +116,7 @@ describe("emitController", () => {
       import { UserDto } from "./dto/user.dto";
       import { UsersService } from "./users.service";
 
-      /** Kullanıcı HTTP yüzeyi */
+      /** User HTTP yuzeyi */
       @ApiTags("UsersController")
       @Controller("v1/users")
       export class UsersController {
@@ -167,10 +167,10 @@ describe("emitController", () => {
     `);
   });
 
-  it("gövde-alan write endpoint'i RequestDTORef'siz -> genel @Body() body bağlanır (fill serbest değişken UYDURMAZ)", () => {
-    // POST RequestDTORef OLMADAN: eskiden hiç body param bağlanmaz, surgical fill
-    // body alanlarını (productId/quantity) serbest değişken sanıp TS2304 üretirdi.
-    // Genel `@Body() body: Record<string, unknown>` bağla -> fill body.<name>'den okur.
+  it("govde-alan write endpoint'i RequestDTORef'siz -> genel @Body() body baglanir (fill serbest degisken UYDURMAZ)", () => {
+    // POST RequestDTORef WITHOUT: eskiden hic body param baglanmaz, surgical fill
+    // body alanlarini (productId/quantity) serbest degisken sanip TS2304 uretirdi.
+    // Genel `@Body() body: Record<string, unknown>` bagla -> fill body.<name>'den okur.
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "CartController",
       Description: "Sepet",
@@ -184,7 +184,7 @@ describe("emitController", () => {
           PathParams: [],
           QueryParams: [],
           StatusCodes: [{ Code: 200 }],
-          // RequestDTORef YOK
+          // RequestDTORef NONE
           ResponseDTORef: "UserDto",
           MiddlewareRefs: [],
         },
@@ -194,11 +194,11 @@ describe("emitController", () => {
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content).toContain("@Body() body: Record<string, unknown>");
     expect(file.content).toContain('import { Body, Controller');
-    // Fill hint body'nin tipsiz erişilebilir olduğunu söyler.
+    // Fill hint body'nin tipsiz erisilebilir oldugunu soyler.
     expect(file.content).toMatch(/body.*untyped|untyped.*body/i);
   });
 
-  it("DI servisini CALLS edge'inden çözer ve import eder", () => {
+  it("DI servisini CALLS edge'inden cozer ve import eder", () => {
     const ctx = ctxFor([USERS_CONTROLLER, USERS_SERVICE, CREATE_USER_DTO, USER_DTO], [
       edge("CALLS", CTRL_ID, SVC_ID, "e1111111-1111-4111-8111-111111111111"),
     ]);
@@ -207,7 +207,7 @@ describe("emitController", () => {
     expect(file.content).toContain('import { UsersService } from "./users.service";');
   });
 
-  it("Version BaseRoute'a önek olur", () => {
+  it("Version BaseRoute'a onek olur", () => {
     const ctx = ctxFor([USERS_CONTROLLER, USERS_SERVICE], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content).toContain('@Controller("v1/users")');
@@ -216,19 +216,19 @@ describe("emitController", () => {
   it("RequiresAuth -> @UseGuards(AuthGuard) + stub import", () => {
     const ctx = ctxFor([USERS_CONTROLLER, USERS_SERVICE, USER_DTO], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
-    // USERS_CONTROLLER :id endpoint'i hem auth hem roles taşır -> @UseGuards(AuthGuard, RolesGuard).
+    // USERS_CONTROLLER :id endpoint'i hem auth hem roles tasir -> @UseGuards(AuthGuard, RolesGuard).
     expect(file.content).toMatch(/@UseGuards\(AuthGuard/);
     expect(file.content).toContain('import { AuthGuard } from "../shared/guards/auth.guard";');
   });
 
-  /* ── RBAC WIRE (#39): @Roles route'una RolesGuard bağlanır ───────────────
-   * Eskiden @Roles metadata yazılıyordu ama hiçbir guard okumuyordu (ölü RBAC).
-   * Artık RequiredRoles olan endpoint @UseGuards'a RolesGuard ekler — Reflector ile
-   * ROLES_KEY metadata'sını okuyup enforce eden gerçek guard (scaffold üretir). */
+  /* ── RBAC WIRE (#39): @Roles route'una RolesGuard baglanir ───────────────
+   * Eskiden @Roles metadata yaziliyordu ama hicbir guard okumuyordu (olu RBAC).
+   * Artik RequiredRoles olan endpoint @UseGuards'a RolesGuard ekler — Reflector ile
+   * ROLES_KEY metadata'sini okuyup enforce eden gercek guard (scaffold uretir). */
   it("RequiredRoles -> @UseGuards(AuthGuard, RolesGuard) + RolesGuard import + @Roles", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "AdminController",
-      Description: "yönetim",
+      Description: "yonetim",
       BaseRoute: "admin",
       Endpoints: [
         {
@@ -244,7 +244,7 @@ describe("emitController", () => {
     expect(file.content).toContain('@Roles("admin", "owner")');
   });
 
-  it("her gövde-gerektiren metotta surgical marker + NOT_IMPLEMENTED var", () => {
+  it("her govde-gerektiren metotta surgical marker + NOT_IMPLEMENTED var", () => {
     const ctx = ctxFor([USERS_CONTROLLER, USERS_SERVICE, CREATE_USER_DTO, USER_DTO], [
       edge("CALLS", CTRL_ID, SVC_ID, "e1111111-1111-4111-8111-111111111111"),
     ]);
@@ -254,7 +254,7 @@ describe("emitController", () => {
     expect(file.content).toContain('throw new Error("NOT_IMPLEMENTED: UsersController.post");');
   });
 
-  it("DETERMİNİZM: aynı graph iki kez -> byte-identical", () => {
+  it("DETERMINISM: same graph twice -> byte-identical", () => {
     const ctx = ctxFor([USERS_CONTROLLER, USERS_SERVICE, CREATE_USER_DTO, USER_DTO], [
       edge("CALLS", CTRL_ID, SVC_ID, "e1111111-1111-4111-8111-111111111111"),
     ]);
@@ -263,14 +263,14 @@ describe("emitController", () => {
     expect(a).toBe(b);
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const ctx = ctxFor([USERS_CONTROLLER, USERS_SERVICE], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("path/query param tipleri GEÇERLİ TS'e normalize edilir (uuid/int/long -> string/number)", () => {
+  it("path/query param tipleri GECERLI TS'e normalize edilir (uuid/int/long -> string/number)", () => {
     const typed = node("Controller", CTRL_ID, {
       ControllerName: "ItemsController",
       Description: "tipli paramlar",
@@ -293,7 +293,7 @@ describe("emitController", () => {
     });
     const ctx = ctxFor([typed], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
-    // uuid -> string, int -> number, datetime -> Date (ham 'uuid'/'int' GEÇERSİZ TS idi).
+    // uuid -> string, int -> number, datetime -> Date (ham 'uuid'/'int' GECERSIZ TS idi).
     expect(file.content).toContain('@Param("id") id: string');
     expect(file.content).toContain('@Query("count") count?: number');
     expect(file.content).toContain('@Query("since") since?: Date');
@@ -301,11 +301,11 @@ describe("emitController", () => {
     expect(file.content).not.toContain(": int");
   });
 
-  /* ── EDGE-CASE: servissiz controller + kayıp DTO ref + boş StatusCodes ── */
-  it("CALLS edge yoksa constructor üretilmez; kayıp DTO ref TODO bırakır, throw etmez", () => {
+  /* ── EDGE-CASE: servissiz controller + kayip DTO ref + bos StatusCodes ── */
+  it("CALLS edge yoksa constructor uretilmez; kayip DTO ref TODO birakir, throw etmez", () => {
     const lonely = node("Controller", CTRL_ID, {
       ControllerName: "PingController",
-      Description: "Sağlık",
+      Description: "Saglik",
       BaseRoute: "ping",
       Endpoints: [
         {
@@ -321,28 +321,28 @@ describe("emitController", () => {
         },
       ],
     });
-    const ctx = ctxFor([lonely], []); // hiç service/DTO yok
+    const ctx = ctxFor([lonely], []); // hic service/DTO yok
     expect(() => emitController(ctx.graph.byId(CTRL_ID)!, ctx)).not.toThrow();
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content).not.toContain("constructor(");
     expect(file.content).toContain("@Body() dto: unknown");
     expect(file.content).toContain("MissingDto");
-    // boş StatusCodes -> @HttpCode yok
+    // bos StatusCodes -> @HttpCode yok
     expect(file.content).not.toContain("@HttpCode");
     // delegasyon ipucu yok (servis yok)
     expect(file.content).not.toContain("Delegation hint");
     expect(file.path).toBe("ping/ping.controller.ts");
   });
 
-  /* ── Finding #6: ROUTE SIRASI — statik rota'lar ":param" rota'lardan ÖNCE ── */
-  it("statik rota'lar param rota'lardan ÖNCE deklare edilir (Nest eşleşme tuzağı)", () => {
+  /* ── Finding #6: ROUTE SIRASI — statik rota'lar ":param" rota'lardan FIRST ── */
+  it("statik rota'lar param rota'lardan FIRST deklare edilir (Nest eslesme tuzagi)", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "ProductsController",
-      Description: "ürün API",
+      Description: "urun API",
       BaseRoute: "products",
       Endpoints: [
-        // Graph sırası: önce :id (param), SONRA categories (statik) -> Nest'te
-        //   "/categories" asla eşleşmezdi. Emitter bunu düzeltmeli.
+        // Graph sirasi: once :id (param), AFTER categories (statik) -> Nest'te
+        //   "/categories" asla eslesmezdi. Emitter bunu duzeltmeli.
         {
           HttpMethod: "GET", Route: ":id", RequiresAuth: false, RequiredRoles: [],
           PathParams: [{ Name: "id", Type: "uuid" }], QueryParams: [], StatusCodes: [{ Code: 200 }],
@@ -360,11 +360,11 @@ describe("emitController", () => {
     const byIdIdx = file.content.indexOf('@Get(":id")');
     expect(categoriesIdx).toBeGreaterThanOrEqual(0);
     expect(byIdIdx).toBeGreaterThanOrEqual(0);
-    // statik "categories" param ":id"'den ÖNCE çıkmalı.
+    // statik "categories" param ":id"'den FIRST cikmali.
     expect(categoriesIdx).toBeLessThan(byIdIdx);
   });
 
-  it("statik/param sıralaması STABLE — eşit ranklarda graph sırası korunur", () => {
+  it("statik/param siralamasi STABLE — esit ranklarda graph sirasi korunur", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "ItemsController",
       Description: "stable",
@@ -380,13 +380,13 @@ describe("emitController", () => {
     const featured = file.content.indexOf('@Get("featured")');
     const popular = file.content.indexOf('@Get("popular")');
     const byId = file.content.indexOf('@Get(":id")');
-    // iki statik graph sırasında (featured < popular), ikisi de param'dan önce.
+    // iki statik graph sirasinda (featured < popular), ikisi de param'dan once.
     expect(featured).toBeLessThan(popular);
     expect(popular).toBeLessThan(byId);
   });
 
-  /* ── Finding #7: LİSTE DÖNÜŞ — koleksiyon endpoint'i DTO[] döner ── */
-  it("GET + path-param YOK -> koleksiyon: ResponseDTORef DTO[] döner", () => {
+  /* ── Finding #7: LIST RETURN — koleksiyon endpoint'i DTO[] doner ── */
+  it("GET + path-param NONE -> koleksiyon: ResponseDTORef DTO[] doner", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "ProductsController",
       Description: "liste",
@@ -394,21 +394,21 @@ describe("emitController", () => {
       Endpoints: [
         // GET /, no path param -> koleksiyon -> ProductDto[].
         { HttpMethod: "GET", Route: "/", RequiresAuth: false, RequiredRoles: [], PathParams: [], QueryParams: [], StatusCodes: [{ Code: 200 }], ResponseDTORef: "ProductDto", MiddlewareRefs: [] },
-        // GET /:id -> tekil kayıt -> ProductDto (array DEĞİL).
+        // GET /:id -> tekil kayit -> ProductDto (array NOT).
         { HttpMethod: "GET", Route: ":id", RequiresAuth: false, RequiredRoles: [], PathParams: [{ Name: "id", Type: "string" }], QueryParams: [], StatusCodes: [{ Code: 200 }], ResponseDTORef: "ProductDto", MiddlewareRefs: [] },
       ],
     });
     const productDto = node("DTO", "d6666666-6666-4666-8666-666666666666", {
-      Name: "ProductDto", Description: "ürün", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
+      Name: "ProductDto", Description: "urun", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctx = ctxFor([ctrl, productDto], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content).toContain("async get(): Promise<ProductDto[]>");
-    // getById tekil döner (array DEĞİL).
+    // getById tekil doner (array NOT).
     expect(file.content).toMatch(/async getById\([\s\S]*?\): Promise<ProductDto> \{/);
   });
 
-  it("GET /me (self/tekil semantik) -> path-param olmasa da TEKİL DTO (array DEĞİL)", () => {
+  it("GET /me (self/tekil semantik) -> path-param olmasa da SINGLE DTO (array NOT)", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "AccountController",
       Description: "self",
@@ -423,10 +423,10 @@ describe("emitController", () => {
     expect(file.content).not.toContain("Promise<UserDto[]>");
   });
 
-  it("route list/findAll semantiği -> path-param olsa bile koleksiyon (DTO[])", () => {
+  it("route list/findAll semantigi -> path-param olsa bile koleksiyon (DTO[])", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "OrdersController",
-      Description: "liste-semantiği",
+      Description: "liste-semantigi",
       BaseRoute: "orders",
       Endpoints: [
         // GET /:userId/list -> path param var ama son segment "list" -> koleksiyon.
@@ -434,25 +434,25 @@ describe("emitController", () => {
       ],
     });
     const orderDto = node("DTO", "d7777777-7777-4777-8777-777777777777", {
-      Name: "OrderDto", Description: "sipariş", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
+      Name: "OrderDto", Description: "order", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctx = ctxFor([ctrl, orderDto], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content).toContain("Promise<OrderDto[]>");
   });
 
-  /* ── TEK-KAYNAK KARDİNALİTE: bildirilmiş ReturnsCollection > route sezgisi ──
-   * Endpoint'te ReturnsCollection bildirilmişse, controller route şekline DAYALI
-   * tahmini (isCollectionEndpoint) DEĞİL bildirilen alanı kullanır. service.emitter
-   * ile AYNI tek-kaynak: kanvas iki uca da aynı kararı set eder -> imzalar garantili
-   * hizalı. */
-  it("ReturnsCollection=true: route tekil-sezgili (GET /:id) olsa bile DTO[] döner", () => {
+  /* ── TEK-SOURCE KARDINALITE: bildirilmis ReturnsCollection > route sezgisi ──
+   * Endpoint'te ReturnsCollection bildirilmisse, controller route sekline DAYALI
+   * tahmini (isCollectionEndpoint) NOT bildirilen alani kullanir. service.emitter
+   * ile AYNI tek-kaynak: kanvas iki uca da ayni karari set eder -> imzalar garantili
+   * hizali. */
+  it("ReturnsCollection=true: route tekil-sezgili (GET /:id) olsa bile DTO[] doner", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "ProductsController",
-      Description: "bildirilmiş koleksiyon",
+      Description: "bildirilmis koleksiyon",
       BaseRoute: "products",
       Endpoints: [
-        // GET /:id -> route sezgisi TEKİL der (path param var); ama bildirilen true.
+        // GET /:id -> route sezgisi SINGLE der (path param var); ama bildirilen true.
         {
           HttpMethod: "GET", Route: ":id", RequiresAuth: false, RequiredRoles: [],
           PathParams: [{ Name: "id", Type: "string" }], QueryParams: [], StatusCodes: [{ Code: 200 }],
@@ -461,7 +461,7 @@ describe("emitController", () => {
       ],
     });
     const productDto = node("DTO", "d9999999-9999-4999-8999-999999999999", {
-      Name: "ProductDto", Description: "ürün", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
+      Name: "ProductDto", Description: "urun", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctx = ctxFor([ctrl, productDto], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
@@ -469,13 +469,13 @@ describe("emitController", () => {
     expect(file.content).not.toContain("Promise<ProductDto> {");
   });
 
-  it("ReturnsCollection=false: route koleksiyon-sezgili (GET /) olsa bile TEKİL döner", () => {
+  it("ReturnsCollection=false: route koleksiyon-sezgili (GET /) olsa bile SINGLE doner", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "SummaryController",
-      Description: "bildirilmiş tekil",
+      Description: "bildirilmis tekil",
       BaseRoute: "summary",
       Endpoints: [
-        // GET / (path-param yok) -> route sezgisi KOLEKSİYON der; ama bildirilen false.
+        // GET / (path-param yok) -> route sezgisi COLLECTION der; ama bildirilen false.
         {
           HttpMethod: "GET", Route: "/", RequiresAuth: false, RequiredRoles: [],
           PathParams: [], QueryParams: [], StatusCodes: [{ Code: 200 }],
@@ -484,7 +484,7 @@ describe("emitController", () => {
       ],
     });
     const productDto = node("DTO", "da999999-9999-4999-8999-999999999999", {
-      Name: "ProductDto", Description: "ürün", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
+      Name: "ProductDto", Description: "urun", Fields: [{ Name: "id", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctx = ctxFor([ctrl, productDto], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
@@ -506,14 +506,14 @@ describe("emitController", () => {
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
     expect(file.content).toContain("@CurrentUser() user: AuthUser");
     expect(file.content).toContain('import { type AuthUser, CurrentUser } from "../shared/decorators/current-user.decorator";');
-    // userId surgical gövdede erişilebilir olduğu marker'da belirtilir.
+    // userId surgical govdede erisilebilir oldugu marker'da belirtilir.
     expect(file.content).toContain("Authenticated user available as 'user' (e.g. user.id).");
   });
 
-  it("RequiresAuth=false -> @CurrentUser YOK", () => {
+  it("RequiresAuth=false -> @CurrentUser NONE", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "PublicController",
-      Description: "açık",
+      Description: "acik",
       BaseRoute: "public",
       Endpoints: [
         { HttpMethod: "GET", Route: "ping", RequiresAuth: false, RequiredRoles: [], PathParams: [], QueryParams: [], StatusCodes: [], MiddlewareRefs: [] },
@@ -525,7 +525,7 @@ describe("emitController", () => {
     expect(file.content).not.toContain("AuthUser");
   });
 
-  it("login endpoint (ResponseDTORef yok) -> Promise<AuthResponse> (void değil)", () => {
+  it("login endpoint (ResponseDTORef yok) -> Promise<AuthResponse> (void degil)", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "AuthController",
       Description: "auth",
@@ -535,7 +535,7 @@ describe("emitController", () => {
       ],
     });
     const loginDto = node("DTO", "d8888888-8888-4888-8888-888888888888", {
-      Name: "LoginDto", Description: "giriş", Fields: [{ Name: "email", DataType: "string", IsRequired: true, IsArray: false }],
+      Name: "LoginDto", Description: "giris", Fields: [{ Name: "email", DataType: "string", IsRequired: true, IsArray: false }],
     });
     const ctx = ctxFor([ctrl, loginDto], []);
     const [file] = emitController(ctx.graph.byId(CTRL_ID)!, ctx);
@@ -590,10 +590,10 @@ describe("emitController", () => {
     expect(file.content).not.toContain("@ApiBearerAuth");
   });
 
-  it("DETERMİNİZM: route-sıra + auth + array fix sonrası byte-identical", () => {
+  it("DETERMINISM: route-sira + auth + array fix sonrasi byte-identical", () => {
     const ctrl = node("Controller", CTRL_ID, {
       ControllerName: "MixController",
-      Description: "karışık",
+      Description: "karisik",
       BaseRoute: "mix",
       Endpoints: [
         { HttpMethod: "GET", Route: ":id", RequiresAuth: true, RequiredRoles: [], PathParams: [{ Name: "id", Type: "string" }], QueryParams: [], StatusCodes: [], ResponseDTORef: "UserDto", MiddlewareRefs: [] },

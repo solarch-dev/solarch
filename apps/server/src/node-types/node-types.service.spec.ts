@@ -10,7 +10,7 @@ describe("NodeTypesService", () => {
   };
   const service = new NodeTypesService(mockEngine as any);
 
-  it("listAll 21 tipi döner (19 + Phase 2A: APIGateway, Orchestrator)", () => {
+  it("listAll returns 21 types (19 + Phase 2A: APIGateway, Orchestrator)", () => {
     const list = service.listAll();
     expect(list).toHaveLength(21);
     const ids = list.map((t) => t.id);
@@ -21,7 +21,7 @@ describe("NodeTypesService", () => {
     expect(ids).toContain("Orchestrator");
   });
 
-  it("listAll'da her tip family + nameKey içerir", () => {
+  it("listAll includes family + nameKey for each type", () => {
     const list = service.listAll();
     for (const t of list) {
       expect(t.family).toBeDefined();
@@ -30,45 +30,45 @@ describe("NodeTypesService", () => {
     }
   });
 
-  it("getById Table için JSON Schema döner", () => {
+  it("getById returns JSON Schema for Table", () => {
     const detail = service.getById("Table");
     expect(detail.id).toBe("Table");
     expect(detail.nameKey).toBe("TableName");
     expect(detail.schema).toBeDefined();
   });
 
-  it("getById Table fieldHints döner (PK/FK badge)", () => {
+  it("getById returns Table fieldHints (PK/FK badge)", () => {
     const d = service.getById("Table") as any;
     expect(d.fieldHints["Columns.IsPrimaryKey"].badge).toBe("PK");
     expect(d.fieldHints["ForeignKeys"].badge).toBe("FK");
     expect(d.fieldHints["Indexes"].group).toBe("performance");
   });
 
-  it("getById Enum fieldHints döner", () => {
+  it("getById returns Enum fieldHints", () => {
     expect((service.getById("Enum") as any).fieldHints["Values"].badge).toBe("ENUM");
   });
 
-  it("getById Faz B fieldHints döner (Service DI, Controller AUTH)", () => {
+  it("getById returns Phase B fieldHints (Service DI, Controller AUTH)", () => {
     expect((service.getById("Service") as any).fieldHints["Dependencies"].badge).toBe("DI");
     expect((service.getById("Controller") as any).fieldHints["Endpoints.RequiresAuth"].badge).toBe("AUTH");
     expect((service.getById("Worker") as any).fieldHints["RetryPolicy"].badge).toBe("RETRY");
   });
 
-  it("getById Faz C fieldHints döner (Cache TTL, EnvVar SECRET, Module DEP)", () => {
+  it("getById returns Phase C fieldHints (Cache TTL, EnvVar SECRET, Module DEP)", () => {
     expect((service.getById("Cache") as any).fieldHints["TTL_Seconds"].badge).toBe("TTL");
     expect((service.getById("EnvironmentVariable") as any).fieldHints["IsSecret"].badge).toBe("SECRET");
     expect((service.getById("Module") as any).fieldHints["Dependencies"].badge).toBe("DEP");
-    // Tüm 21 tip için fieldHints artık dolu (boş tip kalmadı).
+    // fieldHints now populated for all 21 types (no empty type left).
     for (const t of service.listAll()) {
       expect(Object.keys((service.getById(t.id) as any).fieldHints).length).toBeGreaterThan(0);
     }
   });
 
-  it("getById bilinmeyen id'de NotFoundException fırlatır", () => {
+  it("getById throws NotFoundException for unknown id", () => {
     expect(() => service.getById("Foo")).toThrow(NotFoundException);
   });
 
-  it("getRulesById engine'den allow/deny listelerini döner", () => {
+  it("getRulesById returns allow/deny lists from engine", () => {
     const r = service.getRulesById("Table");
     expect(r.id).toBe("Table");
     expect(r.allowAsSource).toBeDefined();
@@ -77,7 +77,7 @@ describe("NodeTypesService", () => {
     expect(r.denyAsTarget).toBeDefined();
   });
 
-  it("getRulesById bilinmeyen id'de NotFoundException", () => {
+  it("getRulesById throws NotFoundException for unknown id", () => {
     expect(() => service.getRulesById("Foo")).toThrow(NotFoundException);
   });
 });

@@ -6,8 +6,6 @@ import { from, type Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { AiService } from "./ai.service";
 import { AiIdempotencyStore } from "./ai-idempotency.store";
-import { BillingService } from "../billing/billing.service";
-import type { Meter } from "../billing/entitlements";
 import { CurrentAuth } from "../auth/current-auth.decorator";
 import type { AuthContext } from "../auth/auth.types";
 import { ChatDto, MAX_MESSAGE_CHARS, MAX_HISTORY_ITEMS } from "./dto/chat.dto";
@@ -17,13 +15,12 @@ import type { ChatInput } from "./dto/chat.dto";
 
 @ApiTags("AI Agent")
 @UseGuards(ProjectAccessGuard)
-// AI uçları pahalı: kullanıcı başına 20 istek/dk (global 60'tan sıkı).
+// AI endpoints are expensive: 20 req/min per user (stricter than global 60).
 @Throttle({ default: { ttl: 60_000, limit: 20 } })
 @Controller("projects/:projectId/ai")
 export class AiController {
   constructor(
     private readonly service: AiService,
-    private readonly billing: BillingService,
     private readonly idem: AiIdempotencyStore,
   ) {}
 
@@ -45,23 +42,9 @@ export class AiController {
   async chat(
     @Param("projectId") projectId: string,
     @Body() body: ChatDto,
-    @CurrentAuth() auth: AuthContext,
+    @CurrentAuth() _auth: AuthContext,
   ): Promise<ChatResponse> {
-    const meter = (body as { mode?: string }).mode === "instruct" ? "questions" : "generations";
-    await this.billing.consume(auth.userId, meter); // 402 ERR_PLAN_AI / ERR_PLAN_METER
-    // Metre LLM'den ÖNCE tüketildi. Üretim tamamen başarısızsa (exception ya da
-    // hiçbir şey uygulanmadı → applied=null) tüketilen kotayı geri ver (refund).
-    // Başarı yolu hiç dokunulmadan bırakılır.
-    let result: Awaited<ReturnType<AiService["chat"]>>;
-    try {
-      result = await this.service.chat(projectId, body as any);
-    } catch (e) {
-      await this.refundQuietly(auth.userId, meter);
-      throw e;
-    }
-    if (!result.applied) {
-      await this.refundQuietly(auth.userId, meter);
-    }
+    const result = await this.service.chat(projectId, body as any);
     return ok(result);
   }
 
@@ -81,7 +64,7 @@ export class AiController {
   chatStream(
     @Param("projectId") projectId: string,
     @Query("message") message: string,
-    @CurrentAuth() auth: AuthContext,
+    @CurrentAuth() _auth: AuthContext,
     @Req() req: { on(event: "close", cb: () => void): void },
     @Query("tabId") tabId?: string,
     @Query("history") historyJson?: string,
@@ -91,24 +74,22 @@ export class AiController {
   ): Observable<MessageEvent> {
     const history = historyJson ? safeParseHistory(historyJson) : [];
     const safeMode: "agent" | "instruct" = mode === "instruct" ? "instruct" : "agent";
-    const meter = safeMode === "instruct" ? "questions" : "generations";
     const input: ChatInput = { message, tabId, history, mode: safeMode, continueRun: cont === "true" };
     const self = this;
 
-    // Client kopunca (sekme kapandı / abort butonu / ağ koptu) in-flight LLM
-    // çağrısını ve DB yazımlarını durdur → boş yere para + veri yazılmasın.
+    // On client disconnect (tab closed / abort / network drop) stop in-flight LLM
+    // calls and DB writes → avoid wasted cost + stray data.
     const ac = new AbortController();
     req.on("close", () => ac.abort());
 
-    // Plan/metre kontrolü generator'ın ilk adımında; aşılırsa SSE 'error' event'i.
     async function* guarded(): AsyncGenerator<StreamEvent> {
-      // SSE ham query → DTO doğrulamasını baypas eder; girişi burada sınırla.
+      // Raw SSE query bypasses DTO validation — bound input here.
       if (!message || message.length > MAX_MESSAGE_CHARS || history.length > MAX_HISTORY_ITEMS) {
         yield { type: "error", code: "ERR_SCHEMA_INVALID", message: "Invalid or too long input." } as StreamEvent;
         return;
       }
-      // Idempotency: aynı requestId (reconnect / çift gönderim) generation'ı
-      // yeniden çalıştırıp çift fatura + çift node yaratmasın.
+      // Idempotency: same requestId (reconnect / double submit) must not re-run
+      // generation → duplicate nodes.
       if (requestId && !self.idem.tryAcquire(requestId)) {
         yield {
           type: "error",
@@ -118,45 +99,18 @@ export class AiController {
         return;
       }
       try {
-        await self.billing.consume(auth.userId, meter);
-      } catch (e) {
-        const r = (e as { getResponse?: () => { code?: string; message?: string } }).getResponse?.() ?? {};
-        yield { type: "error", code: r.code ?? "ERR_PLAN_AI", message: r.message ?? "Plan limit exceeded." } as StreamEvent;
-        return;
-      }
-      // Metre LLM'den ÖNCE tüketildi. Üretim TAMAMEN başarısızsa kullanıcıya hiçbir
-      // değer dönmeden tüketilen kotayı bir kez geri ver (refund). Çift-refund olmaz
-      // (refunded bayrağı + repo 0'ın altına düşmez). "Değer döndü" sayılan haller refund
-      // ETMEZ: node/edge üretildi, ya da text yanıtı geldi (instruct), ya da temiz
-      // done/paused event'i (agent işini bitirdi/duraksattı). Yalnız error + tek bir şey
-      // üretmeden biten abort refund alır.
-      let served = false;
-      let refunded = false;
-      const refundIfTotalFailure = async () => {
-        if (!served && !refunded) {
-          refunded = true;
-          await self.refundQuietly(auth.userId, meter);
-        }
-      };
-      try {
         for await (const event of self.service.chatStream(projectId, input, ac.signal)) {
-          if (event.type === "node" || event.type === "edge" || event.type === "text-delta") served = true;
-          if (event.type === "done" || event.type === "paused") served = true;
-          if (event.type === "error") await refundIfTotalFailure();
           yield event;
         }
-        // Generator hiç done/error yield etmeden bitti (örn. client abort → sessiz return):
-        // kullanıcıya değer dönmediyse refund.
-        await refundIfTotalFailure();
       } catch (e) {
-        await refundIfTotalFailure();
-        throw e;
+        const r = (e as { getResponse?: () => { code?: string; message?: string } }).getResponse?.() ?? {};
+        yield { type: "error", code: r.code ?? "ERR_AI_FAILED", message: r.message ?? "AI request failed." } as StreamEvent;
       }
     }
     return from(guarded()).pipe(
       map((event: StreamEvent) => {
-        // Payload'ı düzleştir: type SSE header'da; data sadece çıplak payload.
-        // Frontend JSON.parse(e.data) doğrudan node/edge/payload alır.
+        // Flatten payload: type in SSE header; data is bare payload.
+        // Frontend JSON.parse(e.data) gets node/edge/payload directly.
         switch (event.type) {
           case "node":
           case "edge":
@@ -179,16 +133,6 @@ export class AiController {
         }
       }),
     );
-  }
-
-  /** Refund'u sessizce yap — refund'un kendisi başarısız olursa asıl yanıtı/hatayı
-   *  bastırma (best-effort iade; logla, yut). */
-  private async refundQuietly(userId: string, meter: Meter): Promise<void> {
-    try {
-      await this.billing.refund(userId, meter);
-    } catch {
-      // best-effort: iade başarısızlığı kullanıcı akışını bozmamalı.
-    }
   }
 }
 

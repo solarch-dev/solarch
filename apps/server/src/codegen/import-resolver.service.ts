@@ -20,27 +20,27 @@ function resolveCliEntry(): string {
 const CLI_ENTRY = resolveCliEntry();
 
 /* ────────────────────────────────────────────────────────────────────────
- * import-resolver.service.ts — SINIR: AI = ALGORİTMA, SİSTEM = KİMLİK + IMPORT.
+ * import-resolver.service.ts — BOUNDARY: AI = ALGORITHM, SYSTEM = IDENTITY + IMPORT.
  *
- * Surgical AI yalnız metot GÖVDESİNİ (algoritmayı) yazar ve tipleri ADLA referans eder;
- * import EKLEYEMEZ (yalnız gövde yazılır). Import'lar SİSTEMİN deterministik işidir.
+ * Surgical AI only writes method BODIES (algorithm) and references types BY NAME;
+ * it CANNOT add imports (only body is written). Imports are the SYSTEM's deterministic job.
  *
- * codegen.generate kayıtlı gövdeleri taze iskelete re-inject ederken yalnız GÖVDE saklı
- * olduğu için import'lar düşer → "Cannot find name" (owned entity/DTO/enum/exception +
- * typeorm operatörü). Bu servis üretilen projeyi geçici dizine yazıp `solarch fix-imports`
- * (AI YOK, tsc YOK — saf ts-morph fixMissingImports + owned-tercih) ile import'ları bağlar.
+ * When codegen.generate re-injects saved bodies into fresh skeleton, only BODY is preserved
+ * so imports drop -> "Cannot find name" (owned entity/DTO/enum/exception +
+ * typeorm operator). This service writes generated project to temp dir and runs `solarch fix-imports`
+ * (AI NONE, tsc NONE — pure ts-morph fixMissingImports + owned preference) to wire imports.
  *
- * Neden subprocess (in-memory değil): backend'in ts-morph/ast-core bağımlılığı YOKTUR
- * (kasıtlı izolasyon, codegen-fill ile aynı). Ayrıca typeorm operatörleri (ILike) node_modules
- * ister → sıcak deps cache symlink'lenir. En iyi çaba: cache yoksa/hata olursa dosyalar
- * AYNEN döner (üretim asla bloklanmaz).
+ * Why subprocess (not in-memory): backend's ts-morph/ast-core dependency is NONETUR
+ * (intentional isolation, same as codegen-fill). Also typeorm operators (ILike) need node_modules
+ * -> warm deps cache is symlinked. Best effort: if cache missing/error, files
+ * return UNCHANGED (generation never blocked).
  * ──────────────────────────────────────────────────────────────────────── */
 @Injectable()
 export class ImportResolverService {
   private readonly logger = new Logger(ImportResolverService.name);
 
-  /** Dolu dosyalardaki eksik import'ları çöz (deterministik). Dosyaları import'lanmış
-   *  haliyle döndürür; herhangi bir hata olursa girdiyi AYNEN döndürür (non-fatal). */
+  /** Resolve missing imports in filled files (deterministic). Returns files with imports
+   *  wired; on any error returns input UNCHANGED (non-fatal). */
   async resolveImports(files: GeneratedFile[]): Promise<GeneratedFile[]> {
     if (files.length === 0) return files;
     const dir = await mkdtemp(join(tmpdir(), "solarch-fiximp-"));
@@ -50,7 +50,7 @@ export class ImportResolverService {
         await mkdir(dirname(abs), { recursive: true });
         await writeFile(abs, f.content);
       }
-      // typeorm operatörleri (ILike vb.) node_modules ister; owned tipler ister istemez çözülür.
+      // typeorm operators (ILike etc.) need node_modules; owned types resolve regardless.
       const depsDir = await ensureFillDepsCache(this.logger);
       if (depsDir) {
         await symlink(join(depsDir, "node_modules"), join(dir, "node_modules"), "dir").catch((e) =>
@@ -70,7 +70,7 @@ export class ImportResolverService {
           res();
         });
       });
-      // import-fixed dosyaları geri oku; değişmeyenler aynen döner.
+      // Read back import-fixed files; unchanged ones return as-is.
       const resolved = await Promise.all(
         files.map(async (f) => {
           try {
@@ -80,13 +80,13 @@ export class ImportResolverService {
           }
         }),
       );
-      // GÖZLEMLENEBİLİRLİK: sessiz best-effort, başarısızlığı gizler. Kaç dosyada import
-      // gerçekten değişti logla → "app'te temiz sandın ama export'ta Cannot-find-name"
-      // sürprizi log'dan teşhis edilebilir (0 → fix-imports koşmadı/başarısız; N → çalıştı).
+      // OBSERVABILITY: silent best-effort hides failures. Log how many files actually
+      // changed imports -> "thought app was clean but export has Cannot-find-name"
+      // surprise diagnosable from log (0 -> fix-imports didn't run/failed; N -> ran).
       const changed = resolved.filter((f, i) => f.content !== files[i].content).length;
       this.logger.log(
-        `import-resolver: ${changed}/${files.length} dosyada import çözüldü` +
-          (depsDir ? "" : " (deps cache yok → yalnız owned tipler; kütüphane import'ları için cache gerekir)"),
+        `import-resolver: imports resolved in ${changed}/${files.length} files` +
+          (depsDir ? "" : " (no deps cache → owned types only; cache required for library imports)"),
       );
       return resolved;
     } catch (e) {

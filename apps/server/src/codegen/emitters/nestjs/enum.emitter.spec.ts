@@ -4,7 +4,7 @@ import { buildCodeGraph } from "../../ir";
 import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 
-/* ── Fixture yardımcıları ──────────────────────────────────────────────── */
+/* ── Fixture helpers ──────────────────────────────────────────────── */
 function enumNode(properties: Record<string, unknown>, id = "11111111-1111-4111-8111-111111111111"): StoredNode {
   return {
     id,
@@ -27,26 +27,26 @@ function ctxFor(...nodes: StoredNode[]): { ctx: EmitterContext } {
 
 const ORDER_STATUS = {
   Name: "OrderStatus",
-  Description: "Sipariş durumu",
+  Description: "Order status",
   BackingType: "string",
   Values: [
     { Key: "PENDING" },
-    { Key: "SHIPPED", Value: "shipped", Description: "Kargoya verildi" },
+    { Key: "SHIPPED", Value: "shipped", Description: "Handed to shipping" },
     { Key: "DELIVERED" },
   ],
 };
 
-describe("emitEnum (kanonik referans emitter)", () => {
+describe("emitEnum (canonical reference emitter)", () => {
   it("string backing — snapshot", () => {
     const node = enumNode(ORDER_STATUS);
     const { ctx } = ctxFor(node);
     const [file] = emitEnum(ctx.graph.byId(node.id)!, ctx);
     expect(file).toMatchInlineSnapshot(`
       {
-        "content": "/** Sipariş durumu */
+        "content": "/** Order status */
       export enum OrderStatus {
         PENDING = "PENDING",
-        /** Kargoya verildi */
+        /** Handed to shipping */
         SHIPPED = "shipped",
         DELIVERED = "DELIVERED",
       }
@@ -58,10 +58,10 @@ describe("emitEnum (kanonik referans emitter)", () => {
     `);
   });
 
-  it("int backing — sıralı + verilen değer", () => {
+  it("int backing — sequential + explicit value", () => {
     const node = enumNode({
       Name: "Priority",
-      Description: "Öncelik",
+      Description: "Priority",
       BackingType: "int",
       Values: [{ Key: "LOW" }, { Key: "MEDIUM", Value: "5" }, { Key: "HIGH" }],
     });
@@ -73,14 +73,14 @@ describe("emitEnum (kanonik referans emitter)", () => {
     expect(file.language).toBe("typescript");
   });
 
-  it("dosya yolu kebab-case common/enums altında", () => {
+  it("file path kebab-case under common/enums", () => {
     const node = enumNode(ORDER_STATUS);
     const { ctx } = ctxFor(node);
     const [file] = emitEnum(ctx.graph.byId(node.id)!, ctx);
     expect(file.path).toBe("common/enums/order-status.enum.ts");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const node = enumNode(ORDER_STATUS);
     const { ctx } = ctxFor(node);
     const [file] = emitEnum(ctx.graph.byId(node.id)!, ctx);
@@ -88,7 +88,7 @@ describe("emitEnum (kanonik referans emitter)", () => {
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const node = enumNode(ORDER_STATUS);
     const { ctx } = ctxFor(node);
     const a = emitEnum(ctx.graph.byId(node.id)!, ctx)[0].content;
@@ -96,10 +96,10 @@ describe("emitEnum (kanonik referans emitter)", () => {
     expect(a).toBe(b);
   });
 
-  it("geçersiz üye anahtarı sanitize edilir", () => {
+  it("invalid member key is sanitized", () => {
     const node = enumNode({
       Name: "WeirdEnum",
-      Description: "tuhaf",
+      Description: "weird",
       BackingType: "string",
       Values: [{ Key: "1ST-PLACE" }, { Key: "OK GO" }],
     });
@@ -109,14 +109,14 @@ describe("emitEnum (kanonik referans emitter)", () => {
     expect(file.content).toContain("OK_GO = ");
   });
 
-  /* ── STATE MACHINE (L2): Transitions -> geçiş-map + canTransition + assert ─
-   * Transitions verilirse enum'un yanına izinli-geçiş map'i + canTransition<Enum> +
-   * assert<Enum>Transition (illegal geçişte throw) üretilir. Status-güncelleyen servis
-   * bu guard'ı kullanır -> pending->delivered gibi atlamalar reddedilir. */
-  it("Transitions -> geçiş-map + canTransition + assert guard üretir", () => {
+  /* ── STATE MACHINE (L2): Transitions -> transition map + canTransition + assert ─
+   * When Transitions provided, emit allowed-transition map + canTransition<Enum> +
+   * assert<Enum>Transition (throws on illegal transition). Status-updating service
+   * uses this guard -> skips like pending->delivered are rejected. */
+  it("Transitions -> transition map + canTransition + assert guards", () => {
     const node = enumNode({
       Name: "OrderStatus",
-      Description: "Sipariş durumu",
+      Description: "Order status",
       BackingType: "string",
       Values: [
         { Key: "PENDING", Value: "pending" },
@@ -127,27 +127,27 @@ describe("emitEnum (kanonik referans emitter)", () => {
       Transitions: [
         { From: "PENDING", To: ["CONFIRMED", "CANCELLED"] },
         { From: "CONFIRMED", To: ["DELIVERED", "CANCELLED"] },
-        // DELIVERED, CANCELLED terminal (geçiş yok) -> map'te yok.
+        // DELIVERED, CANCELLED terminal (no transitions) -> not in map.
       ],
     });
     const { ctx } = ctxFor(node);
     const [file] = emitEnum(ctx.graph.byId(node.id)!, ctx);
-    // Geçiş-map'i (computed enum member key'leri).
+    // Transition map (computed enum member keys).
     expect(file.content).toMatch(/ORDER_STATUS_TRANSITIONS:\s*Partial<Record<OrderStatus/);
     expect(file.content).toContain("[OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],");
     expect(file.content).toContain("[OrderStatus.CONFIRMED]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],");
-    // Terminal durumlar map'te DEĞİL.
+    // Terminal states NOT in map.
     expect(file.content).not.toContain("[OrderStatus.DELIVERED]:");
-    // Guard'lar export edilir.
+    // Guards exported.
     expect(file.content).toContain("export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): boolean");
     expect(file.content).toContain("export function assertOrderStatusTransition(from: OrderStatus, to: OrderStatus): void");
     expect(file.content).toContain("Illegal OrderStatus transition");
   });
 
-  it("Transitions YOK -> sadece enum (geçiş kodu üretilmez)", () => {
+  it("no Transitions -> enum only (no transition code emitted)", () => {
     const node = enumNode({
       Name: "Color",
-      Description: "renk",
+      Description: "color",
       BackingType: "string",
       Values: [{ Key: "RED" }, { Key: "BLUE" }],
     });

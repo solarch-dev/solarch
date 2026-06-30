@@ -15,34 +15,33 @@ import type { EventHandlerNode, NodeKind } from "../../../nodes/schemas";
 /* ────────────────────────────────────────────────────────────────────────
  * event-handler.emitter.ts — EventHandlerNode -> <feature>/<base>.handler.ts.
  *
- * Bir EventHandler iki biçimden BİRİNİ üretir (deterministik seçim):
+ * An EventHandler emits ONE of two forms (deterministic choice):
  *
- *  1) KUYRUK-TABANLI (bir MessageQueue dinliyorsa): BullMQ @Processor.
- *       - Handler SUBSCRIBES edge'i ile (veya QueueRef property'siyle) bir
- *         MessageQueue'ya bağlıysa, o kuyruk adına @Processor("<queue>") + bir
- *         WorkerHost (process(job)) üretilir. RetryPolicy/DeadLetterQueue
- *         yorumda belgelenir (BullMQ defaultJobOptions modül kaydında verilir).
+ *  1) QUEUE-BASED (when listening to a MessageQueue): BullMQ @Processor.
+ *       - When handler connects to MessageQueue via SUBSCRIBES edge (or QueueRef
+ *         property), emit @Processor("<queue>") + WorkerHost (process(job)).
+ *         RetryPolicy/DeadLetterQueue documented in comment (BullMQ defaultJobOptions
+ *         set at module registration).
  *
- *  2) OLAY-TABANLI (kuyruk yoksa): @nestjs/event-emitter @OnEvent("<event>").
- *       - EventName'i dinleyen tek bir handler metodu (@OnEvent) üretilir.
+ *  2) EVENT-BASED (no queue): @nestjs/event-emitter @OnEvent("<event>").
+ *       - Single handler method (@OnEvent) listening to EventName.
  *
- * Her iki biçimde de gövde, handler'ın CALLS ettiği Service'i çağıracak
- * şekilde surgical marker + NOT_IMPLEMENTED taşır (DI alanları this.<svc>).
- * IsAsync -> Promise<void> + async; aksi halde void.
+ * Both forms carry surgical marker + NOT_IMPLEMENTED body to call Service via
+ * CALLS (DI fields this.<svc>). IsAsync -> Promise<void> + async; else void.
  *
- * SAF + DETERMİNİSTİK: koleksiyonlar isme göre sıralı, import'lar
- * ImportCollector ile, timestamp/random yok, içerik tek "\n" ile biter.
- * Hiçbir kayıp ref THROW ETMEZ — çözülemeyen ref ham isimden türetilir.
+ * PURE + DETERMINISTIC: collections sorted by name, imports via
+ * ImportCollector, no timestamp/random, content ends with single "\n".
+ * Missing refs NEVER THROW — unresolved ref derived from raw name.
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Bir EventHandler'ın CALLS ile bağımlı olabileceği DI kind'ları. Service
- *  birinci sınıf; Repository/Cache/ExternalService de enjekte edilebilir (gerçek
- *  emitter Service/Repository, stub Cache/ExternalService). */
+/** DI kinds an EventHandler may depend on via CALLS. Service is first-class;
+ *  Repository/Cache/ExternalService also injectable (real emitter Service/Repository,
+ *  stub Cache/ExternalService). */
 const INJECTABLE_KINDS: NodeKind[] = ["Service", "Repository", "Cache", "ExternalService"];
 
-/** Tam (gerçek) provider emitter'ı OLAN kind'lar — sınıfı `pascalCase(name)`
- *  olarak export eder. Cache + ExternalService de artık tam emitter'lı (gerçek
- *  sınıf, Stub eki YOK). service.emitter / ir.ts ile birebir tutulur. */
+/** Kinds with full (real) provider emitters — export class as `pascalCase(name)`.
+ *  Cache + ExternalService now have full emitters (real class, no Stub suffix).
+ *  Kept in sync with service.emitter / ir.ts. */
 const FULL_EMITTER_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>([
   "Service",
   "Repository",
@@ -50,13 +49,13 @@ const FULL_EMITTER_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>([
   "ExternalService",
 ]);
 
-/** Çözülmüş bir DI bağımlılığı: alan adı + sınıf tipi + (varsa) import yolu. */
+/** Resolved DI dependency: field name + class type + (optional) import path. */
 interface ResolvedDep {
   /** constructor + `this.<field>` */
   field: string;
-  /** enjekte edilen sınıf tipi */
+  /** injected class type */
   className: string;
-  /** çözülen node'un dosya yolu (import için); çözülemezse null. */
+  /** resolved node file path (for import); null when unresolved */
   filePath: string | null;
 }
 
@@ -69,7 +68,7 @@ export const emitEventHandler: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   const imports = new ImportCollector();
   imports.add("Injectable", "@nestjs/common");
 
-  // ── DI bağımlılıkları (CALLS hedefleri): handler işini Service'e devreder ──
+  // ── DI dependencies (CALLS targets): handler delegates work to Service ──
   const deps = collectDependencies(node, graph);
   for (const dep of deps) {
     if (dep.filePath) {
@@ -78,7 +77,7 @@ export const emitEventHandler: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   }
   const depFields = deps.map((d) => `this.${d.field}`);
 
-  // ── Dinlenen kuyruk: SUBSCRIBES edge'i (yoksa QueueRef property'si) ──────
+  // ── Listened queue: SUBSCRIBES edge (else QueueRef property) ──────
   const queue = resolveSubscribedQueue(node, graph);
 
   const isAsync = props.IsAsync;
@@ -89,13 +88,13 @@ export const emitEventHandler: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   if (props.Description) lines.push(`/** ${props.Description} */`);
 
   if (queue) {
-    // ── (1) KUYRUK-TABANLI: BullMQ @Processor + WorkerHost.process ──────────
+    // ── (1) QUEUE-BASED: BullMQ @Processor + WorkerHost.process ──────────
     const queueName = queueRegistrationName(queue);
     imports.add("Processor", "@nestjs/bullmq");
     imports.add("WorkerHost", "@nestjs/bullmq");
     imports.addType("Job", "bullmq");
 
-    // RetryPolicy / DeadLetterQueue belgesi (BullMQ defaultJobOptions modülde).
+    // RetryPolicy / DeadLetterQueue docs (BullMQ defaultJobOptions in module).
     const retry = props.RetryPolicy;
     if (retry) {
       const delay = retry.DelaySeconds !== undefined ? `, delaySeconds=${retry.DelaySeconds}` : "";
@@ -108,8 +107,8 @@ export const emitEventHandler: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
     lines.push(`@Processor(${JSON.stringify(queueName)})`);
     lines.push(`export class ${className} extends WorkerHost {`);
 
-    // WorkerHost türetilmiş bir sınıftır -> constructor varsa İLK ifade super()
-    //   olmalı (TS: "Constructors for derived classes must contain a 'super' call").
+    // Derived class (WorkerHost) -> constructor must call super() first
+    //   (TS: "Constructors for derived classes must contain a 'super' call").
     pushConstructor(lines, deps, /* superCall */ true);
     if (deps.length > 0) lines.push("");
 
@@ -123,7 +122,7 @@ export const emitEventHandler: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
 
     lines.push("}");
   } else {
-    // ── (2) OLAY-TABANLI: @nestjs/event-emitter @OnEvent ────────────────────
+    // ── (2) EVENT-BASED: @nestjs/event-emitter @OnEvent ────────────────────
     imports.add("OnEvent", "@nestjs/event-emitter");
 
     lines.push("@Injectable()");
@@ -163,18 +162,18 @@ export const emitEventHandler: NodeEmitter = (node: CodeNode, ctx): GeneratedFil
   return [file];
 };
 
-/* ── Yardımcılar ─────────────────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────────── */
 
-/** constructor bloğunu `lines`'a ekler. `superCall` true ise (türetilmiş sınıf,
- *  ör. WorkerHost) gövdede `super()` üretilir -> dep yoksa bile constructor
- *  çıkar (super zorunlu). superCall false + dep yok -> constructor hiç çıkmaz. */
+/** Append constructor block to `lines`. When `superCall` true (derived class,
+ *  e.g. WorkerHost) emit `super()` in body -> constructor even with no deps
+ *  (super required). superCall false + no deps -> no constructor. */
 function pushConstructor(lines: string[], deps: ResolvedDep[], superCall = false): void {
   if (deps.length === 0 && !superCall) return;
   lines.push("  constructor(");
   for (const dep of deps) {
     lines.push(`    private readonly ${dep.field}: ${dep.className},`);
   }
-  // super() gerekiyorsa gövdeye yaz; aksi halde gövde boş `{}`.
+  // Write super() in body when required; else empty `{}`.
   if (superCall) {
     lines.push("  ) {");
     lines.push("    super();");
@@ -184,7 +183,7 @@ function pushConstructor(lines: string[], deps: ResolvedDep[], superCall = false
   }
 }
 
-/** Tek bir metot bloğunu (imza + surgical gövde) `lines`'a ekler. */
+/** Append one method block (signature + surgical body) to `lines`. */
 function pushMethod(
   lines: string[],
   signature: string,
@@ -198,7 +197,7 @@ function pushMethod(
   lines.push("  }");
 }
 
-/** Surgical gövde açıklaması: handler'ın işi + (varsa) tetikleyici kuyruk/olay. */
+/** Surgical body description: handler work + (optional) triggering queue/event. */
 function bodyDescription(
   props: EventHandlerNode["properties"],
   queue: CodeNode | undefined,
@@ -211,8 +210,8 @@ function bodyDescription(
   return parts.join("\n");
 }
 
-/** Handler'ın dinlediği MessageQueue: önce SUBSCRIBES edge'i (handler kaynak),
- *  yoksa QueueRef property'si. Çözülemezse undefined (olay-tabanlı kola düşer). */
+/** MessageQueue this handler listens to: SUBSCRIBES edge first (handler source),
+ *  else QueueRef property. Undefined when unresolved (falls through to event-based). */
 function resolveSubscribedQueue(node: CodeNode, graph: CodeGraph): CodeNode | undefined {
   for (const e of graph.outEdges(node.id, "SUBSCRIBES")) {
     const tgt = graph.byId(e.targetNodeId);
@@ -226,15 +225,15 @@ function resolveSubscribedQueue(node: CodeNode, graph: CodeGraph): CodeNode | un
   return undefined;
 }
 
-/** BullMQ @Processor'a verilecek kuyruk adı: MessageQueue.QueueName (çözülen
- *  node'un adı). Determinizm: tek kaynak node.name. */
+/** Queue name for BullMQ @Processor: MessageQueue.QueueName (resolved
+ *  node name). Determinism: single source node.name. */
 function queueRegistrationName(queue: CodeNode): string {
   return queue.name;
 }
 
-/** CALLS edge hedeflerini (Service/Repository/Cache/ExternalService) DEDUP edip
- *  isme göre sıralanmış ResolvedDep listesi döndürür. Çözülemeyen ref'ler ham
- *  isimden sınıf adı türetir (filePath=null → import atlanır). Asla throw etmez. */
+/** DEDUP + name-sorted ResolvedDep list from CALLS targets
+ *  (Service/Repository/Cache/ExternalService). Unresolved refs derive class from raw
+ *  name (filePath=null -> skip import). Never throws. */
 function collectDependencies(node: CodeNode, graph: CodeGraph): ResolvedDep[] {
   const byKey = new Map<string, ResolvedDep>();
   for (const e of graph.outEdges(node.id, "CALLS")) {
@@ -252,15 +251,14 @@ function collectDependencies(node: CodeNode, graph: CodeGraph): ResolvedDep[] {
   return [...byKey.values()].sort((a, b) => cmp(a.field, b.field));
 }
 
-/** Enjekte edilen sınıf adı: tam emitter'lı kind -> `pascalCase(name)`;
- *  stub'lanan kind (Cache/ExternalService) -> `<Pascal>Stub` (stub.emitter ile
- *  TEK KAYNAK). */
+/** Injected class name: full emitter kind -> `pascalCase(name)`;
+ *  stubbed kind (Cache/ExternalService) -> `<Pascal>Stub` (SINGLE SOURCE via stub.emitter). */
 function injectedClassName(resolved: CodeNode): string {
   if (FULL_EMITTER_KINDS.has(resolved.kindOf())) return pascalCase(resolved.name);
   return stubClassName(resolved);
 }
 
-/** Deterministik string karşılaştırması. */
+/** Deterministic string compare. */
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }

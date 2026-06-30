@@ -11,7 +11,7 @@ const validBase = {
 
 const validProperties = {
   ServiceName: "StripePaymentAPI",
-  Description: "Stripe ödeme entegrasyonu",
+  Description: "Stripe payment integration",
   BaseURL: "https://api.stripe.com/v1",
   AuthType: "Bearer" as const,
   TimeoutSeconds: 30,
@@ -21,13 +21,13 @@ const parse = (properties: unknown) =>
   ExternalServiceNodeSchema.parse({ ...validBase, type: "ExternalService", properties });
 
 describe("ExternalServiceNodeSchema (enriched)", () => {
-  it("geçerli ExternalService'i parse eder (Endpoints default boş)", () => {
+  it("parses valid ExternalService (Endpoints default empty)", () => {
     const node = parse(validProperties);
     expect(node.properties.AuthType).toBe("Bearer");
     expect(node.properties.Endpoints).toEqual([]);
   });
 
-  it("Endpoints + RetryPolicy + RateLimit + CircuitBreaker kabul eder", () => {
+  it("accepts Endpoints + RetryPolicy + RateLimit + CircuitBreaker", () => {
     const node = parse({
       ...validProperties,
       Endpoints: [{ Name: "createCharge", Method: "POST", Path: "/charges" }],
@@ -39,11 +39,11 @@ describe("ExternalServiceNodeSchema (enriched)", () => {
     expect(node.properties.CircuitBreaker?.FailureThreshold).toBe(5);
   });
 
-  it("Geçersiz BaseURL'yi reddeder", () => {
+  it("rejects invalid BaseURL", () => {
     expect(() => parse({ ...validProperties, BaseURL: "not-a-url" })).toThrow();
   });
 
-  it("Bilinmeyen AuthType reddeder", () => {
+  it("rejects unknown AuthType", () => {
     expect(() => parse({ ...validProperties, AuthType: "OAuth" })).toThrow();
   });
 });

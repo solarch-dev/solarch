@@ -6,29 +6,29 @@ import type { Logger } from "@nestjs/common";
 import { fillDepsPackageJson } from "./emitters/nestjs/scaffold.emitter";
 
 /* ────────────────────────────────────────────────────────────────────────
- * codegen-fill-deps.ts — DOĞRULANMIŞ in-app fill için sıcak node_modules cache.
+ * codegen-fill-deps.ts — warm node_modules cache for VERIFIED in-app fill.
  *
- * Sunucuda tsc/jest koşmak için bağımlılıklar gerekir; her fill'de `npm install`
- * yavaş + flaky. Codegen hep aynı NestJS+TypeORM SÜPERSET'ini ürettiğinden, bu
- * superset'i BİR KEZ bir cache dizinine kurup her fill'in temp dizinine symlink'leriz.
+ * Server needs deps to run tsc/jest; `npm install` per fill is slow + flaky. Codegen
+ * always emits same NestJS+TypeORM SUPERSET, so install superset ONCE in cache dir
+ * and symlink into each fill's temp dir.
  *
- * Kanonik package.json doğrudan codegen'in buildPackageJson'undan gelir
- * (fillDepsPackageJson) → cache, üretilen kodun import edebileceği her paketi kapsar;
- * yeni bir dep eklenince otomatik dahil olur (drift yok).
+ * Canonical package.json comes directly from codegen's buildPackageJson
+ * (fillDepsPackageJson) -> cache covers every package generated code can import;
+ * new dep auto-included when added (no drift).
  *
- * Kurulum başarısızsa (npm yok / offline) null döner → çağıran --skip-verify TASLAK
- * yoluna düşer (doğrulama yoksa taslak; CLI/VS Code kanalı tsc-kanıtlı kalır).
+ * When install fails (no npm / offline) returns null -> caller falls back to --skip-verify DRAFT
+ * path (draft without verification; CLI/VS Code channel stays tsc-proven).
  * ──────────────────────────────────────────────────────────────────────── */
 
-/** Cache kök dizini. Prod'da kalıcı bir volume'e işaret etmesi için env ile ayarlanır. */
+/** Cache root directory. Set via env to point at persistent volume in prod. */
 export const FILL_DEPS_CACHE_DIR =
   process.env.SOLARCH_FILL_DEPS_CACHE ?? join(tmpdir(), "solarch-fill-deps");
 
 let ensurePromise: Promise<string | null> | null = null;
 
-/** Cache'i (bir kez) kur ve node_modules'ün bulunduğu kök yolu döndür; kurulamazsa
- *  null. Memoize: eşzamanlı fill'ler tek kuruluma biner. Başarısızlıkta promise
- *  sıfırlanır → sonraki fill tekrar dener (kalıcı kilitlenme yok). */
+/** Set up cache (once) and return root path where node_modules lives; null if
+ *  cannot install. Memoized: concurrent fills join single install. On failure promise
+ *  reset -> next fill retries (no permanent lock). */
 export function ensureFillDepsCache(logger?: Logger): Promise<string | null> {
   if (!ensurePromise) {
     ensurePromise = buildCache(logger).catch((e) => {
@@ -63,7 +63,7 @@ function npmInstall(cwd: string): Promise<void> {
     child.stderr.on("data", (d) => {
       err += String(d);
     });
-    child.on("error", reject); // npm PATH'te yoksa
+    child.on("error", reject); // npm not on PATH
     child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`npm install exit ${code}: ${err.slice(0, 300)}`))));
   });
 }

@@ -1,4 +1,4 @@
-/** DI token + arayüz — patterns servisi bu abstraction'a bağlanır,
+/** DI token + interface — patterns service connects to this abstraction,
  *  testlerde fake embedder ile override edilir. */
 export const EMBEDDINGS = Symbol("EMBEDDINGS");
 

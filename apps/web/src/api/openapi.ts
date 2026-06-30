@@ -1,11 +1,10 @@
 /** OpenAPI docs — the architecture graph projected to an OpenAPI 3.1 document the client renders
  *  with Scalar. Mirrors the Simple-View model hooks (useSimpleSketchModel / useRegenerateSketchModel):
  *  the GET serves the deterministic baseline instantly or the persisted AI-enriched ("documentized")
- *  doc; the POST forces a fresh grounded enrichment. Free, no billing gate (no code is generated). */
+ *  doc; the POST forces a fresh grounded enrichment. */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getClerkToken, throwIfNotOk } from "./client";
-import { guestHeaders } from "../lib/guest";
+import { throwIfNotOk } from "./client";
 
 /** Minimal structural view of the OpenAPI document (server type: `OpenAPIObject` from
  *  `@nestjs/swagger`). We only read `paths` (empty-state check) + `info`; Scalar consumes the
@@ -34,11 +33,9 @@ export function useOpenApi(projectId: string | undefined, stage?: "baseline") {
     staleTime: 0,
     refetchOnMount: "always",
     queryFn: async (): Promise<OpenApiResp> => {
-      const token = await getClerkToken();
       const url = `/api/v1/projects/${projectId}/codegen/openapi.json${stage ? `?stage=${stage}` : ""}`;
       const res = await fetch(url, {
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: OpenApiResp };
@@ -54,11 +51,9 @@ export function useDocumentize(projectId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<OpenApiResp> => {
-      const token = await getClerkToken();
       const res = await fetch(`/api/v1/projects/${projectId}/codegen/openapi/documentize`, {
         method: "POST",
         credentials: "include",
-        headers: token ? { Authorization: `Bearer ${token}` } : guestHeaders(),
       });
       await throwIfNotOk(res);
       const body = (await res.json()) as { success: boolean; data: OpenApiResp };

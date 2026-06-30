@@ -5,7 +5,7 @@ import type { EmitterContext } from "../../types";
 import type { StoredNode } from "../../../nodes/nodes.repository";
 import type { NodeKind } from "../../../nodes/schemas";
 
-/* ── Fixture yardımcıları (enum.emitter.spec deseni) ───────────────────── */
+/* ── Fixture helpers (enum.emitter.spec deseni) ───────────────────── */
 function storedNode(
   type: NodeKind,
   properties: Record<string, unknown>,
@@ -37,7 +37,7 @@ const USER_MODEL = storedNode(
   "Model",
   {
     ClassName: "User",
-    Description: "Kullanıcı entity",
+    Description: "User entity",
     Properties: [{ Name: "id", Type: "string" }],
     Methods: [],
   },
@@ -48,7 +48,7 @@ const USER_REPO = storedNode(
   "Repository",
   {
     RepositoryName: "UserRepository",
-    Description: "Kullanıcı veri erişimi",
+    Description: "User veri erisimi",
     EntityReference: "User",
     IsCached: false,
     CustomQueries: [
@@ -57,7 +57,7 @@ const USER_REPO = storedNode(
         QueryType: "findOne",
         Parameters: [{ Name: "email", Type: "string" }],
         ReturnType: "User | null",
-        Description: "E-postaya göre kullanıcı bul",
+        Description: "E-postaya gore kullanici bul",
       },
       {
         QueryName: "countActive",
@@ -71,7 +71,7 @@ const USER_REPO = storedNode(
 );
 
 describe("emitRepository", () => {
-  it("Model entity ile tam üretim — snapshot", () => {
+  it("Model entity ile tam uretim — snapshot", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(REPO_ID)!, ctx);
     expect(file).toMatchInlineSnapshot(`
@@ -81,7 +81,7 @@ describe("emitRepository", () => {
       import { FindOptionsWhere, Repository } from "typeorm";
       import { User } from "./entities/user.entity";
 
-      /** Kullanıcı veri erişimi */
+      /** User veri erisimi */
       @Injectable()
       export class UserRepository {
         constructor(
@@ -117,7 +117,7 @@ describe("emitRepository", () => {
 
         async findByEmail(email: string): Promise<User | null> {
           // @solarch:surgical id=33333333-3333-4333-8333-333333333333#findByEmail
-          // E-postaya göre kullanıcı bul
+          // E-postaya gore kullanici bul
           // GUIDANCE: fetch related data in a SINGLE query via join/relations (leftJoinAndSelect or find({ relations })); avoid N+1 by not relying on lazy access inside a loop.
           // deps: repo
           throw new Error("NOT_IMPLEMENTED: UserRepository.findByEmail");
@@ -131,12 +131,12 @@ describe("emitRepository", () => {
     `);
   });
 
-  it("doğru import'lar, dekoratör, DI ve entity tipi", () => {
+  it("dogru import'lar, dekorator, DI ve entity tipi", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(REPO_ID)!, ctx);
     expect(file.content).toContain(`import { Injectable } from "@nestjs/common";`);
     expect(file.content).toContain(`import { InjectRepository } from "@nestjs/typeorm";`);
-    // Repository + FindOptionsWhere (standart CRUD findById where-cast'i için).
+    // Repository + FindOptionsWhere (standart CRUD findById where-cast'i icin).
     expect(file.content).toContain(`import { FindOptionsWhere, Repository } from "typeorm";`);
     expect(file.content).toContain(`import { User } from "./entities/user.entity";`);
     expect(file.content).toContain("@Injectable()");
@@ -154,7 +154,7 @@ describe("emitRepository", () => {
     expect(file.surgicalMarkers).toBe(2);
   });
 
-  it("CustomQuery'ler isme göre sıralı (countActive < findByEmail)", () => {
+  it("CustomQuery'ler isme gore sirali (countActive < findByEmail)", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(REPO_ID)!, ctx);
     const idxCount = file.content.indexOf("async countActive");
@@ -163,12 +163,12 @@ describe("emitRepository", () => {
     expect(idxFind).toBeGreaterThan(idxCount);
   });
 
-  it("BaseClass çözülemez serbest ad -> extends ÜRETİLMEZ (TS2304 önlenir), TODO bırakılır", () => {
+  it("BaseClass cozulemez serbest ad -> extends URETILMEZ (TS2304 onlenir), TODO birakilir", () => {
     const repo = storedNode(
       "Repository",
       {
         RepositoryName: "OrderRepository",
-        Description: "Sipariş erişimi",
+        Description: "Order erisimi",
         EntityReference: "Order",
         BaseClass: "BaseRepository",
         IsCached: false,
@@ -180,7 +180,7 @@ describe("emitRepository", () => {
       "Model",
       {
         ClassName: "Order",
-        Description: "Sipariş",
+        Description: "Order",
         Properties: [{ Name: "id", Type: "string" }],
         Methods: [],
       },
@@ -188,42 +188,42 @@ describe("emitRepository", () => {
     );
     const { ctx } = ctxFor(repo, model);
     const [file] = emitRepository(ctx.graph.byId(repo.id)!, ctx);
-    // BaseClass çözülebilir bir node DEĞİL (import edilemez) -> `extends` üretmek
-    // TS2304 'Cannot find name BaseRepository' verirdi. Bunun yerine düz sınıf +
-    // TODO yorumu (geliştirici elle ekler).
+    // BaseClass cozulebilir bir node NOT (import edilemez) -> `extends` uretmek
+    // TS2304 'Cannot find name BaseRepository' verirdi. Bunun yerine duz sinif +
+    // TODO yorumu (gelistirici elle ekler).
     expect(file.content).toContain("export class OrderRepository {");
     expect(file.content).not.toContain("extends BaseRepository");
     expect(file.content).not.toContain("super();");
     expect(file.content).toContain('// TODO: BaseClass "BaseRepository"');
   });
 
-  it("dosya yolu feature klasörü + .repository.ts", () => {
+  it("dosya yolu feature klasoru + .repository.ts", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(REPO_ID)!, ctx);
     expect(file.path).toBe("user/user.repository.ts");
     expect(file.language).toBe("typescript");
   });
 
-  it("içerik tek satır sonu ile biter", () => {
+  it("content ends with single newline", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(REPO_ID)!, ctx);
     expect(file.content.endsWith("}\n")).toBe(true);
     expect(file.content.endsWith("}\n\n")).toBe(false);
   });
 
-  it("DETERMİNİZM: aynı node iki kez -> byte-identical", () => {
+  it("DETERMINISM: same node twice -> byte-identical", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const a = emitRepository(ctx.graph.byId(REPO_ID)!, ctx)[0].content;
     const b = emitRepository(ctx.graph.byId(REPO_ID)!, ctx)[0].content;
     expect(a).toBe(b);
   });
 
-  it("EDGE-CASE: kayıp EntityReference -> TODO + entity import YOK, throw YOK", () => {
+  it("EDGE-CASE: kayip EntityReference -> TODO + entity import NONE, throw NONE", () => {
     const orphan = storedNode(
       "Repository",
       {
         RepositoryName: "GhostRepository",
-        Description: "Bağlantısız repo",
+        Description: "Baglantisiz repo",
         EntityReference: "Phantom",
         IsCached: false,
         CustomQueries: [],
@@ -236,8 +236,8 @@ describe("emitRepository", () => {
     expect(result).toHaveLength(1);
     const [file] = result;
     expect(file.content).toContain(`// TODO: EntityReference "Phantom" could not be resolved`);
-    // Çözülemeyen ref -> import edilebilir sembol yok. DERLENEBİLİR kalmak için
-    // string token + Repository<any> (TS2304 'Cannot find name Phantom' önlenir).
+    // Cozulemeyen ref -> import edilebilir sembol yok. DERLENEBILIR kalmak icin
+    // string token + Repository<any> (TS2304 'Cannot find name Phantom' onlenir).
     expect(file.content).toContain('@InjectRepository("Phantom")');
     expect(file.content).toContain("private readonly repo: Repository<any>,");
     expect(file.content).not.toContain("Repository<Phantom>");
@@ -245,12 +245,12 @@ describe("emitRepository", () => {
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("CustomQuery tip normalizasyonu: UUID -> string, Date korunur (TS2304 önlenir)", () => {
+  it("CustomQuery tip normalizasyonu: UUID -> string, Date korunur (TS2304 onlenir)", () => {
     const repo = storedNode(
       "Repository",
       {
         RepositoryName: "EventRepository",
-        Description: "Olay erişimi",
+        Description: "Olay erisimi",
         EntityReference: "User",
         IsCached: false,
         CustomQueries: [
@@ -267,23 +267,23 @@ describe("emitRepository", () => {
     const { ctx } = ctxFor(repo, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(repo.id)!, ctx);
     // UUID -> string, datetime -> Date (scalarTsType); ham 'UUID'/'datetime'
-    // tanımsız semboller olurdu -> nest build TS2304 ile kırılırdı.
+    // tanimsiz semboller olurdu -> nest build TS2304 ile kirilirdi.
     expect(file.content).toContain("async findSince(id: string, since: Date): Promise<number>");
     expect(file.content).not.toContain("UUID");
     expect(file.content).not.toContain("datetime");
   });
 
-  it("CustomQuery ReturnType entity adı -> import + sınıf (User Model çözülür)", () => {
+  it("CustomQuery ReturnType entity adi -> import + sinif (User Model cozulur)", () => {
     const { ctx } = ctxFor(USER_REPO, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(REPO_ID)!, ctx);
-    // ReturnType "User | null" -> User Model'i çözülür + entity import edilir.
+    // ReturnType "User | null" -> User Model'i cozulur + entity import edilir.
     expect(file.content).toContain('import { User } from "./entities/user.entity";');
     expect(file.content).toContain("Promise<User | null>");
   });
 
-  it("CustomQuery ReturnType View adı -> VALUE import (import type DEĞİL — TS1361 önler)", () => {
-    // @ViewEntity bir SINIFTIR; gövde onu DEĞER olarak kullanabilir (repository token,
-    // QueryBuilder). `import type { ActiveUsersView }` -> TS1361. Value import olmalı.
+  it("CustomQuery ReturnType View adi -> VALUE import (import type NOT — TS1361 onler)", () => {
+    // @ViewEntity bir SINIFTIR; govde onu DEGER olarak kullanabilir (repository token,
+    // QueryBuilder). `import type { ActiveUsersView }` -> TS1361. Value import olmali.
     const viewRepo = storedNode(
       "Repository",
       {
@@ -297,7 +297,7 @@ describe("emitRepository", () => {
             QueryType: "findMany",
             Parameters: [],
             ReturnType: "ActiveUsersView",
-            Description: "Aktif kullanıcı özeti",
+            Description: "Active user summary",
           },
         ],
       },
@@ -307,7 +307,7 @@ describe("emitRepository", () => {
       "View",
       {
         ViewName: "ActiveUsersView",
-        Description: "Aktif kullanıcı özeti",
+        Description: "Active user summary",
         Definition: "SELECT id FROM users WHERE is_active = true",
         SourceTables: ["users"],
         Materialized: false,
@@ -323,9 +323,9 @@ describe("emitRepository", () => {
     expect(file.content).toMatch(/import\s*\{\s*ActiveUsersView\s*\}/);
   });
 
-  it("EDGE-CASE: boş CustomQueries -> constructor + standart CRUD (surgical YOK)", () => {
-    // #3: CustomQuery olmasa BİLE her repository TAM CRUD taşır (findById/findAll/
-    //   save/remove) — bunlar GERÇEK (deterministik) gövdelerdir, surgical DEĞİL.
+  it("EDGE-CASE: bos CustomQueries -> constructor + standart CRUD (surgical NONE)", () => {
+    // #3: CustomQuery olmasa BILE her repository TAM CRUD tasir (findById/findAll/
+    //   save/remove) — bunlar GERCEK (deterministik) govdelerdir, surgical NOT.
     const bare = storedNode(
       "Repository",
       {
@@ -340,9 +340,9 @@ describe("emitRepository", () => {
     const { ctx } = ctxFor(bare, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(bare.id)!, ctx);
     expect(file.content).toContain("private readonly repo: Repository<User>,");
-    // Standart CRUD daima üretilir (GERÇEK gövde, NOT_IMPLEMENTED yok).
+    // Standart CRUD daima uretilir (GERCEK govde, NOT_IMPLEMENTED yok).
     expect(file.content).toContain("async findById(id: string): Promise<User | null> {");
-    // findById artık findOne + relations (ilişkileri tek sorguda yükler).
+    // findById artik findOne + relations (iliskileri tek sorguda yukler).
     expect(file.content).toContain("where: { id: id } as FindOptionsWhere<User>,");
     expect(file.content).toContain("relations: this.repo.metadata.relations.map((r) => r.propertyName),");
     expect(file.content).toContain("async findAll(): Promise<User[]> {");
@@ -351,19 +351,19 @@ describe("emitRepository", () => {
     expect(file.content).toContain("return this.repo.save(entity);");
     expect(file.content).toContain("async remove(id: string): Promise<void> {");
     expect(file.content).toContain("await this.repo.delete(id);");
-    // CRUD gerçek gövde -> surgical marker / NOT_IMPLEMENTED YOK (CustomQuery yok).
+    // CRUD gercek govde -> surgical marker / NOT_IMPLEMENTED NONE (CustomQuery yok).
     expect(file.content).not.toContain("NOT_IMPLEMENTED");
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("#3 CRUD: kayıp EntityReference -> CRUD yine üretilir (any tip + FindOptionsWhere<any>), derlenebilir", () => {
-    // Kayıp entity -> Repository<any>; CRUD GERÇEK gövdelerle yine üretilir
-    //   (any tip altında da derlenir). GenericRepository diye çözülmemiş ref kalmaz.
+  it("#3 CRUD: kayip EntityReference -> CRUD yine uretilir (any tip + FindOptionsWhere<any>), derlenebilir", () => {
+    // Kayip entity -> Repository<any>; CRUD GERCEK govdelerle yine uretilir
+    //   (any tip altinda da derlenir). GenericRepository diye cozulmemis ref kalmaz.
     const orphan = storedNode(
       "Repository",
       {
         RepositoryName: "GhostRepository",
-        Description: "Bağlantısız repo",
+        Description: "Baglantisiz repo",
         EntityReference: "Phantom",
         IsCached: false,
         CustomQueries: [],
@@ -382,9 +382,9 @@ describe("emitRepository", () => {
     expect(file.surgicalMarkers).toBe(0);
   });
 
-  it("#3 CRUD: CustomQuery aynı isimde ise o CRUD metodu ATLANIR (çift metot yok)", () => {
-    // Kullanıcı kendi findById/save'ini CustomQuery olarak tanımlarsa CRUD metodu
-    //   ATLANIR (kullanıcı niyeti kazanır; çift metot derlemeyi kırardı).
+  it("#3 CRUD: CustomQuery ayni isimde ise o CRUD metodu ATLANIR (cift metot yok)", () => {
+    // User kendi findById/save'ini CustomQuery olarak tanimlarsa CRUD metodu
+    //   ATLANIR (kullanici niyeti kazanir; cift metot derlemeyi kirardi).
     const repo = storedNode(
       "Repository",
       {
@@ -401,26 +401,26 @@ describe("emitRepository", () => {
     );
     const { ctx } = ctxFor(repo, USER_MODEL);
     const [file] = emitRepository(ctx.graph.byId(repo.id)!, ctx);
-    // findById ve save CustomQuery (surgical) olarak gelir, CRUD versiyonu atlanır.
+    // findById ve save CustomQuery (surgical) olarak gelir, CRUD versiyonu atlanir.
     expect(file.content).not.toContain("return this.repo.findOneBy({ id: id }");
     expect(file.content).not.toContain("return this.repo.save(entity);");
     expect(file.content).toContain(`throw new Error("NOT_IMPLEMENTED: OverrideRepository.findById");`);
     expect(file.content).toContain(`throw new Error("NOT_IMPLEMENTED: OverrideRepository.save");`);
-    // Atlanmayan CRUD (findAll/remove) GERÇEK gövdeyle kalır.
+    // Atlanmayan CRUD (findAll/remove) GERCEK govdeyle kalir.
     expect(file.content).toContain("return this.repo.find();");
     expect(file.content).toContain("await this.repo.delete(id);");
-    // findById/save için tek tanım (çakışma yok).
+    // findById/save icin tek tanim (cakisma yok).
     expect(file.content.match(/async findById/g)?.length).toBe(1);
     expect(file.content.match(/async save/g)?.length).toBe(1);
   });
 
-  it("#3 CRUD: Table entity (Model YOK) -> PK tipi kolon DataType'ından çözülür (INT id -> number)", () => {
-    // PK alanı/tipi entity'den çözülür: id INT -> number (findById/remove param tipi).
+  it("#3 CRUD: Table entity (Model NONE) -> PK tipi kolon DataType'indan cozulur (INT id -> number)", () => {
+    // PK alani/tipi entity'den cozulur: id INT -> number (findById/remove param tipi).
     const table = storedNode(
       "Table",
       {
         TableName: "counters",
-        Description: "Sayaçlar",
+        Description: "Sayaclar",
         Columns: [
           { Name: "id", DataType: "INT", IsPrimaryKey: true, IsNotNull: true, IsUnique: true, AutoIncrement: true },
           { Name: "value", DataType: "INT", IsPrimaryKey: false, IsNotNull: true, IsUnique: false, AutoIncrement: false },
@@ -432,7 +432,7 @@ describe("emitRepository", () => {
       "Repository",
       {
         RepositoryName: "CounterRepository",
-        Description: "Sayaç erişimi",
+        Description: "Sayac erisimi",
         EntityReference: "counters",
         IsCached: false,
         CustomQueries: [],
@@ -441,18 +441,18 @@ describe("emitRepository", () => {
     );
     const { ctx } = ctxFor(repo, table);
     const [file] = emitRepository(ctx.graph.byId(repo.id)!, ctx);
-    // INT id -> number (UUID olsaydı string'di).
+    // INT id -> number (UUID olsaydi string'di).
     expect(file.content).toContain("async findById(id: number): Promise<Counter | null> {");
     expect(file.content).toContain("async remove(id: number): Promise<void> {");
   });
 
-  it("PK kolon adı 'Id' (büyük) -> findById entity property'siyle HİZALI 'id' kullanır (tek-kaynak)", () => {
-    // GERÇEK BUG: graf PK'yı 'Id' (büyük I) ile verir (to-be.json'daki tüm Table'lar
-    // böyle). entity-synthesis property'yi tsPropName ile 'id'ye normalize eder, ama
-    // repository.resolvePrimaryKey ham 'Id'yi kullanırsa -> findById entity'de OLMAYAN
+  it("PK kolon adi 'Id' (buyuk) -> findById entity property'siyle HIZALI 'id' kullanir (tek-kaynak)", () => {
+    // GERCEK BUG: graf PK'yi 'Id' (buyuk I) ile verir (to-be.json'daki tum Table'lar
+    // boyle). entity-synthesis property'yi tsPropName ile 'id'ye normalize eder, ama
+    // repository.resolvePrimaryKey ham 'Id'yi kullanirsa -> findById entity'de WITHOUT
     // kolona sorgu atar (runtime EntityPropertyNotFoundError; `as FindOptionsWhere` cast
-    // bunu DERLEMEDE gizler). findById, entity'nin gerçek property adıyla (tsPropName)
-    // HİZALI olmalı: { id: id }, { Id: id } DEĞİL.
+    // bunu DERLEMEDE gizler). findById, entity'nin gercek property adiyla (tsPropName)
+    // HIZALI olmali: { id: id }, { Id: id } NOT.
     const table = storedNode(
       "Table",
       {
@@ -468,7 +468,7 @@ describe("emitRepository", () => {
       "Repository",
       {
         RepositoryName: "WidgetRepository",
-        Description: "Widget erişimi",
+        Description: "Widget erisimi",
         EntityReference: "widgets",
         IsCached: false,
         CustomQueries: [],
@@ -481,7 +481,7 @@ describe("emitRepository", () => {
     expect(file.content).not.toContain("{ Id: id }");
   });
 
-  it("PK property adı 'Id' (Model) -> findById 'id' kullanır (tek-kaynak, Model yolu)", () => {
+  it("PK property adi 'Id' (Model) -> findById 'id' kullanir (tek-kaynak, Model yolu)", () => {
     const model = storedNode(
       "Model",
       {
@@ -496,7 +496,7 @@ describe("emitRepository", () => {
       "Repository",
       {
         RepositoryName: "GadgetRepository",
-        Description: "Gadget erişimi",
+        Description: "Gadget erisimi",
         EntityReference: "Gadget",
         IsCached: false,
         CustomQueries: [],
@@ -509,12 +509,12 @@ describe("emitRepository", () => {
     expect(file.content).not.toContain("{ Id: id }");
   });
 
-  it("EDGE-CASE: EntityReference Table (Model YOK) -> SENTETİK entity import edilir, Repository<Entity> (boot eder)", () => {
+  it("EDGE-CASE: EntityReference Table (Model NONE) -> SENTETIK entity import edilir, Repository<Entity> (boot eder)", () => {
     const table = storedNode(
       "Table",
       {
         TableName: "audit_logs",
-        Description: "Denetim kayıtları",
+        Description: "Denetim kayitlari",
         Columns: [
           {
             Name: "id",
@@ -532,7 +532,7 @@ describe("emitRepository", () => {
       "Repository",
       {
         RepositoryName: "AuditRepository",
-        Description: "Denetim erişimi",
+        Description: "Denetim erisimi",
         EntityReference: "audit_logs",
         IsCached: false,
         CustomQueries: [],
@@ -542,12 +542,12 @@ describe("emitRepository", () => {
     const { ctx } = ctxFor(repo, table);
     const [file] = emitRepository(ctx.graph.byId(repo.id)!, ctx);
     // Model yok -> Table'dan SENTEZLENEN entity (AuditLog). @InjectRepository(Entity)
-    // /Repository<Entity>/forFeature hepsi AYNI sınıfa bağlanır -> uygulama BOOT EDER.
-    // (string token + Repository<any> ARTIK ÜRETİLMEZ; bootta DI hatası verirdi.)
+    // /Repository<Entity>/forFeature hepsi AYNI sinifa baglanir -> uygulama BOOT BOOTS.
+    // (string token + Repository<any> ARTIK URETILMEZ; bootta DI hatasi verirdi.)
     expect(file.content).toContain("@InjectRepository(AuditLog)");
     expect(file.content).toContain("private readonly repo: Repository<AuditLog>,");
     expect(file.content).not.toContain("Repository<any>");
-    // Sentetik entity import'u (audit_logs -> tekil "audit-log" entity dosyası).
+    // Sentetik entity import'u (audit_logs -> tekil "audit-log" entity dosyasi).
     expect(file.content).toContain("entities/audit-log.entity");
     expect(file.content).not.toContain("// TODO: EntityReference");
   });

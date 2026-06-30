@@ -3,12 +3,11 @@ import { ProjectsController } from "./projects.controller";
 import { ProjectsService } from "./projects.service";
 import { ProjectsRepository } from "./projects.repository";
 import { TabsModule } from "../tabs/tabs.module";
-import { BillingModule } from "../billing/billing.module";
 
-// Nodes/Edges/Graph bunu import eder. TabsModule yalnızca Neo4jModule'e bağlı
-// olduğundan Projects → Tabs tek yönlü (döngü yok).
+// Nodes/Edges/Graph import this. TabsModule depends only on Neo4jModule,
+// so Projects → Tabs is one-way (no cycle).
 @Module({
-  imports: [TabsModule, BillingModule],
+  imports: [TabsModule],
   controllers: [ProjectsController],
   providers: [ProjectsService, ProjectsRepository],
   exports: [ProjectsRepository],

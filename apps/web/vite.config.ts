@@ -18,8 +18,7 @@ export default defineConfig({
   },
   server: {
     // host:true → expose dev server on the LAN (reach http://<LAN-IP>:5173 from a phone on the same network).
-    // allowedHosts:true → also allow tunnel hostnames like cloudflared/ngrok (dev-only;
-    // needed to run an HTTPS tunnel if Clerk sign-in fails over plain HTTP+IP).
+    // allowedHosts:true → allow tunnel hostnames (cloudflared/ngrok) in dev.
     host: true,
     allowedHosts: true,
     proxy: {

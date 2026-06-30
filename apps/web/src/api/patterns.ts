@@ -4,8 +4,7 @@
  *  Raw fetch + envelope (same pattern as codegen.ts / review.ts). */
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getClerkToken, throwIfNotOk } from "./client";
-import { guestHeaders } from "../lib/guest";
+import { throwIfNotOk } from "./client";
 
 export interface PatternSummary {
   id: string;
@@ -28,10 +27,8 @@ export interface StoredPattern extends PatternSummary {
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getClerkToken();
   return {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : guestHeaders()),
   };
 }
 

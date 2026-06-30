@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConflictException } from "@nestjs/common";
 
-// LLM factory mock — scriptli AIMessage dizisi (her invoke sıradakini döner).
-// Error instance dönerse invoke throw eder (exception senaryosu).
+// LLM factory mock — scripted AIMessage queue (each invoke returns the next item).
+// If an Error instance is returned, invoke throws (exception scenario).
 const h = vi.hoisted(() => ({ responses: [] as any[], idx: 0, onInvoke: null as null | (() => void), sawContractCheck: false }));
 
 vi.mock("./providers/llm.factory", () => ({
@@ -40,7 +40,7 @@ function makeService() {
   const nodes = {
     create: vi.fn(async (_p: string, input: any) => ({ id: ids[createIdx++], type: input.type, properties: input.properties })),
     delete: vi.fn(async () => true),
-    list: vi.fn(async () => [] as any[]), // contract-check için (varsayılan: boşluk yok)
+    list: vi.fn(async () => [] as any[]), // contract-check (default: no gaps)
   };
   const edges = {
     create: vi.fn(async (_p: string, input: any) => ({ id: "edge-1", sourceNodeId: input.sourceNodeId, targetNodeId: input.targetNodeId, kind: input.kind, properties: input.properties })),
@@ -59,33 +59,33 @@ async function collect(gen: AsyncGenerator<any>) {
   return out;
 }
 
-const input = { message: "kur", history: [], mode: "agent" as const, continueRun: false };
+const input = { message: "build", history: [], mode: "agent" as const, continueRun: false };
 
 describe("AiService.chatStreamAgent — orphan rollback", () => {
   beforeEach(() => { h.responses = []; h.idx = 0; h.onInvoke = null; h.sawContractCheck = false; });
 
-  it("correction limit sonrası orphan node temizlenir, bağlı olanlar korunur", async () => {
-    // turn1: A,B yarat · turn2: A→B edge + C(orphan) · turn3-5: tool yok (done + 2 correction)
+  it("after correction limit orphan node is removed, connected ones preserved", async () => {
+    // turn1: create A,B · turn2: A→B edge + C(orphan) · turn3-5: no tools (done + 2 corrections)
     h.responses = [
       aiMsg([nodeCall("Service", { ServiceName: "A" }), nodeCall("Service", { ServiceName: "B" })]),
       aiMsg([edgeCall(A, B), nodeCall("Service", { ServiceName: "C" })]),
-      aiMsg([]), aiMsg([]), aiMsg([], "bitti"),
+      aiMsg([]), aiMsg([]), aiMsg([], "done"),
     ];
     const { service, nodes } = makeService();
     const ev = await collect(service.chatStream(projectId, input));
 
-    // C silindi (orphan), A/B silinmedi
+    // C deleted (orphan), A/B kept
     expect(nodes.delete).toHaveBeenCalledTimes(1);
     expect(nodes.delete).toHaveBeenCalledWith(projectId, C);
     const removed = ev.filter((e) => e.type === "removed");
     expect(removed).toHaveLength(1);
     expect(removed[0].data.id).toBe(C);
     const done = ev.find((e) => e.type === "done");
-    expect(done.counts.nodes).toBe(2); // A,B kaldı
+    expect(done.counts.nodes).toBe(2); // A,B remain
   });
 
-  it("exception'da o ana dek yaratılan orphan temizlenir + error event akar", async () => {
-    h.responses = [aiMsg([nodeCall("Service", { ServiceName: "A" })]), new Error("llm patladı")];
+  it("on exception, orphan created so far is cleaned up + error event flows", async () => {
+    h.responses = [aiMsg([nodeCall("Service", { ServiceName: "A" })]), new Error("llm crashed")];
     const { service, nodes } = makeService();
     const ev = await collect(service.chatStream(projectId, input));
 
@@ -94,21 +94,21 @@ describe("AiService.chatStreamAgent — orphan rollback", () => {
     expect(ev.some((e) => e.type === "error" && e.code === "ERR_AI_GENERATION_FAILED")).toBe(true);
   });
 
-  it("abort'ta rollback YOK (yarım graf kayıtlı kalır — mevcut sözleşme)", async () => {
+  it("on abort no rollback (partial graph stays saved — current contract)", async () => {
     const ac = new AbortController();
-    ac.abort(); // baştan iptal
+    ac.abort(); // cancel from the start
     h.responses = [aiMsg([nodeCall("Service", { ServiceName: "A" })])];
     const { service, nodes } = makeService();
     const ev = await collect(service.chatStream(projectId, input, ac.signal));
 
     expect(nodes.delete).not.toHaveBeenCalled();
     expect(ev.some((e) => e.type === "removed")).toBe(false);
-    expect(ev.some((e) => e.type === "error")).toBe(false); // sessiz return
+    expect(ev.some((e) => e.type === "error")).toBe(false); // silent return
   });
 
-  it("adım limiti (MAX_TURNS) → paused event; orphan TEMİZLENMEZ ('Devam et' için korunur)", async () => {
-    // Her tur geçerli node yarat (başarı → breaker tetiklenmez) + hiç durma →
-    // MAX_TURNS'e (env default 120) kadar sürer → paused (error/done DEĞİL).
+  it("step limit (MAX_TURNS) → paused event; orphan NOT cleaned (preserved for Continue)", async () => {
+    // Each turn creates a valid node (success → breaker not triggered) + never stops →
+    // runs until MAX_TURNS (env default 120) → paused (not error/done).
     let n = 0;
     h.responses = Array.from({ length: 130 }, () => aiMsg([nodeCall("Service", { ServiceName: "S" })]));
     const { service, nodes } = makeService();
@@ -118,66 +118,66 @@ describe("AiService.chatStreamAgent — orphan rollback", () => {
     const paused = ev.find((e) => e.type === "paused");
     expect(paused).toBeTruthy();
     expect(paused.code).toBe("MAX_TURNS_REACHED");
-    // ORPHAN TEMİZLENMEZ — kısmi mimari korunur, Devam et ile bağlanacak.
+    // Orphan NOT cleaned — partial architecture preserved for Continue.
     expect(nodes.delete).not.toHaveBeenCalled();
     expect(ev.some((e) => e.type === "removed")).toBe(false);
     expect(ev.some((e) => e.type === "error")).toBe(false);
     expect(ev.some((e) => e.type === "done")).toBe(false);
   }, 20_000);
 
-  it("devre kesici: tekrarlayan illegal edge MAX_TURNS'e kadar thrash etmez", async () => {
-    // turn1: A,B yarat · turn2+: aynı A→B edge'i (illegal) 30 kez. Breaker olmadan
-    // 30+ tur thrash ederdi; breaker ~8 ardışık başarısızlıkta durmalı.
+  it("circuit breaker: repeated illegal edge does not thrash until MAX_TURNS", async () => {
+    // turn1: create A,B · turn2+: same A→B edge (illegal) 30 times. Without breaker
+    // would thrash 30+ turns; breaker should stop after ~8 consecutive failures.
     h.responses = [
       aiMsg([nodeCall("Service", { ServiceName: "A" }), nodeCall("Service", { ServiceName: "B" })]),
       ...Array.from({ length: 30 }, () => aiMsg([edgeCall(A, B)])),
     ];
     const { service, nodes, edges } = makeService();
-    edges.create.mockRejectedValue(new ConflictException({ code: "ERR_NOT_WHITELISTED", message: "izinli değil" }));
+    edges.create.mockRejectedValue(new ConflictException({ code: "ERR_NOT_WHITELISTED", message: "not allowed" }));
     const ev = await collect(service.chatStream(projectId, input));
 
-    // Erken durdu: 30 illegal turdan çok önce (A,B turu + ~8 ardışık başarısızlık).
+    // Stopped early: well before 30 illegal turns (A,B turn + ~8 consecutive failures).
     expect(h.idx).toBeLessThanOrEqual(10);
-    // Aynı edge yalnız BİR kez DB'ye gitti; gerisi short-circuit (token tasarrufu).
+    // Same edge hit DB only ONCE; rest short-circuited (token savings).
     expect(edges.create).toHaveBeenCalledTimes(1);
-    // Graceful done (ERR_MAX_TURNS error DEĞİL).
+    // Graceful done (not ERR_MAX_TURNS error).
     const done = ev.find((e) => e.type === "done");
     expect(done).toBeTruthy();
     expect(done.message).toContain("violate the architecture rules");
     expect(ev.some((e) => e.type === "error" && e.code === "ERR_MAX_TURNS")).toBe(false);
-    // A,B bağlanamadı → orphan temizlendi.
+    // A,B could not connect → orphans cleaned up.
     expect(ev.filter((e) => e.type === "removed")).toHaveLength(2);
     expect(nodes.delete).toHaveBeenCalledTimes(2);
   });
 
-  it("contract-check: gövde-alan endpoint input DTO'su olmadan -> LLM'e CONTRACT_CHECK geri bildirilir", async () => {
-    // Diyagram-AI'ın ürettiği graf: bir Controller, POST endpoint'i RequestDTORef OLMADAN
-    // (lintContracts Rule 1 boşluğu). LLM "done" deyince contract-check tetiklenip geri besler.
+  it("contract-check: body-field endpoint without input DTO → CONTRACT_CHECK fed back to LLM", async () => {
+    // Graph produced by diagram-AI: Controller with POST endpoint without RequestDTORef
+    // (lintContracts Rule 1 gap). When LLM says "done", contract-check triggers feedback.
     const ctrlNode = {
       id: "c1", type: "Controller",
       properties: {
-        ControllerName: "OrderController", Description: "sipariş", BaseRoute: "orders",
+        ControllerName: "OrderController", Description: "order", BaseRoute: "orders",
         Endpoints: [{ HttpMethod: "POST", Route: "/", RequiresAuth: false, RequiredRoles: [], PathParams: [], QueryParams: [], StatusCodes: [], MiddlewareRefs: [] }],
       },
     };
-    // LLM hiç tool çağırmaz (hemen done) → orphan yok → contract-check; boşluk hep var (LLM düzeltmiyor sim.).
-    h.responses = [aiMsg([], "bitti"), aiMsg([], "tekrar"), aiMsg([], "tamam")];
+    // LLM calls no tools (immediate done) → no orphan → contract-check; gap always present (LLM does not fix in sim).
+    h.responses = [aiMsg([], "done"), aiMsg([], "retry"), aiMsg([], "done")];
     const { service, nodes } = makeService();
     nodes.list.mockResolvedValue([ctrlNode] as any);
     await collect(service.chatStream(projectId, input));
-    expect(h.sawContractCheck).toBe(true); // sözleşme boşluğu üretim-anında LLM'e bildirildi
+    expect(h.sawContractCheck).toBe(true); // contract gap reported to LLM at generation time
   });
 
-  it("contract-check: graf TAM (boşluk yok) -> CONTRACT_CHECK geri bildirimi YOK", async () => {
-    h.responses = [aiMsg([], "bitti")];
-    const { service } = makeService(); // nodes.list varsayılan [] -> boşluk yok
+  it("contract-check: graph complete (no gaps) → no CONTRACT_CHECK feedback", async () => {
+    h.responses = [aiMsg([], "done")];
+    const { service } = makeService(); // nodes.list default [] → no gaps
     await collect(service.chatStream(projectId, input));
     expect(h.sawContractCheck).toBe(false);
   });
 
-  it("backend kapanırsa (Pool is closed) → anında dur, LLM düzeltme turu YOK, cleanup YOK", async () => {
-    // turn1: A yarat (başarı) · turn2: B yarat → DB havuzu kapalı (hot-reload/SIGTERM).
-    // Eski hata sınıflandırması bunu ERR_INTERNAL sayıp 8+ tur "düzelt" diye thrash ederdi.
+  it("if backend closes (Pool is closed) → stop immediately, no LLM correction turn, no cleanup", async () => {
+    // turn1: create A (success) · turn2: create B → DB pool closed (hot-reload/SIGTERM).
+    // Old error classification would treat as ERR_INTERNAL and thrash 8+ "fix" turns.
     h.responses = [
       aiMsg([nodeCall("Service", { ServiceName: "A" })]),
       ...Array.from({ length: 20 }, () => aiMsg([nodeCall("Service", { ServiceName: "B" })])),
@@ -191,21 +191,21 @@ describe("AiService.chatStreamAgent — orphan rollback", () => {
     });
     const ev = await collect(service.chatStream(projectId, input));
 
-    // Anında durdu: thrash yok (yalnız 2 LLM turu — A başarı + B kapalı havuz).
+    // Stopped immediately: no thrash (only 2 LLM turns — A success + B closed pool).
     expect(h.idx).toBeLessThanOrEqual(2);
-    // Cleanup beyhude (havuz kapalı) → DENENMEZ; orphan-skipped duvarı basılmaz.
+    // Cleanup futile (pool closed) → NOT attempted.
     expect(nodes.delete).not.toHaveBeenCalled();
     expect(ev.some((e) => e.type === "removed")).toBe(false);
-    // Net terminal sinyal — ERR_INTERNAL/ERR_AI_GENERATION_FAILED değil.
+    // Clear terminal signal — not ERR_INTERNAL/ERR_AI_GENERATION_FAILED.
     expect(ev.some((e) => e.type === "error" && e.code === "ERR_BACKEND_UNAVAILABLE")).toBe(true);
   });
 
-  it("cleanup sırasında delete fırlatsa bile stream çökmeden error event akar", async () => {
+  it("if delete throws during cleanup stream still emits error event without crashing", async () => {
     h.responses = [aiMsg([nodeCall("Service", { ServiceName: "A" })]), new Error("boom")];
     const { service, nodes } = makeService();
-    nodes.delete.mockRejectedValueOnce(new Error("delete db hatası"));
+    nodes.delete.mockRejectedValueOnce(new Error("delete db error"));
     const ev = await collect(service.chatStream(projectId, input));
-    // delete patladı ama error event yine de geldi (her delete kendi try/catch'inde)
+    // delete failed but error event still arrived (each delete in its own try/catch)
     expect(ev.some((e) => e.type === "error" && e.code === "ERR_AI_GENERATION_FAILED")).toBe(true);
   });
 });
