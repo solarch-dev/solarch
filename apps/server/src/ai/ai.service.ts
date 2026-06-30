@@ -220,12 +220,12 @@ export class AiService {
     const { nodes, edges } = await this.projectsRepo.getGraph(projectId);
     const systemPrompt = buildInstructPrompt(nodes, edges);
 
-    // Instruct mode: v4-flash (TTFT 300-500ms, sohbet anlık görünüm). toolCalling=true
-    // sadece response_format=json_object'i kapatmak için (free text dönecek, JSON değil).
+    // Instruct mode: the chat/instruct tier (resolved per active provider). toolCalling=true
+    // only to drop response_format=json_object so the model returns free text (not JSON).
     const llm = getGenerationChat({
       toolCalling: true,
       streaming: true,
-      model: env.DEEPSEEK_MODEL_INSTRUCT,
+      tier: "instruct",
     });
 
     const messages: BaseMessage[] = [
@@ -310,8 +310,8 @@ export class AiService {
         patternHits,
       ) + STREAMING_DIRECTIVE;
 
-    // Agent mode: v4-pro (reasoning tier, mimari kararlar için kapasite yüksek).
-    const llm = getGenerationChat({ toolCalling: true, model: env.DEEPSEEK_MODEL_AGENT });
+    // Agent mode: the high-capability "agent" tier (resolved per active provider).
+    const llm = getGenerationChat({ toolCalling: true, tier: "agent" });
     const llmWithTools = llm.bindTools!([
       { name: CREATE_NODE_TOOL_NAME, description: CREATE_NODE_DESCRIPTION, schema: CreateNodeArgsSchema },
       { name: CREATE_EDGE_TOOL_NAME, description: CREATE_EDGE_DESCRIPTION, schema: CreateEdgeArgsSchema },

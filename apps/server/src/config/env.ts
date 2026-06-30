@@ -39,16 +39,44 @@ const EnvSchema = z.object({
   POLAR_PRODUCT_DRAW: z.string().default(""),
   POLAR_PRODUCT_BUILD: z.string().default(""),
   POLAR_PRODUCT_CODE: z.string().default(""),
+  // Self-host switch: when false, all billing/metering is bypassed (unlimited AI + codegen,
+  // no project cap) — for running your own instance with your own API key. SaaS keeps it
+  // true (default); the self-host docker-compose sets it false. (z.coerce.boolean would turn
+  // the string "false" into true, so parse the string explicitly.)
+  BILLING_ENABLED: z
+    .string()
+    .default("true")
+    .transform((v) => v.toLowerCase() === "true" || v === "1"),
 
-  // ── AI agent (Phase 3B) — opsiyonel; key yoksa /ai/chat 503 döner ──
-  // generation → mimari üretim + tool calling (Bedrock/Claude)
-  // chat → genel diyalog (DeepSeek)
-  // generation default = deepseek: Kimi K2.5 (bedrock) büyük tool-call çıktısında
-  // aralıklı JSON bozulması yaşıyordu; DeepSeek v4-pro (thinking:disabled) güvenilir.
-  LLM_GENERATION_PROVIDER: z.enum(["bedrock", "deepseek"]).default("deepseek"),
-  LLM_CHAT_PROVIDER: z.enum(["bedrock", "deepseek"]).default("deepseek"),
-  // Bedrock — bedrock-mantle (OpenAI-uyumlu) endpoint + long-term bearer API key
-  // (AWS Kimi K2.5 için bedrock-mantle öneriyor; native Converse IAM-yetkisizdi)
+  // ── AI providers — optional; if the active provider's key is missing, /ai/* returns 503.
+  // The frontend is provider-agnostic, so selecting a provider here is all that's needed.
+  // generation = architecture generation + tool calling; chat = instruct/dialogue.
+  // The default stays "deepseek" (proven tool calling). The setup wizard writes these.
+  // (Registry + per-provider quirks live in src/ai/providers/llm.factory.ts.)
+  LLM_GENERATION_PROVIDER: z
+    .enum(["openai", "anthropic", "google", "deepseek", "mistral", "groq", "openrouter", "ollama", "bedrock", "openai-compatible"])
+    .default("deepseek"),
+  LLM_CHAT_PROVIDER: z
+    .enum(["openai", "anthropic", "google", "deepseek", "mistral", "groq", "openrouter", "ollama", "bedrock", "openai-compatible"])
+    .default("deepseek"),
+  // Optional model override for the ACTIVE provider (else the registry's default model is used).
+  LLM_MODEL: z.string().optional(),
+
+  // Per-provider keys (first-class LangChain integrations). Set the one you selected.
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().url().optional(), // Azure / OpenAI-compatible override
+  ANTHROPIC_API_KEY: z.string().optional(),
+  GOOGLE_API_KEY: z.string().optional(),
+  MISTRAL_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: z.string().optional(), // gateway to 300+ models
+  OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"), // local, no key
+
+  // Generic OpenAI-compatible endpoint (xAI, Together, Fireworks, vLLM, LM Studio, ...).
+  LLM_API_KEY: z.string().optional(),
+  LLM_BASE_URL: z.string().url().optional(),
+
+  // Bedrock — bedrock-mantle (OpenAI-compatible) endpoint + long-term bearer API key.
   BEDROCK_API_KEY: z.string().optional(),
   BEDROCK_BASE_URL: z.string().url().optional(),
   AWS_REGION: z.string().default("us-east-1"),
@@ -56,13 +84,11 @@ const EnvSchema = z.object({
   // DeepSeek
   DEEPSEEK_API_KEY: z.string().optional(),
   DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com/v1"),
-  // Legacy default — yeni kod DEEPSEEK_MODEL_AGENT / DEEPSEEK_MODEL_INSTRUCT kullanır.
+  // Legacy default — newer code uses DEEPSEEK_MODEL_AGENT / DEEPSEEK_MODEL_INSTRUCT.
   DEEPSEEK_MODEL: z.string().default("deepseek-v4-flash"),
-  // Agent mode (mimari üretimi, tool calling) — v4-pro reasoning tier.
-  // Mimari kararlar verirken kapasitesi yüksek model gerek.
+  // Agent mode (architecture generation, tool calling) — high-capability reasoning tier.
   DEEPSEEK_MODEL_AGENT: z.string().default("deepseek-v4-pro"),
-  // Instruct mode (sohbet, açıklama) — v4-flash hızlı tier.
-  // TTFT 300-500ms, sohbet anlık görünüm için ideal.
+  // Instruct mode (chat, explanation) — fast tier.
   DEEPSEEK_MODEL_INSTRUCT: z.string().default("deepseek-v4-flash"),
 
   // Agent loop tur tavanı (1 tur = 1 LLM çağrısı; bir tur ÇOKLU tool call dönebilir).
