@@ -1,0 +1,11 @@
+# Neo4j yedek zamanlayıcı — /etc/systemd/system/solarch-neo4j-backup.timer
+# Etkinleştir: sudo systemctl enable --now solarch-neo4j-backup.timer
+[Unit]
+Description=Solarch Neo4j yedek zamanlayici (gunluk 04:00)
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

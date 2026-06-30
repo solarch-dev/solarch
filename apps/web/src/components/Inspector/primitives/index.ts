@@ -1,0 +1,33 @@
+/** Inspector primitives — web_old DNA, shared design language for all 21 node types. */
+
+export { InspectorShell } from "./InspectorShell";
+export { DrawerShell } from "./DrawerShell";
+export { SubPageShell } from "./SubPageShell";
+export { Field } from "./Field";
+export { Input } from "./Input";
+export { Textarea } from "./Textarea";
+export { Select } from "./Select";
+export { ValueSetSelect } from "./ValueSetSelect";
+export { ValueSetCombobox } from "./ValueSetCombobox";
+export { NodeRefCombobox } from "./NodeRefCombobox";
+export { NodeRefList } from "./NodeRefList";
+export { Switch } from "./Switch";
+export { Pill } from "./Pill";
+export type { PillTone } from "./Pill";
+export { ListRow } from "./ListRow";
+export { ListContainer } from "./ListContainer";
+export { EditGrid } from "./EditGrid";
+export type { GridColumn } from "./EditGrid";
+export { Segmented } from "./Segmented";
+export type { SegOption } from "./Segmented";
+export { ToggleCell } from "./ToggleCell";
+export { AddRowButton } from "./AddRowButton";
+export { MoveButtons } from "./MoveButtons";
+export { DeleteButton } from "./DeleteButton";
+export { IconButton } from "./IconButton";
+export { SectionHeader } from "./SectionHeader";
+export { SaveStatus } from "./SaveStatus";
+export { Eyebrow } from "./Eyebrow";
+export { EmptyHint } from "./EmptyHint";
+export { ColumnMultiSelect } from "./ColumnMultiSelect";
+export { DrawerTrigger } from "./DrawerTrigger";

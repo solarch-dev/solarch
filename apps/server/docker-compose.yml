@@ -1,0 +1,30 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: solarch-neo4j
+    # SADECE loopback'e bağla — Neo4j dışarıdan erişilemez (backend aynı hostta bolt://localhost).
+    # Prod güvenlik: 7474/7687 ASLA 0.0.0.0'a açılmamalı.
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    environment:
+      # Parola .env'den (backend dizinindeki .env compose tarafından okunur). Dev default
+      # solarch_dev_password; PROD'da .env'e güçlü NEO4J_PASSWORD koy. NOT: parola yalnız
+      # volume İLK init'te yazılır — mevcut volume'da değiştirmek için reset gerekir.
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-solarch_dev_password}
+      NEO4J_PLUGINS: '["apoc"]'
+      # Bellek tuning (2vCPU/8GB tek-kutu: Neo4j + backend + Caddy paylaşır). Gerekirse artır.
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP:-512m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-512m}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512m}
+    volumes:
+      - solarch_neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  solarch_neo4j_data:

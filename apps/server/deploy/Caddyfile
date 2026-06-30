@@ -1,0 +1,45 @@
+# Solarch — tek-origin reverse proxy (Caddy). /etc/caddy/Caddyfile'a kopyala.
+# DOMAIN'i gerçek alan adınla değiştir. Caddy otomatik HTTPS (Let's Encrypt) yapar.
+#
+# Neden tek origin: Clerk __session httpOnly+Secure cookie ancak frontend ile /api AYNI
+# origin'de akar. Bu yüzden hem frontend (statik) hem /api buradan servis edilir.
+
+# www → apex yönlendirme (Clerk authorizedParties tek host bekler, www kopukluğu olmasın).
+www.DOMAIN {
+	redir https://DOMAIN{uri} permanent
+}
+
+DOMAIN {
+	encode zstd gzip
+
+	# /api/* → backend (yalnız loopback'te dinler). Caddy X-Forwarded-* ekler;
+	# backend trust proxy=1 ile gerçek IP'yi alır (rate-limit doğru çalışır).
+	handle /api/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	# Geri kalan → Vite statik build (SPA). try_files derin route'ları index.html'e düşürür.
+	handle {
+		root * /var/www/solarch/dist
+		try_files {path} /index.html
+		file_server
+
+		# Hash'li asset'ler immutable; index.html no-cache (yeni deploy'da eski HTML cache'lenip
+		# kırık asset referansı vermesin).
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@html path /index.html /
+		header @html Cache-Control "no-cache"
+	}
+
+	header {
+		-Server
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+	}
+
+	log {
+		output file /var/log/caddy/solarch.log
+	}
+}

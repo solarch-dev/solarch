@@ -1,0 +1,9 @@
+# Neo4j gunluk yedek — /etc/systemd/system/solarch-neo4j-backup.service
+# Timer ile tetiklenir (solarch-neo4j-backup.timer). Yol/kullanıcıyı düzelt.
+[Unit]
+Description=Solarch Neo4j gunluk yedek
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/solarch/solarch-backend/scripts/neo4j-backup.sh

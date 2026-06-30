@@ -1,0 +1,22 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;       /* legacy browser fallback */
+  height: 100dvh;      /* mobile/tablet: account for the browser address+tool bar → the bottom
+                          BottomBar isn't pushed outside the visible area (100vh counts it and clips the bar) */
+  width: 100vw;
+  overflow: hidden;
+  /* iPad/touch: safe area so the bottom home-indicator bar doesn't cover the BottomBar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--paper);
+}
+.app-main {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  /* Own stacking context: the body surfaces (Code/API/Docs panels at MODAL z) stay contained BELOW
+     the TopBar chrome, so the ViewSwitch sub-mode dropdowns render above them (not covered). */
+  isolation: isolate;
+  background: var(--paper);
+}

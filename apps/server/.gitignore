@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime
+.cache/
+.tmp/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Neo4j local data
+neo4j_data/
+
+# DB yedekleri (PII içerir — repo'ya girmesin) + yedek ayar dosyası (RCLONE token vb.)
+backups/
+scripts/neo4j-backup.env
+
+# Claude Code
+.claude/

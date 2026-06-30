@@ -1,0 +1,25 @@
+# Solarch backend (NestJS) — /etc/systemd/system/solarch-backend.service
+# Kullanıcı/yolları sunucuna göre düzelt. Etkinleştir:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now solarch-backend
+
+[Unit]
+Description=Solarch backend (NestJS)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=solarch
+WorkingDirectory=/opt/solarch/solarch-backend
+# 40+ anahtarlı backend .env (Clerk/Neo4j/Polar/DeepSeek) — 600 izinli, repo dışı.
+# Apache (AKD :4000 dolu): PORT=4001
+EnvironmentFile=/opt/solarch/solarch-backend/.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=3
+# enableShutdownHooks (Tema 6.2) graceful kapanışa süre tanı (Neo4j driver.close + in-flight).
+TimeoutStopSec=20
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

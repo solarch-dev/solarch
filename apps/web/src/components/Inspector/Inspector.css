@@ -1,0 +1,125 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Inspector — p-* classes used (post Phase 6).
+   All primitives now work with shadcn/ui + Tailwind utilities.
+   These classes are still consumed by consumers (custom inspector + drawer + schema form);
+   @apply for Tailwind shorthand.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* ── Form layout (SchemaForm + custom inspector) — modal-optimized ── */
+.p-form {
+  @apply flex flex-col gap-5;
+}
+.p-fields {
+  @apply flex flex-col gap-[18px];
+}
+.p-group {
+  @apply flex flex-col gap-3;
+}
+.p-group-body {
+  @apply flex flex-col gap-[18px];
+}
+
+/* ── Grid layouts (ColumnRow, EndpointCard, FieldCard inside drawers) */
+.p-grid-2 {
+  @apply grid grid-cols-2 gap-3.5;
+}
+.p-grid-3 {
+  @apply grid grid-cols-[1fr_1fr_auto] gap-3.5 items-end;
+}
+
+/* ── Chip grid (Enum widget, DTO flags) ──────────────────────────── */
+.p-chips {
+  @apply flex flex-wrap gap-1;
+}
+
+/* ── Typography utilities ────────────────────────────────────────── */
+.p-mono {
+  @apply font-mono text-[11.5px] tracking-[-0.01em];
+}
+.p-helper {
+  @apply text-[10.5px] text-[color:var(--ink-faint)] leading-[1.35] mt-[2px] tracking-[0.01em];
+}
+.p-helper-tight {
+  @apply mt-0 mb-[6px];
+}
+.p-badge {
+  @apply font-mono text-[9px] px-[5px] py-px rounded-[3px] bg-[color:var(--accent-wash)] text-[color:var(--accent-ink)] tracking-[0.04em];
+}
+.p-req {
+  @apply text-[color:var(--danger)] font-semibold text-[11px] -ml-0.5;
+}
+
+/* ── Input size variants (column length input, status code input) ── */
+.p-input-tiny {
+  @apply !w-14 shrink-0 !px-[6px] !py-1 text-center;
+}
+.p-input-sm {
+  @apply !w-[100px] shrink-0;
+}
+
+/* ── Service/DTO method signature row (summary inside ListRow) ───── */
+.p-method-sig {
+  @apply inline-flex items-center gap-[6px] min-w-0 overflow-hidden;
+}
+.p-method-name {
+  @apply text-[color:var(--ink)] font-semibold text-[11.5px] font-mono whitespace-nowrap overflow-hidden text-ellipsis;
+}
+.p-method-arrow {
+  @apply text-[color:var(--ink-faint)] text-[11px] shrink-0;
+}
+.p-method-return {
+  @apply text-[color:var(--ink-soft)] text-[11.5px] font-mono whitespace-nowrap overflow-hidden text-ellipsis;
+}
+
+/* ── Controller endpoint meta + base route slot ──────────────────── */
+.p-route-meta {
+  @apply text-[color:var(--ink-faint)] text-[10.5px];
+}
+.p-baseroute-row {
+  @apply inline-flex items-center gap-[6px];
+}
+.p-baseroute-label {
+  @apply font-mono text-[9.5px] uppercase tracking-[0.08em] text-[color:var(--ink-faint)] font-semibold;
+}
+.p-baseroute-val {
+  @apply text-[color:var(--ink)] font-semibold;
+}
+
+/* ── Controller rate-limit collapsible ───────────────────────────── */
+.p-rate {
+  @apply border border-dashed border-[color:var(--hairline-strong)] rounded-[5px] bg-[var(--ins-track)];
+}
+.p-rate-summary {
+  @apply list-none cursor-pointer px-[10px] py-[6px] font-mono text-[10.5px] text-[color:var(--ink-soft)] select-none;
+}
+.p-rate-summary::-webkit-details-marker {
+  display: none;
+}
+.p-rate[open] > .p-rate-summary {
+  @apply text-[color:var(--ink)] border-b border-dashed border-[color:var(--hairline)];
+}
+.p-rate-body {
+  @apply px-3 pt-[10px] pb-3;
+}
+
+/* ── DTO validation rule empty value placeholder ─────────────────── */
+.p-rule-empty {
+  @apply text-[color:var(--ink-faint)] font-mono text-[11.5px] px-2;
+}
+
+/* ── Table column state icon — family-colored dot ────────────────── */
+.p-state-dot {
+  @apply inline-block w-[6px] h-[6px] rounded-full;
+  background: var(--ins-family-accent);
+}
+
+/* ── Object widget header (legacy span) ──────────────────────────── */
+.p-obj-head {
+  @apply inline-flex items-center gap-[6px];
+}
+
+/* ── Global utility (also called outside Inspector) ───────────────── */
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
