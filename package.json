@@ -25,8 +25,9 @@
     "test:e2e": "pnpm --filter @solarch/server test:e2e",
     "db:up": "docker compose up neo4j -d",
     "db:down": "docker compose stop neo4j",
-    "compose:up": "docker compose up --build",
-    "compose:down": "docker compose down"
+    "compose:up": "./scripts/solarch-compose.sh up --build",
+    "compose:down": "./scripts/solarch-compose.sh down",
+    "start": "./start.sh -d --build"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
