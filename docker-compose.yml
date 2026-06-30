@@ -1,0 +1,67 @@
+# Solarch — one-command self-host bundle.
+#
+#   cp .env.example .env   # fill in the keys (Clerk + an LLM provider)
+#   docker compose up --build
+#   → http://localhost:3000
+#
+# Three services: a vector-native Neo4j, the NestJS server, and Caddy which serves the
+# SPA and reverse-proxies /api to the server (single origin). Only Caddy is published to
+# the host; Neo4j and the server stay on the internal network.
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      # The password is only written on FIRST volume init; to change it later, reset the volume.
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-solarch_dev_password}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP:-512m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-512m}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512m}
+    volumes:
+      - solarch_neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    # All optional keys (Clerk, LLM provider, Polar, ...) come from .env; the values below
+    # override the connection/runtime bits for the compose network and take precedence.
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-solarch_dev_password}
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:3000}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Empty → the SPA calls a relative /api (Caddy proxies same-origin).
+        VITE_API_URL: ""
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
+        VITE_POSTHOG_PROJECT_TOKEN: ${VITE_POSTHOG_PROJECT_TOKEN:-}
+        VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-}
+    ports:
+      - "${PORT_PUBLIC:-3000}:3000"
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  solarch_neo4j_data:

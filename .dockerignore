@@ -1,0 +1,19 @@
+# Keep the build context small and secret-free.
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/*.tsbuildinfo
+**/coverage
+.git
+.github
+**/.env
+**/.env.*
+!**/.env.example
+neo4j_data
+**/*.log
+assets
+docs
+.idea
+.vscode
+.DS_Store
