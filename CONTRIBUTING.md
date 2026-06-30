@@ -8,11 +8,23 @@ Thanks for the interest. Solarch is in active early-stage development — the AP
 - **Open a discussion.** Feature requests, design feedback, architecture questions, philosophical disagreement with the *Surgical AI* thesis — all fair game.
 - **Improve the docs.** Small, focused PRs to this repository's README and docs are easy to review and always appreciated.
 
-## Source & self-hosting
+## Local development
 
-The hosted app at [app.solarch.dev](https://app.solarch.dev) is the fastest way to use Solarch today.
+This is a pnpm + Turborepo monorepo: `apps/web` (Vite + React) and `apps/server` (NestJS + Neo4j).
 
-This repository currently hosts the project overview and documentation. A **unified, one-command self-host bundle** — the whole stack behind a single `docker compose up` — is **coming soon**; watch / star to follow along. The application source is maintained separately and will land here as that bundle ships.
+```bash
+pnpm install
+pnpm db:up                                      # start just Neo4j in Docker
+cp apps/server/.env.example apps/server/.env    # fill in keys
+cp apps/web/.env.example apps/web/.env
+pnpm dev                                         # web + server together (Turborepo)
+```
+
+- `pnpm build` builds both apps (this is the smoke check — the web app has no separate test runner).
+- `pnpm --filter @solarch/server test:unit` runs the server unit suite (no database needed; dummy Neo4j env is injected).
+- For the full containerized stack, see **[docs/self-hosting.md](./docs/self-hosting.md)**; for how it fits together, **[docs/architecture.md](./docs/architecture.md)**.
+
+Prefer the hosted app at [app.solarch.dev](https://app.solarch.dev) if you just want to try Solarch.
 
 ## Commit style
 

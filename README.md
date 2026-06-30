@@ -159,17 +159,29 @@ The output isn't *trustworthy* code. It's *provably correct* structure.
 
 The fastest way to use Solarch is the hosted app — **[app.solarch.dev](https://app.solarch.dev)** — no setup, always up to date.
 
-A **unified, one-command self-host** (the whole stack — backend, canvas, and a vector-native Neo4j — behind a single `docker compose up`) is **coming soon** to this repository. Watch / star to follow along.
+To run the whole stack yourself — a vector-native Neo4j, the NestJS server, and the canvas web app behind a single-origin proxy — one command:
 
 ```bash
-# Coming soon
 git clone https://github.com/solarch-dev/solarch.git
 cd solarch
-docker compose up
+cp .env.example .env          # set NEO4J_PASSWORD, Clerk keys, and an LLM provider key
+docker compose up --build
 # → http://localhost:3000
 ```
 
-> Solarch's stack — NestJS + Zod + Neo4j backend, a custom Canvas 2D frontend, an agentic LLM layer, and local embeddings — will ship here as a single plug-and-play bundle.
+On first boot the server initializes the graph database (schema, the GraphRAG vector index, and the canonical pattern seed) — idempotent, so restarts are safe. Only Clerk and one OpenAI-compatible LLM key are required; everything else degrades gracefully. Full guide: **[docs/self-hosting.md](./docs/self-hosting.md)**.
+
+### Repository layout
+
+```
+apps/
+  web/      Vite + React 19 — the canvas editor (custom Canvas 2D renderer)
+  server/   NestJS 11 + Neo4j — graph model, Rules Engine, AI, codegen
+deploy/     Caddyfile (single-origin reverse proxy)
+docs/       self-hosting + architecture
+```
+
+pnpm workspaces + Turborepo. See **[docs/architecture.md](./docs/architecture.md)** for how it fits together, and **[CONTRIBUTING.md](./CONTRIBUTING.md)** for local development without Docker.
 
 ---
 
